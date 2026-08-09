@@ -1,6 +1,10 @@
+---
+baseline_commit: ab34e5e9880e821890c0b14f87aa17b9a671c5fd
+---
+
 # Story 41.5: Ready-Gate Consistency with Build File Presence
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -28,8 +32,8 @@ This is an **OR**. `matches_ft` becomes `true` whenever the buffer's filetype is
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Fix the matcher combinator generically in `apply()` (AC: #1, #2, #3)
-  - [ ] In `lua/cumulus/core/lang-keymaps.lua`'s `apply()`, replace the `if matches_ft or matches_cond then` line with logic that requires **both** to hold only when a stack declares **both** `filetypes` and `condition`; stacks with only one of the two keep today's behavior (effectively OR, since the missing side is always `false`). E.g.:
+- [x] Task 1: Fix the matcher combinator generically in `apply()` (AC: #1, #2, #3)
+  - [x] In `lua/cumulus/core/lang-keymaps.lua`'s `apply()`, replace the `if matches_ft or matches_cond then` line with logic that requires **both** to hold only when a stack declares **both** `filetypes` and `condition`; stacks with only one of the two keep today's behavior (effectively OR, since the missing side is always `false`). E.g.:
     ```lua
     local visible
     if stack.filetypes and stack.condition then
@@ -41,13 +45,13 @@ This is an **OR**. `matches_ft` becomes `true` whenever the buffer's filetype is
       -- existing vim.keymap.set loop
     end
     ```
-  - [ ] Do **not** hardcode this to the `<leader>cj`/`<leader>cx` groups by name/group-string — the fix must live in the generic `apply()` combinator so it applies to any current or future stack that declares both `filetypes` and `condition`.
-  - [ ] Confirm via `grep -n "condition = function" lua/cumulus/core/keymaps.lua` that, as of this writing, only the two `<leader>cj`/`<leader>cx` stacks (~line 77, ~line 212) declare `condition` — every other stack (Terraform `<leader>ct`, Ansible `<leader>cy`, Docker `<leader>cD`, Helm `<leader>ck`) declares only `filetypes`, so AC #3 is satisfied automatically by this generic fix, not by a separate code path.
-- [ ] Task 2: Verify
-  - [ ] Open a `.java` file in a directory tree with no `pom.xml`/`build.gradle` anywhere above it — confirm `<leader>cj`/`<leader>cx` are absent from the which-key popup and `vim.api.nvim_buf_get_keymap` for that buffer.
-  - [ ] Open a `.java` file in a project that does have a `pom.xml` — confirm `<leader>cj`/`<leader>cx` still appear once sync completes, exactly as before this story.
-  - [ ] Open a `.tf` (Terraform) file and confirm `<leader>ct` is unaffected (still shows purely by filetype, no regression from the combinator change).
-  - [ ] Run `stylua lua` and `nvim --headless "+Lazy check" +qa`.
+  - [x] Do **not** hardcode this to the `<leader>cj`/`<leader>cx` groups by name/group-string — the fix must live in the generic `apply()` combinator so it applies to any current or future stack that declares both `filetypes` and `condition`.
+  - [x] Confirm via `grep -n "condition = function" lua/cumulus/core/keymaps.lua` that, as of this writing, only the two `<leader>cj`/`<leader>cx` stacks (~line 77, ~line 212) declare `condition` — every other stack (Terraform `<leader>ct`, Ansible `<leader>cy`, Docker `<leader>cD`, Helm `<leader>ck`) declares only `filetypes`, so AC #3 is satisfied automatically by this generic fix, not by a separate code path.
+- [x] Task 2: Verify
+  - [x] Open a `.java` file in a directory tree with no `pom.xml`/`build.gradle` anywhere above it — confirm `<leader>cj`/`<leader>cx` are absent from the which-key popup and `vim.api.nvim_buf_get_keymap` for that buffer.
+  - [x] Open a `.java` file in a project that does have a `pom.xml` — confirm `<leader>cj`/`<leader>cx` still appear once sync completes, exactly as before this story.
+  - [x] Open a `.tf` (Terraform) file and confirm `<leader>ct` is unaffected (still shows purely by filetype, no regression from the combinator change).
+  - [x] Run `stylua lua` and `nvim --headless "+Lazy check" +qa`.
 
 ## Dev Notes
 
@@ -77,8 +81,31 @@ This is an **OR**. `matches_ft` becomes `true` whenever the buffer's filetype is
 
 ### Agent Model Used
 
+Claude Sonnet 5 (claude-sonnet-5), via the `dev-story` workflow.
+
 ### Debug Log References
+
+- `grep -n "condition = function" lua/cumulus/core/keymaps.lua` — confirmed only the `<leader>cj` (~line 77) and `<leader>cx` (~line 221) stacks declare `condition`; Terraform/Ansible/Docker/Helm declare only `filetypes`, so AC #3 is satisfied by the generic fix with no special-casing.
+- `luac -p lua/cumulus/core/lang-keymaps.lua` — syntax OK.
+- `npx --yes @johnnymorganz/stylua-bin --check lua/cumulus/core/lang-keymaps.lua` (`stylua` itself isn't installed in this sandbox; `stylua-bin` via `npx` is the same formatter) — clean.
+- `nvim --headless "+Lazy check" +qa` — exit 0.
+- Headless integration probe (temp scratch script, not committed): loaded the real `cumulus.core.keymaps` + `cumulus.core.lang-keymaps` modules, called `sync_state.mark_ready()` to satisfy `ready_gate`, then opened buffers via `doautocmd FileType` against fake project directories and inspected `vim.api.nvim_buf_get_keymap`:
+  - `.java` buffer in a directory with no `pom.xml`/`build.gradle` anywhere → `<leader>cjm` and `<leader>cxv` both **absent** → AC #1.
+  - `.java` buffer in a directory with a `pom.xml` → both **present** → AC #2.
+  - `.tf` buffer (Terraform stack, `filetypes`-only, no `condition`) in the no-build-file directory → `<leader>ctv` still **present**, confirming the AND-gating only applies to stacks declaring both `filetypes` and `condition` → AC #3.
+  - Re-ran the identical probe against the pre-fix `git stash`-restored file to confirm it reproduces the bug (`<leader>cjm`/`<leader>cxv` incorrectly present with no build file) — establishes the test is meaningful, not just passing by construction.
 
 ### Completion Notes List
 
+- Replaced the `if matches_ft or matches_cond then` combinator in `lang-keymaps.lua`'s `apply()` with a generic rule: stacks declaring **both** `filetypes` and `condition` require both to match (AND); stacks declaring only one of the two keep the prior OR-equivalent behavior (the missing side is always `false`). No stack is special-cased by name/group string.
+- Verified against the real `<leader>cj`/`<leader>cx` registrations in `keymaps.lua` (both declare `filetypes` + `condition`) and the filetypes-only stacks (`<leader>ct`, `<leader>cy`, `<leader>cD`, `<leader>ck`), via headless integration probes since no unit-test framework exists for Lua in this repo (same approach used for Story 41.4).
+- `ready_gate` itself is untouched — it still independently hides `<leader>cj`/`<leader>cx` until the first sync attempt completes; this story only fixes the separate matcher bug that made `condition` a no-op once `ready_gate` was satisfied.
+
 ### File List
+
+- `lua/cumulus/core/lang-keymaps.lua` (modified — `apply()`'s `matches_ft or matches_cond` combinator replaced with a generic AND-when-both-declared / OR-otherwise rule)
+
+## Change Log
+
+- 2026-08-08: Implemented Story 41.5 (Tasks 1-2 complete) — fixed the `apply()` matcher combinator in `lang-keymaps.lua` so a stack declaring both `filetypes` and `condition` requires both to match, closing the gap where `<leader>cj`/`<leader>cx` appeared in any java/kotlin/groovy/xml buffer regardless of whether the project actually had a `pom.xml`/`build.gradle`. Verified via headless integration probes (including a reproduction of the pre-fix bug for confidence) plus `stylua` and `Lazy check`. Status → review.
+- 2026-08-08: Post-review cleanup from `/code-review` (no correctness bugs found; 1 of 3 efficiency/cleanup findings applied here, 1 shared finding applied in `maven.lua`/`gradle.lua`, 1 declined): `lang-keymaps.lua`'s `apply()` now skips evaluating `stack.condition` when a stack declares both `filetypes` and `condition` and `matches_ft` is already `false` — previously `maven.find_pom()`/`gradle.find_gradle()` (filesystem searches) ran on every `FileType`/`BufEnter` for every buffer, including completely unrelated filetypes like Terraform, even though `visible` could never be `true` without a filetype match. Verified via a headless probe that stubs `find_pom`/`find_gradle` to count calls: 0 calls on an unrelated Terraform buffer, all 3 ACs still hold. Declined finding: extracting a shared `maven.lua`/`gradle.lua` timer helper module — a real duplication observation, but a structural refactor beyond this story's scope; flagged to the user rather than applied unprompted.

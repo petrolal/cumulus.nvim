@@ -253,6 +253,6 @@ development_status:
   41-1-re-armable-sync-state-manual-resync-command: review
   41-2-sync-timeout-cancellation-safeguard: review
   41-3-auto-resync-on-build-file-save: review
-  41-4-sync-progress-notification-failure-diagnostics: ready-for-dev
-  41-5-ready-gate-consistency-with-build-file-presence: ready-for-dev
+  41-4-sync-progress-notification-failure-diagnostics: review
+  41-5-ready-gate-consistency-with-build-file-presence: review
   epic-41-retrospective: optional

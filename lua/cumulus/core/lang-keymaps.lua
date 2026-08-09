@@ -51,14 +51,43 @@ function M.setup()
         end
 
         local matches_cond = false
-        if stack.condition and type(stack.condition) == "function" then
+        -- When a stack requires BOTH filetypes and condition (the AND-gate
+        -- above), evaluating condition is wasted work whenever matches_ft is
+        -- already false -- visible can never become true either way, and
+        -- condition here means a pom.xml/build.gradle filesystem search on
+        -- every FileType/BufEnter for every buffer, not just java/kotlin ones.
+        local needs_condition = not (stack.filetypes and stack.condition and not matches_ft)
+        if needs_condition and stack.condition and type(stack.condition) == "function" then
           local ok, res = pcall(stack.condition, buf)
           if ok and res then
             matches_cond = true
+          elseif not ok then
+            -- apply() re-runs on every FileType/BufEnter for every buffer, so
+            -- a condition that fails persistently would otherwise spam a
+            -- fresh toast per invocation. Give it a stable per-stack id so
+            -- repeats replace the previous toast instead of stacking.
+            vim.notify(
+              "Cumulus: lang-keymaps condition for " .. tostring(stack.group) .. " failed: " .. tostring(res),
+              vim.log.levels.WARN,
+              { id = "cumulus_lang_keymaps_condition_" .. tostring(stack.group) }
+            )
           end
         end
 
-        if matches_ft or matches_cond then
+        -- A stack that declares BOTH filetypes and a condition needs both to
+        -- hold (e.g. <leader>cj/<leader>cx: java/kotlin/groovy/xml filetype
+        -- AND an actual pom.xml/build.gradle in the project) -- otherwise
+        -- the condition is dead weight, since matches_ft alone would already
+        -- satisfy an OR. A stack declaring only one of the two keeps today's
+        -- behavior (the missing side is always false, so this reduces to OR).
+        local visible
+        if stack.filetypes and stack.condition then
+          visible = matches_ft and matches_cond
+        else
+          visible = matches_ft or matches_cond
+        end
+
+        if visible then
           for _, k in ipairs(stack.keys) do
             local mode = k.mode or "n"
             vim.keymap.set(mode, k[1], k[2], { buffer = buf, desc = k[3] })

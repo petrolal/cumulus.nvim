@@ -33,7 +33,10 @@ function M.mark_ready()
   end
   M.ready = true
   for _, cb in ipairs(listeners) do
-    pcall(cb)
+    local ok, err = pcall(cb)
+    if not ok then
+      vim.notify("Cumulus: build-sync-state on_ready listener failed: " .. tostring(err), vim.log.levels.WARN)
+    end
   end
 end
 
