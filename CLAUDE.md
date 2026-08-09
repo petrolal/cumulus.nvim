@@ -1,36 +1,66 @@
-# CLAUDE.md
+# CLAUDE.md — Cumulus Neovim Distribution
 
-This file provides guidance to Claude Code (claude.ai/code) and AI agents working on **Cumulus**.
+## Project Overview
+Cumulus is a from-scratch Neovim configuration (`init.lua` → `lua/cumulus/core` → `lua/cumulus/core/lazy`) that replicates IntelliJ IDEA Ultimate's developer experience for three domains, entirely through lazy.nvim plugin specs under `lua/cumulus/plugins/`:
 
-## What this repo is
+1. **JVM & Polyglot stack** — Java (`jdtls`), Kotlin (`kotlin-language-server`), Groovy (`groovyls`), plus TOML (`taplo`) and HTML (`superhtml`).
+2. **Web/Markup (HTML/XML)** — HTML via `superhtml` (`lsp-html.lua`), XML/JSON/Bash via `lemminx`/`jsonls`/`bashls` (`lsp-devops.lua`, frozen — see below).
+3. **Frozen DevOps/Cloud** — Terraform, Kubernetes/Helm/Docker, CloudFormation/Ansible (`cloud-*.lua`), remote debugging (`tools-dap-devops.lua`).
 
-**Cumulus** is an independent, high-performance Neovim distribution purpose-built for **Cloud Engineers, SREs, and DevOps Practitioners**. It provides first-class, out-of-the-box editing, LSP, linting, and formatting for Terraform/OpenTofu, AWS CloudFormation/SAM, Ansible, Docker, Kubernetes/Helm, and JVM automation scripts—styled with a signature **AWS Cloud Theme**.
+Every server registered anywhere attaches automatically through a single generic loop in `lua/cumulus/plugins/lsp-core.lua`; there is no per-language attach wiring to duplicate. Global code keymaps (`<leader>cf` format, `<leader>ca` code action, `<leader>cr` rename, `[d`/`]d`/`<leader>cd` diagnostics) live once in `lua/cumulus/core/keymaps.lua` and apply to every buffer with an attached LSP client — do not re-add them per filetype. Extra per-language build/lint commands (Maven, Gradle, Terraform, Ansible, Docker, Helm) are registered as buffer-local `lang_keymaps` stacks in that same file, gated by filetype and/or a project-file condition (see `lua/cumulus/core/lang-keymaps.lua`).
 
-It uses `lazy.nvim` directly as its native plugin manager under the `cumulus.*` namespace.
+Startup budget: **under 50ms total**, verified via `nvim --headless --startuptime`. All plugins must lazy-load on real triggers (`event`, `ft`, `cmd`, `keys`) — nothing eager except `mason.nvim`/`mason-tool-installer.nvim` (their install trigger is a one-shot `VimEnter` autocmd, so they must load eagerly to fire it) and `nvim-lspconfig`/`nvim-lint` (event-gated on `BufReadPre`/`BufNewFile`).
 
-## Commands
+---
 
-- `stylua lua` — format all Lua modules (2-space indent, 120 col width, per `stylua.toml`). Run before every commit touching Lua.
-- `nvim --headless "+Lazy check" +qa` — validate spec syntax without a UI. Use this after editing anything under `lua/cumulus/plugins/`.
-- `nvim --headless "+MasonUpdate" +qa` — refresh external LSP/DAP/formatter binaries.
-- `nvim --headless "+MasonInstall <tool>" +qa` — install a specific Mason tool (e.g., `terraform-ls`, `tflint`, `ansible-language-server`, `cfn-lint`, `dockerls`, `helm_ls`).
-- Inside Neovim: `:checkhealth` to verify runtime dependencies end-to-end.
+## Mandatory Constraints
 
-## Architecture
+### 1. Zero Free Files Policy
+Every configuration script, LSP handler, plugin spec, formatter/linter rule, or keymap MUST live inside a real Neovim module under `lua/cumulus/` or a filetype handler under `ftplugin/`. No loose `.lua`, `.sh`, or unmanaged config at the project root.
 
-- `init.lua` → loads `cumulus.core.options`, bootstraps `lazy.nvim`, and loads `{ import = "cumulus.plugins" }`.
-- `lua/cumulus/core/` holds options (`options.lua`), keymaps (`keymaps.lua`), and autocmds (`autocmds.lua`).
-- `lua/cumulus/theme/` contains the AWS palette (`aws.lua`) and theme initialization engine.
-- `lua/cumulus/plugins/` holds modular plugin specs (`core-*`, `cloud-*`, `ui-*`, `tools-*`).
-- `lua/cumulus/util/` contains domain helpers for IaC execution and Maven/Gradle JVM build tools.
+Sanctioned root-level files (do not treat as violations): `init.lua`, `CLAUDE.md`, `.gitignore`, `.neoconf.json`, `stylua.toml`, `lazy-lock.json`, `LICENSE`. The one sanctioned non-root exception is `scripts/validate.sh`, the project's canonical headless verification entrypoint — don't add siblings to it without explicit instruction.
 
-## Key Conventions
+### 2. Immutable DevOps Guardrail (CRITICAL)
+The following files and paths are **STRICTLY FROZEN** — never modify, rename, relocate, or delete them, and never re-implement functionality they already own elsewhere:
+- `lua/cumulus/plugins/cloud-terraform.lua`
+- `lua/cumulus/plugins/cloud-containers-k8s.lua`
+- `lua/cumulus/plugins/cloud-cloudformation-ansible.lua`
+- `lua/cumulus/plugins/lsp-devops.lua` (owns the `json`/`xml`/`bash` Treesitter parsers and `jsonls`/`lemminx`/`bashls` LSP servers — treat XML support here as already complete and read-only for any HTML/XML spec work)
+- `lua/cumulus/plugins/tools-dap-devops.lua`
+- Any `.devcontainer/`, `Dockerfile`, or Kubernetes/Terraform config files, should they be introduced
 
-- Two-space indentation, 120-char line width (`stylua.toml`); no tabs.
-- All new Lua modules live within the `cumulus` namespace (`lua/cumulus/<area>/<topic>.lua`).
-- Active theme is `aws-theme` (`#FF9900` AWS Orange / `#071521` AWS Navy).
-- Commits follow standard conventional commit prefixes (`feature:`, `fix:`, `refactor:`, `docs:`).
+Before touching any file, `grep` these paths for the capability you're about to add — lazy.nvim merges `opts` tables across every spec targeting the same plugin, so it's easy to accidentally duplicate a server/parser/formatter that a frozen file already registers.
 
-## BMAD Framework
+### 3. Lightweight SDD Alignment
+Specifications live under a fixed layout:
+- `docs/spec_template.md` — the reusable template (metadata block, prerequisite analysis, guardrails, execution checklist, verification commands).
+- `docs/specs/active/NNN-slug.md` — in-progress work. A spec stays here until every acceptance checkbox is verified.
+- `docs/specs/completed/NNN-slug.md` — archived, finished work. A given spec ID belongs in exactly one of these two directories, never both.
 
-This repo has the BMAD agent-skill framework installed (`_bmad/`, `_bmad-output/`, `.claude/skills/bmad-*`, `.agent/skills/bmad-*`). Planning and implementation artifacts are located in `_bmad-output/planning-artifacts/`.
+Code changes should be checked against whatever is currently in `docs/specs/active/` — undocumented features or specs whose acceptance criteria don't match the code are SDD drift.
+
+### 4. Neovim Lua & Idiomatic Standards
+- Use native APIs: `vim.api.nvim_*`, `vim.keymap.set`, `vim.diagnostic.*`, `vim.lsp.*` — avoid legacy `vim.cmd("...")` Vimscript strings where a Lua API exists.
+- Every `lazy.nvim` plugin spec needs a real lazy-loading trigger (`event`, `ft`, `cmd`, or `keys`) unless it has a documented reason to load eagerly (see startup budget note above).
+- No global (`_G`) leakage; every module returns an explicit table.
+- Keymaps should include `desc` for which-key discoverability.
+
+---
+
+## Command Cheat Sheet
+- **`/gen-sdd`** — generate/refresh the lightweight SDD template and spec files (this file included) from the current repo state.
+- **`/check-project`** — run a compliance audit (Zero Free Files, DevOps freeze, SDD directory structure, Lua/lazy-loading standards) and report PASS/FAIL per rule.
+- **`/review`** — code-review a diff or path against the same five non-negotiable rules, grouped into Blockers / Warnings / SDD Drift / Passes.
+
+---
+
+## Verification
+Run before considering any change complete:
+```bash
+bash scripts/validate.sh
+nvim --headless "+Lazy! sync" +qa
+nvim --headless "+checkhealth cumulus" +qa
+nvim --headless --startuptime /tmp/nvim-startuptime.log +qa && grep "TOTAL" /tmp/nvim-startuptime.log
+git status --short lua/cumulus/plugins/cloud-* lua/cumulus/plugins/lsp-devops.lua lua/cumulus/plugins/tools-dap-devops.lua
+```
+The last command must return no output — any diff there is a guardrail violation.
