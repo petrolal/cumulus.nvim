@@ -32,12 +32,14 @@ The following files and paths are **STRICTLY FROZEN** — never modify, rename, 
 Before touching any file, `grep` these paths for the capability you're about to add — lazy.nvim merges `opts` tables across every spec targeting the same plugin, so it's easy to accidentally duplicate a server/parser/formatter that a frozen file already registers.
 
 ### 3. Lightweight SDD Alignment
-Specifications live under a fixed layout:
+Specifications follow an Agile development flow (`backlog` → `active` → `review` → `completed`):
 - `docs/spec_template.md` — the reusable template (metadata block, prerequisite analysis, guardrails, execution checklist, verification commands).
-- `docs/specs/active/NNN-slug.md` — in-progress work. A spec stays here until every acceptance checkbox is verified.
-- `docs/specs/completed/NNN-slug.md` — archived, finished work. A given spec ID belongs in exactly one of these two directories, never both.
+- `docs/specs/backlog/NNN-slug.md` — planned/queued work prior to implementation.
+- `docs/specs/active/NNN-slug.md` — work currently in active development/implementation.
+- `docs/specs/review/NNN-slug.md` — implemented work undergoing review and verification checks.
+- `docs/specs/completed/NNN-slug.md` — fully verified and archived work.
 
-Code changes should be checked against whatever is currently in `docs/specs/active/` — undocumented features or specs whose acceptance criteria don't match the code are SDD drift.
+A spec transitions sequentially through these stages (`backlog` → `active` → `review` → `completed`) and belongs in exactly one of these four directories at a time. Code changes should be checked against active and review specifications in `docs/specs/active/` and `docs/specs/review/` — undocumented features or specs whose acceptance criteria don't match the code are SDD drift.
 
 ### 4. Neovim Lua & Idiomatic Standards
 - Use native APIs: `vim.api.nvim_*`, `vim.keymap.set`, `vim.diagnostic.*`, `vim.lsp.*` — avoid legacy `vim.cmd("...")` Vimscript strings where a Lua API exists.

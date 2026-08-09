@@ -20,19 +20,19 @@ We are establishing a **Lightweight Spec-Driven Development (SDD)** framework ta
 ## Directives & Execution Instructions
 
 1. **Direct File System Output:** Use your file creation tools (`Write` / `Edit`) to write all generated markdown files directly to disk. Do not just output raw markdown text to the chat console.
-2. **Directory Guarantee:** Ensure `docs/specs/active/` and `docs/specs/completed/` exist before writing.
+2. **Directory Guarantee:** Ensure `docs/specs/backlog/`, `docs/specs/active/`, `docs/specs/review/`, and `docs/specs/completed/` exist before writing.
 
 ### Required File Deliverables
 
 #### File 1: `CLAUDE.md` (Project Root)
 Write `CLAUDE.md` at the project root to store repository instructions:
-- Project overview & lightweight SDD rules.
+- Project overview & Agile SDD rules (`backlog` → `active` → `review` → `completed`).
 - Mandatory constraints: Zero Free Files policy & Frozen DevOps files.
 - Command cheat sheet for Claude Code (`/check-project`, `/review`, `/gen-sdd`).
 
 #### File 2: `docs/spec_template.md`
 Write the standardized agent-readable SDD template:
-- Metadata block (`Spec ID`, `Status`, `Target Paths`).
+- Metadata block (`Spec ID`, `Status: BACKLOG | ACTIVE | REVIEW | COMPLETED`, `Target Paths`).
 - In-scope vs Out-of-scope boundaries.
 - Sequential Claude Code task checklist (`- [ ]`).
 - Verification terminal commands.

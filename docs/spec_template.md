@@ -3,11 +3,20 @@
 ## Metadata
 - **Spec ID**: SPEC-XXX
 - **Title**: [Insert Concise Feature/Integration Name]
-- **Status**: DRAFT
+- **Status**: BACKLOG | ACTIVE | REVIEW | COMPLETED
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `lua/cumulus/plugins/[plugin-module].lua`
   - `ftplugin/[filetype].lua`
+
+---
+
+## SDD Agile Workflow Lifecycle
+Specifications transition sequentially through four stages:
+1. `docs/specs/backlog/` — **BACKLOG**: Feature queued and defined.
+2. `docs/specs/active/` — **ACTIVE**: Implementation in progress.
+3. `docs/specs/review/` — **REVIEW**: Implementation finished; awaiting review and verification.
+4. `docs/specs/completed/` — **COMPLETED**: Verification passed; archived.
 
 ---
 

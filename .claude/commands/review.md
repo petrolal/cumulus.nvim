@@ -29,7 +29,7 @@ Inspect the changes or specified files against these 5 Non-Negotiable Rules:
 - **Keybindings:** Standardize `vim.keymap.set` calls with explicit `desc`, `silent = true`, and `noremap = true`.
 
 ### Rule 4: Lightweight SDD Alignment
-- Check if active specs in `docs/specs/active/` match the code changes.
+- Check if active/review specs in `docs/specs/active/` or `docs/specs/review/` match the code changes across the Agile lifecycle (`backlog` → `active` → `review` → `completed`).
 - Ensure no undocumented features or broken acceptance criteria exist.
 
 ### Rule 5: IntelliJ Parity Standards
