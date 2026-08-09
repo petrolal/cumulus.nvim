@@ -1,6 +1,7 @@
 return {
   {
     "jedrzejboczar/nvim-dap-cortex-debug",
+    ft = { "c", "cpp" },
     dependencies = {
       "mfussenegger/nvim-dap",
     },

@@ -323,6 +323,11 @@ map("n", "<leader>ut", function()
   require("cumulus.theme").select_theme()
 end, { desc = "Select Cloud Theme (AWS/Azure/GCP/OCI)" })
 
+-- Database Client Keymaps (vim-dadbod UI)
+map("n", "<leader>Du", "<cmd>DBUIToggle<cr>", { desc = "Toggle Database UI" })
+map("n", "<leader>Df", "<cmd>DBUIFindBuffer<cr>", { desc = "Find DB Buffer" })
+map("n", "<leader>Da", "<cmd>DBUIAddConnection<cr>", { desc = "Add DB Connection" })
+
 -- Autoformat toggle (Story 34.2): <leader>uf toggles for the current
 -- buffer only, <leader>uF toggles the global default
 map("n", "<leader>uf", function()

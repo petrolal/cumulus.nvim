@@ -1,6 +1,7 @@
 return {
   {
     "hrsh7th/nvim-cmp",
+    event = "InsertEnter",
     opts = function(_, opts)
       opts.sources = opts.sources or {}
       for i = #opts.sources, 1, -1 do

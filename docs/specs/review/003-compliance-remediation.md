@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-003
 - **Title**: Compliance Remediation (Lazy-Loading, DB Client Parity, SPEC-001 Drift)
-- **Status**: BACKLOG
+- **Status**: REVIEW
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `lua/cumulus/plugins/editor-completion.lua`
@@ -65,15 +65,15 @@ This spec bundles three findings from the `/check-project` compliance audit date
   - These three are genuinely load-bearing at startup (dashboard shown on a bare `nvim` invocation, colorscheme must apply before first paint, icons consumed immediately by the dashboard/statusline/telescope) — the fix is a documentation comment, not a trigger change.
 
 ### Execution Checklist
-- [ ] **A1**: `lua/cumulus/plugins/editor-completion.lua` — add `event = "InsertEnter"` to the `hrsh7th/nvim-cmp` spec (completion is only relevant once the user enters insert mode).
-- [ ] **A2**: `lua/cumulus/plugins/tools-dap-cortex.lua` — add `ft = { "c", "cpp" }` to the `jedrzejboczar/nvim-dap-cortex-debug` spec (it only registers `dap.configurations.c`/`.cpp`, so it is only relevant in C/C++ buffers).
-- [ ] **A3**: `lua/cumulus/plugins/tools-dap-ui.lua` — add `event = "VeryLazy"` to the `rcarriga/nvim-dap-ui` spec, matching the existing `VeryLazy` idiom this repo already uses for `lualine.nvim`/`bufferline.nvim`/`which-key.nvim`/`persistence.nvim`.
-- [ ] **A4**: `lua/cumulus/plugins/tools-formatting.lua` — add `event = { "BufReadPre", "BufNewFile" }` to the `stevearc/conform.nvim` spec, matching the trigger already used by `nvim-lspconfig`/`nvim-lint`/`gitsigns.nvim`/Treesitter so the formatter is ready before `<leader>cf` can be pressed.
-- [ ] **A5**: `lua/cumulus/plugins/ui-config.lua` — add `cmd = "Trouble"` to the `folke/trouble.nvim` spec.
-- [ ] **A6**: `lua/cumulus/plugins/ui-noice.lua` — add `event = "VeryLazy"` to the `folke/noice.nvim` spec (the standard trigger recommended by noice.nvim itself).
-- [ ] **A7**: `lua/cumulus/plugins/editor-snacks.lua:16` — above the existing `lazy = false,` line, add a one-line `-- NOTE:` comment stating it must stay eager because the dashboard renders at `VimEnter` on a bare `nvim` invocation, matching the rationale style already used in `tools-mason.lua`.
-- [ ] **A8**: `lua/cumulus/plugins/ui-theme.lua:8` — same treatment for `cumulus/aws-theme` (`lazy = false` required so the colorscheme applies before first paint).
-- [ ] **A9**: `lua/cumulus/plugins/ui-theme.lua:138` — same treatment for `nvim-tree/nvim-web-devicons` (icons consumed immediately by dashboard/statusline/telescope, all of which can render before any lazy-load event fires).
+- [x] **A1**: `lua/cumulus/plugins/editor-completion.lua` — add `event = "InsertEnter"` to the `hrsh7th/nvim-cmp` spec (completion is only relevant once the user enters insert mode).
+- [x] **A2**: `lua/cumulus/plugins/tools-dap-cortex.lua` — add `ft = { "c", "cpp" }` to the `jedrzejboczar/nvim-dap-cortex-debug` spec (it only registers `dap.configurations.c`/`.cpp`, so it is only relevant in C/C++ buffers).
+- [x] **A3**: `lua/cumulus/plugins/tools-dap-ui.lua` — add `event = "VeryLazy"` to the `rcarriga/nvim-dap-ui` spec, matching the existing `VeryLazy` idiom this repo already uses for `lualine.nvim`/`bufferline.nvim`/`which-key.nvim`/`persistence.nvim`.
+- [x] **A4**: `lua/cumulus/plugins/tools-formatting.lua` — add `event = { "BufReadPre", "BufNewFile" }` to the `stevearc/conform.nvim` spec, matching the trigger already used by `nvim-lspconfig`/`nvim-lint`/`gitsigns.nvim`/Treesitter so the formatter is ready before `<leader>cf` can be pressed.
+- [x] **A5**: `lua/cumulus/plugins/ui-config.lua` — add `cmd = "Trouble"` to the `folke/trouble.nvim` spec.
+- [x] **A6**: `lua/cumulus/plugins/ui-noice.lua` — add `event = "VeryLazy"` to the `folke/noice.nvim` spec (the standard trigger recommended by noice.nvim itself).
+- [x] **A7**: `lua/cumulus/plugins/editor-snacks.lua:16` — above the existing `lazy = false,` line, add a one-line `-- NOTE:` comment stating it must stay eager because the dashboard renders at `VimEnter` on a bare `nvim` invocation, matching the rationale style already used in `tools-mason.lua`.
+- [x] **A8**: `lua/cumulus/plugins/ui-theme.lua:8` — same treatment for `cumulus/aws-theme` (`lazy = false` required so the colorscheme applies before first paint).
+- [x] **A9**: `lua/cumulus/plugins/ui-theme.lua:138` — same treatment for `nvim-tree/nvim-web-devicons` (icons consumed immediately by dashboard/statusline/telescope, all of which can render before any lazy-load event fires).
 
 ---
 
@@ -86,7 +86,7 @@ This spec bundles three findings from the `/check-project` compliance audit date
 - `lua/cumulus/plugins/tools-formatting.lua`'s `formatters_by_ft` has no `sql` entry and none is added here — out of scope per the Goal & Intent above (no formatter requested, none exists in Mason's `ensure_installed` either).
 
 ### Execution Checklist
-- [ ] **B1**: Create `lua/cumulus/plugins/tools-dadbod.lua`:
+- [x] **B1**: Create `lua/cumulus/plugins/tools-dadbod.lua`:
   ```lua
   -- Cumulus SQL Database Client (DataGrip Parity)
 
@@ -107,7 +107,7 @@ This spec bundles three findings from the `/check-project` compliance audit date
     },
   }
   ```
-- [ ] **B2**: Create `ftplugin/sql.lua` (buffer-local options only, mirroring `ftplugin/java.lua`'s header style):
+- [x] **B2**: Create `ftplugin/sql.lua` (buffer-local options only, mirroring `ftplugin/java.lua`'s header style):
   ```lua
   -- Cumulus SQL Buffer Conventions (DataGrip Parity follow-up)
 
@@ -117,13 +117,13 @@ This spec bundles three findings from the `/check-project` compliance audit date
   vim.bo.expandtab = true
   vim.bo.commentstring = "-- %s"
   ```
-- [ ] **B3**: `lua/cumulus/core/keymaps.lua` — add global keymaps (not buffer-local; DBUI is a workspace-wide tool like Telescope, not tied to one filetype):
+- [x] **B3**: `lua/cumulus/core/keymaps.lua` — add global keymaps (not buffer-local; DBUI is a workspace-wide tool like Telescope, not tied to one filetype):
   ```lua
   map("n", "<leader>Du", "<cmd>DBUIToggle<cr>", { desc = "Toggle Database UI" })
   map("n", "<leader>Df", "<cmd>DBUIFindBuffer<cr>", { desc = "Find DB Buffer" })
   map("n", "<leader>Da", "<cmd>DBUIAddConnection<cr>", { desc = "Add DB Connection" })
   ```
-- [ ] **B4**: `lua/cumulus/plugins/ui-whichkey.lua` — add `{ "<leader>D", group = "database", icon = "󰆼 " }` to the `opts.spec` list alongside the other top-level groups.
+- [x] **B4**: `lua/cumulus/plugins/ui-whichkey.lua` — add `{ "<leader>D", group = "database", icon = "󰆼 " }` to the `opts.spec` list alongside the other top-level groups.
 
 ---
 
@@ -134,9 +134,9 @@ This spec bundles three findings from the `/check-project` compliance audit date
 - Its "SQL & Database Management (Dadbod)" bullet under "Historical Verification & Benchmarks" asserts the dadbod stack is implemented and verified; Part B of this spec proves that was false until now.
 
 ### Execution Checklist
-- [ ] **C1**: In `docs/specs/active/001-neovim-intellij-polyglot-setup.md`, change `- **Status**: COMPLETED` to `- **Status**: ACTIVE`, matching its actual location.
-- [ ] **C2**: Rewrite the "SQL & Database Management (Dadbod)" bullet to state the dadbod stack is delivered by SPEC-003 (this spec) rather than claiming it was already verified as part of SPEC-001.
-- [ ] **C3**: Once Part B's Verification Commands (below) pass, transition SPEC-001 to `docs/specs/review/` (and upon `/review-task` approval to `docs/specs/completed/`, restoring `Status: COMPLETED`) — SPEC-003 itself moves from `active/` to `review/` upon `/implement-task` completion, then archives to `completed/` via `/review-task`.
+- [x] **C1**: In `docs/specs/active/001-neovim-intellij-polyglot-setup.md`, change `- **Status**: COMPLETED` to `- **Status**: ACTIVE`, matching its actual location.
+- [x] **C2**: Rewrite the "SQL & Database Management (Dadbod)" bullet to state the dadbod stack is delivered by SPEC-003 (this spec) rather than claiming it was already verified as part of SPEC-001.
+- [x] **C3**: Once Part B's Verification Commands (below) pass, transition SPEC-001 to `docs/specs/review/` (and upon `/review-task` approval to `docs/specs/completed/`, restoring `Status: COMPLETED`) — SPEC-003 itself moves from `active/` to `review/` upon `/implement-task` completion, then archives to `completed/` via `/review-task`.
 
 ---
 

@@ -13,6 +13,7 @@ return {
   {
     "folke/snacks.nvim",
     priority = 1000,
+    -- NOTE: must load eagerly because the dashboard renders at VimEnter on a bare `nvim` invocation
     lazy = false,
     opts = function(_, opts)
       opts.styles = opts.styles or {}

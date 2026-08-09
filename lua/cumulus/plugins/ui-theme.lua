@@ -5,6 +5,7 @@ return {
   {
     "cumulus/aws-theme",
     virtual = true,
+    -- NOTE: must load eagerly so the colorscheme applies before first paint
     lazy = false,
     priority = 1000,
     config = function()
@@ -135,6 +136,7 @@ return {
   -- Global Devicons Specification (Story 30.2)
   {
     "nvim-tree/nvim-web-devicons",
+    -- NOTE: must load eagerly because icons are consumed immediately by dashboard/statusline/telescope
     lazy = false,
     opts = {
       default = true,

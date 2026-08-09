@@ -31,6 +31,7 @@ return {
         { "<leader>g", group = "git control", icon = "󰊢 " },
         { "<leader>q", group = "quit/session", icon = "󰗼 " },
         { "<leader>d", group = "debug/dap", icon = "󰃤 " },
+        { "<leader>D", group = "database", icon = "󰆼 " },
         { "<leader>o", group = "devtools/workloads", icon = "󰒓 " },
         { "<leader>u", group = "ui/toggles", icon = "󰔡 " },
         { "<leader>b", group = "buffer", icon = "󰓩 " },
