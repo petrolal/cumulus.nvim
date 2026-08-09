@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-003
 - **Title**: Compliance Remediation (Lazy-Loading, DB Client Parity, SPEC-001 Drift)
-- **Status**: ACTIVE
+- **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `lua/cumulus/plugins/editor-completion.lua`
@@ -136,7 +136,7 @@ This spec bundles three findings from the `/check-project` compliance audit date
 ### Execution Checklist
 - [ ] **C1**: In `docs/specs/active/001-neovim-intellij-polyglot-setup.md`, change `- **Status**: COMPLETED` to `- **Status**: ACTIVE`, matching its actual location.
 - [ ] **C2**: Rewrite the "SQL & Database Management (Dadbod)" bullet to state the dadbod stack is delivered by SPEC-003 (this spec) rather than claiming it was already verified as part of SPEC-001.
-- [ ] **C3**: Once Part B's Verification Commands (below) pass, move SPEC-001 back to `docs/specs/completed/`, restoring `Status: COMPLETED` — SPEC-003 itself stays in `active/` until every checkbox above is checked, then also archives to `completed/`.
+- [ ] **C3**: Once Part B's Verification Commands (below) pass, transition SPEC-001 to `docs/specs/review/` (and upon `/review-task` approval to `docs/specs/completed/`, restoring `Status: COMPLETED`) — SPEC-003 itself moves from `active/` to `review/` upon `/implement-task` completion, then archives to `completed/` via `/review-task`.
 
 ---
 

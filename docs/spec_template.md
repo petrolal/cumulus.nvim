@@ -13,10 +13,10 @@
 
 ## SDD Agile Workflow Lifecycle
 Specifications transition sequentially through four stages:
-1. `docs/specs/backlog/` — **BACKLOG**: Feature queued and defined.
-2. `docs/specs/active/` — **ACTIVE**: Implementation in progress.
-3. `docs/specs/review/` — **REVIEW**: Implementation finished; awaiting review and verification.
-4. `docs/specs/completed/` — **COMPLETED**: Verification passed; archived.
+1. `docs/specs/backlog/` — **BACKLOG**: Feature queued and created via `/create-task`.
+2. `docs/specs/active/` — **ACTIVE**: Moved here from `backlog/` when starting `/implement-task`.
+3. `docs/specs/review/` — **REVIEW**: Implementation finished by `/implement-task`; awaiting review and verification.
+4. `docs/specs/completed/` — **COMPLETED**: Verification passed by `/review-task`; archived.
 
 ---
 

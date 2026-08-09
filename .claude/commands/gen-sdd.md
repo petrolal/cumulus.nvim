@@ -28,7 +28,7 @@ We are establishing a **Lightweight Spec-Driven Development (SDD)** framework ta
 Write `CLAUDE.md` at the project root to store repository instructions:
 - Project overview & Agile SDD rules (`backlog` → `active` → `review` → `completed`).
 - Mandatory constraints: Zero Free Files policy & Frozen DevOps files.
-- Command cheat sheet for Claude Code (`/check-project`, `/review`, `/gen-sdd`).
+- Command cheat sheet for Claude Code (`/create-task`, `/implement-task`, `/review-task`, `/check-project`, `/review`, `/gen-sdd`).
 
 #### File 2: `docs/spec_template.md`
 Write the standardized agent-readable SDD template:

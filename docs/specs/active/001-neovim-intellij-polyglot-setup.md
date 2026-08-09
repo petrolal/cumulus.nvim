@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-001
 - **Title**: Neovim IntelliJ Polyglot Baseline Setup
-- **Status**: COMPLETED
+- **Status**: ACTIVE
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `lua/cumulus/plugins/lsp-java.lua`
@@ -81,7 +81,7 @@ The implementation achieves full IDE parity with zero eager startup overhead, le
 - `lua/cumulus/plugins/tools-dap-ui.lua`: Integrates `mfussenegger/nvim-dap`, `rcarriga/nvim-dap-ui`, and `theHamsta/nvim-dap-virtual-text` to replicate IntelliJ's visual debugger panels (Call Stack, Scopes, Breakpoints, Watches).
 
 #### SQL & Database Management (Dadbod)
-- Replicates IntelliJ Database Tools via `tpope/vim-dadbod`, `kristijanhusak/vim-dadbod-ui`, and `kristijanhusak/vim-dadbod-completion` for interactive SQL execution, schema exploration, and auto-completion inside SQL buffers.
+- Not yet implemented as part of this spec. IntelliJ Database Tools parity (`tpope/vim-dadbod`, `kristijanhusak/vim-dadbod-ui`, `kristijanhusak/vim-dadbod-completion`) is scoped to SPEC-003 (Part B) and remains pending until that spec's checklist is completed.
 
 #### Search & Navigation (IntelliJ Search Everywhere Parity)
 - `lua/cumulus/plugins/editor-telescope.lua` & `editor-snacks.lua`: Configures multi-buffer search, file finding, symbol navigation, and class searching matching IntelliJ shortcuts (`Shift+Shift` / `<leader>ff`).

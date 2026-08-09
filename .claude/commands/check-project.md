@@ -23,10 +23,10 @@ You are a Principal Neovim Architect and Systems Auditor. Conduct a strict compl
 ### 3. Lightweight SDD Alignment & File Placement
 - **Rule:** Specifications must follow the exact Agile SDD directory layout (`backlog` → `active` → `review` → `completed`):
   - `docs/spec_template.md` (Template)
-  - `docs/specs/backlog/` (Queued / planned features)
-  - `docs/specs/active/` (In-progress features)
-  - `docs/specs/review/` (Features undergoing review / verification)
-  - `docs/specs/completed/` (Archived / built features)
+  - `docs/specs/backlog/` (Queued / planned features, created via `/create-task`)
+  - `docs/specs/active/` (In-progress features, moved from `backlog/` via `/implement-task`)
+  - `docs/specs/review/` (Features undergoing review / verification, moved from `active/` upon finishing `/implement-task`)
+  - `docs/specs/completed/` (Archived / built features, moved from `review/` via `/review-task`)
 - **Check:** Verify `docs/` structure matches this 4-stage layout and that code implementation aligns with active and review specs in `docs/specs/active/` and `docs/specs/review/`.
 
 ### 4. Neovim Lua & Idiomatic Standards

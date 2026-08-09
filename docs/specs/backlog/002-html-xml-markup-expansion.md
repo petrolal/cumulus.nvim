@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-002
 - **Title**: HTML & XML Markup Language Expansion
-- **Status**: ACTIVE
+- **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths** (new/modified — see Prerequisite Analysis for what is already done and must NOT be touched):
   - `ftplugin/html.lua` (new)

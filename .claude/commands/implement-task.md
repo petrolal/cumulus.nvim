@@ -22,10 +22,10 @@ Your objective is to locate a target specification, transition it from `docs/spe
 
 ## Execution Directives
 
-1. **Locate Target Spec:**
+1. **Locate Target Spec & Move to Active:**
    - Parse `$ARGUMENTS` for the spec ID or file name (e.g., `002` or `002-html-xml-markup-expansion.md`).
    - If `$ARGUMENTS` is empty, check `docs/specs/active/` first, or select the lowest-numbered spec in `docs/specs/backlog/`.
-   - If moving from `docs/specs/backlog/` to `docs/specs/active/`, update `- **Status:** ACTIVE` in the file header and move the file into `docs/specs/active/`.
+   - Move the spec file from `docs/specs/backlog/<filename>.md` to `docs/specs/active/<filename>.md` and update `- **Status:** ACTIVE` in the file header (if already in `docs/specs/active/`, ensure status is `ACTIVE`).
 
 2. **Execute Checklist Items:**
    - Read the **Execution Checklist** section of the active spec.

@@ -1,5 +1,5 @@
 ---
-description: Review spec in docs/specs/review/ (or active/) against compliance standards and transition approved specs to completed/
+description: Review spec in docs/specs/review/ against compliance standards and transition approved specs to completed/
 disable-model-invocation: false
 ---
 
@@ -24,7 +24,7 @@ Inspect all recent changes (`git diff`) or specified paths against these 5 Non-N
 - Confirm that NO files in `lua/cumulus/plugins/cloud-*.lua`, `lsp-devops.lua`, `tools-dap-devops.lua`, Docker configurations, Kubernetes manifests, or DevContainers were modified or renamed.
 
 ### 3. Lightweight SDD Alignment
-- Verify that changes accurately match the tasks listed in the target spec under `docs/specs/review/` or `docs/specs/active/`.
+- Verify that changes accurately match the tasks listed in the target spec under `docs/specs/review/`.
 
 ### 4. Neovim Lua & Performance Standards
 - Confirm use of `vim.api.nvim_*` and `vim.keymap.set` instead of legacy `vim.cmd`.

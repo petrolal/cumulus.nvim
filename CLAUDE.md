@@ -34,10 +34,10 @@ Before touching any file, `grep` these paths for the capability you're about to 
 ### 3. Lightweight SDD Alignment
 Specifications follow an Agile development flow (`backlog` → `active` → `review` → `completed`):
 - `docs/spec_template.md` — the reusable template (metadata block, prerequisite analysis, guardrails, execution checklist, verification commands).
-- `docs/specs/backlog/NNN-slug.md` — planned/queued work prior to implementation.
-- `docs/specs/active/NNN-slug.md` — work currently in active development/implementation.
-- `docs/specs/review/NNN-slug.md` — implemented work undergoing review and verification checks.
-- `docs/specs/completed/NNN-slug.md` — fully verified and archived work.
+- `docs/specs/backlog/NNN-slug.md` — planned/queued work prior to implementation (created via `/create-task` with status `BACKLOG`).
+- `docs/specs/active/NNN-slug.md` — work currently in active development/implementation (moved from `backlog/` via `/implement-task` with status `ACTIVE`).
+- `docs/specs/review/NNN-slug.md` — implemented work undergoing review and verification checks (moved from `active/` upon completing `/implement-task` with status `REVIEW`).
+- `docs/specs/completed/NNN-slug.md` — fully verified and archived work (moved from `review/` via `/review-task` with status `COMPLETED`).
 
 A spec transitions sequentially through these stages (`backlog` → `active` → `review` → `completed`) and belongs in exactly one of these four directories at a time. Code changes should be checked against active and review specifications in `docs/specs/active/` and `docs/specs/review/` — undocumented features or specs whose acceptance criteria don't match the code are SDD drift.
 
@@ -50,9 +50,12 @@ A spec transitions sequentially through these stages (`backlog` → `active` →
 ---
 
 ## Command Cheat Sheet
-- **`/gen-sdd`** — generate/refresh the lightweight SDD template and spec files (this file included) from the current repo state.
+- **`/create-task`** — create a new task specification in `docs/specs/backlog/` with status `BACKLOG`.
+- **`/implement-task`** — move spec from `docs/specs/backlog/` to `docs/specs/active/` (status `ACTIVE`), execute implementation tasks, and transition to `docs/specs/review/` (status `REVIEW`) upon completion.
+- **`/review-task`** — audit spec in `docs/specs/review/` against compliance standards and transition approved specs to `docs/specs/completed/` (status `COMPLETED`).
 - **`/check-project`** — run a compliance audit (Zero Free Files, DevOps freeze, SDD directory structure, Lua/lazy-loading standards) and report PASS/FAIL per rule.
 - **`/review`** — code-review a diff or path against the same five non-negotiable rules, grouped into Blockers / Warnings / SDD Drift / Passes.
+- **`/gen-sdd`** — generate/refresh the lightweight SDD template and spec files (this file included) from the current repo state.
 
 ---
 
