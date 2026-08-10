@@ -173,7 +173,7 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
--- Auto-insert Java package declaration and class header for new .java files (Story 38.3)
+-- Auto-insert Java package declaration and class header for new .java files (Story 38.3 & SPEC-017)
 vim.api.nvim_create_autocmd("BufNewFile", {
   group = augroup("java_new_file"),
   pattern = "*.java",
@@ -184,19 +184,27 @@ vim.api.nvim_create_autocmd("BufNewFile", {
       return
     end
 
-    local package_path = filepath:match("src/[^/]+/java/(.+)%/" .. filename .. "%.java")
-      or filepath:match("src/(.+)%/" .. filename .. "%.java")
-
-    local lines = {}
-    if package_path then
-      local package_name = package_path:gsub("/", ".")
-      table.insert(lines, "package " .. package_name .. ";")
-      table.insert(lines, "")
+    local rust = require("cumulus.util.rust")
+    local lines = nil
+    if rust.is_available() then
+      lines = rust.generate_java_header(filepath)
     end
 
-    table.insert(lines, "public class " .. filename .. " {")
-    table.insert(lines, "    ")
-    table.insert(lines, "}")
+    if not lines then
+      local package_path = filepath:match("src/[^/]+/java/(.+)%/" .. filename .. "%.java")
+        or filepath:match("src/(.+)%/" .. filename .. "%.java")
+
+      lines = {}
+      if package_path then
+        local package_name = package_path:gsub("/", ".")
+        table.insert(lines, "package " .. package_name .. ";")
+        table.insert(lines, "")
+      end
+
+      table.insert(lines, "public class " .. filename .. " {")
+      table.insert(lines, "    ")
+      table.insert(lines, "}")
+    end
 
     vim.api.nvim_buf_set_lines(event.buf, 0, -1, false, lines)
     vim.api.nvim_win_set_cursor(0, { #lines - 1, 4 })

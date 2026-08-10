@@ -13,6 +13,7 @@ return {
         dockerfile = { "hadolint" },
         kotlin = { "ktlint" },
         groovy = { "npm-groovy-lint" },
+        java = { "checkstyle" },
       }
 
       local lint_augroup = vim.api.nvim_create_augroup("cumulus_lint", { clear = true })

@@ -31,6 +31,7 @@ local ensure_installed = {
   "npm-groovy-lint",
   "superhtml",
   "taplo",
+  "checkstyle",
 }
 
 return {

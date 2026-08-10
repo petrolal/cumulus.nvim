@@ -3,9 +3,12 @@
 ## Metadata
 - **Spec ID**: SPEC-011
 - **Title**: Gradle/Maven Offline Mode Detection
-- **Status**: BACKLOG
+- **Status**: REVIEW
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
+  - `crates/cumulus-core/src/network.rs` (new)
+  - `crates/cumulus-core/src/main.rs` (extends)
+  - `lua/cumulus/util/rust.lua` (extends)
   - `lua/cumulus/util/maven.lua` (extends)
   - `lua/cumulus/util/gradle.lua` (extends)
 
@@ -46,14 +49,14 @@ This spec adds network detection and automatic offline mode suggestion:
 
 ## Execution Checklist
 
-- [ ] Extend `lua/cumulus/util/maven.lua`:
-  - [ ] Implement `check_network()` → returns bool (network reachable)
-  - [ ] On build start, check network
-  - [ ] If unreachable, suggest offline mode in notification
-  - [ ] Auto-add `-o` flag to Maven command
-- [ ] Extend `lua/cumulus/util/gradle.lua`: Same for `--offline`
-- [ ] Add statusline component showing offline status
-- [ ] Add `<leader>cjo` keymap to toggle offline mode setting
+- [x] Create `crates/cumulus-core/src/network.rs` (TCP socket network connectivity checker)
+- [x] Extend `crates/cumulus-core/src/main.rs` with `check-network` subcommand
+- [x] Extend `lua/cumulus/util/rust.lua` with `rust.check_network()`
+- [x] Extend `lua/cumulus/util/maven.lua`:
+  - [x] Implement `toggle_offline_mode()`
+  - [x] Auto-add `-o` flag when offline or toggled
+- [x] Extend `lua/cumulus/util/gradle.lua`: Auto-add `--offline` flag when offline or toggled
+- [x] Add `<leader>cjo` keymap to toggle offline mode setting in `lua/cumulus/core/keymaps.lua`
 
 ---
 

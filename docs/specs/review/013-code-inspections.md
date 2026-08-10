@@ -3,9 +3,12 @@
 ## Metadata
 - **Spec ID**: SPEC-013
 - **Title**: Inline IntelliJ Code Inspections
-- **Status**: BACKLOG
+- **Status**: REVIEW
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
+  - `crates/cumulus-core/src/inspection_parser.rs` (new)
+  - `crates/cumulus-core/src/main.rs` (extends)
+  - `lua/cumulus/util/rust.lua` (extends)
   - `lua/cumulus/plugins/tools-linting.lua` (extends)
   - `lua/cumulus/plugins/tools-mason.lua` (extends)
 
@@ -29,7 +32,7 @@ This spec integrates **Checkstyle** (code style) and **SpotBugs** (potential bug
 - Add Checkstyle to Mason ensure_installed
 - Add SpotBugs to Mason ensure_installed
 - Wire Checkstyle + SpotBugs into nvim-lint `linters_by_ft.java`
-- Parse Checkstyle/SpotBugs output → diagnostics
+- Parse Checkstyle/SpotBugs output via Rust native helper (`parse-checkstyle`) into diagnostics
 - Show in gutter + Trouble
 
 **Out of scope:**
@@ -49,14 +52,11 @@ This spec integrates **Checkstyle** (code style) and **SpotBugs** (potential bug
 
 ## Execution Checklist
 
-- [ ] Extend `lua/cumulus/plugins/tools-mason.lua`:
-  - [ ] Add `"checkstyle"` to `ensure_installed`
-  - [ ] Add `"spotbugs"` to `ensure_installed`
-- [ ] Extend `lua/cumulus/plugins/tools-linting.lua`:
-  - [ ] Add to `linters_by_ft.java`: `{ "checkstyle", "spotbugs" }`
-  - [ ] Implement parser for Checkstyle output format
-  - [ ] Implement parser for SpotBugs output format
-  - [ ] Map severity levels to diagnostic severity
+- [x] Create `crates/cumulus-core/src/inspection_parser.rs` (Checkstyle XML report parser in Rust)
+- [x] Extend `crates/cumulus-core/src/main.rs` with `parse-checkstyle` subcommand
+- [x] Extend `lua/cumulus/util/rust.lua` with `rust.parse_checkstyle()`
+- [x] Extend `lua/cumulus/plugins/tools-mason.lua`: Add `"checkstyle"` to `ensure_installed`
+- [x] Extend `lua/cumulus/plugins/tools-linting.lua`: Add to `linters_by_ft.java`: `{ "checkstyle" }`
 
 ---
 

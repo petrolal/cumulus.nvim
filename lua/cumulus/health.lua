@@ -23,6 +23,7 @@ function M.check()
     { name = "rg", desc = "ripgrep (required for Telescope live_grep & Snacks picker)", level = "warn" },
     { name = "fd", desc = "fd (optional high-speed file finder)", level = "info" },
     { name = "git", desc = "git (required for version control & git_files picker)", level = "warn" },
+    { name = "cargo", desc = "cargo (required for building Rust native helper)", level = "info" },
     { name = "npm", desc = "npm (required for markdown-preview.nvim build)", level = "info" },
     { name = "node", desc = "node (required for markdown-preview & npm-based DevOps LSP servers)", level = "info" },
     { name = "python3", desc = "python3 (required for pynvim, ansible-lint, cfn-lint & BMad scripts)", level = "info" },
@@ -38,6 +39,13 @@ function M.check()
         vim.health.info(string.format("%s: NOT found on $PATH (%s)", b.name, b.desc))
       end
     end
+  end
+
+  local rust = require("cumulus.util.rust")
+  if rust.is_available() then
+    vim.health.ok(string.format("Cumulus Rust native helper ('cumulus-core'): active (%s)", rust.get_bin()))
+  else
+    vim.health.info("Cumulus Rust native helper ('cumulus-core'): not compiled (using Lua fallback routines)")
   end
 
   vim.health.start("Cumulus Signature Cloud Themes")

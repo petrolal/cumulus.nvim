@@ -1,0 +1,133 @@
+-- Cumulus Build Output Diagnostics Integration (SPEC-004 & SPEC-016)
+--
+-- Parses build command output (Maven/Gradle) for errors and populates
+-- Neovim's diagnostic engine (`"cumulus_build"` namespace), making errors
+-- visible in line gutters, statuslines, and Trouble.nvim.
+
+local M = {}
+
+local ns = vim.api.nvim_create_namespace("cumulus_build")
+
+---@class CumulusDiagnosticEntry
+---@field file string
+---@field line number
+---@field col number|nil
+---@field message string
+---@field severity string
+
+--- Fallback Lua parser for Maven log output
+---@param log_content string
+---@return CumulusDiagnosticEntry[]
+local function parse_maven_lua(log_content)
+  local entries = {}
+  for line in log_content:gmatch("[^\r\n]+") do
+    local file, line_num, col_num, msg = line:match("%[ERROR%]%s+([^%s:]+):%[(%d+),(%d+)%]%s+(.+)")
+    if not file then
+      file, line_num, msg = line:match("%[ERROR%]%s+([^%s:]+):%[(%d+)%]%s+(.+)")
+    end
+    if not file then
+      file, line_num, col_num, msg = line:match("([^%s:]+%.java):(%d+):(%d+):%s*(.+)")
+    end
+    if not file then
+      file, line_num, msg = line:match("([^%s:]+%.java):(%d+):%s*(.+)")
+    end
+
+    if file then
+      table.insert(entries, {
+        file = file,
+        line = tonumber(line_num) or 1,
+        col = tonumber(col_num),
+        message = msg,
+        severity = "ERROR",
+      })
+    end
+  end
+  return entries
+end
+
+--- Fallback Lua parser for Gradle log output
+---@param log_content string
+---@return CumulusDiagnosticEntry[]
+local function parse_gradle_lua(log_content)
+  local entries = {}
+  for line in log_content:gmatch("[^\r\n]+") do
+    local file, line_num, col_num, msg = line:match("e:%s+([^%s:]+%.kt):%s*%(%(%d+%),%s*%(%d+%)%):%s*(.+)")
+    if not file then
+      file, line_num, msg = line:match("([^%s:]+%.java):(%d+):%s*error:%s*(.+)")
+    end
+
+    if file then
+      table.insert(entries, {
+        file = file,
+        line = tonumber(line_num) or 1,
+        col = tonumber(col_num),
+        message = msg,
+        severity = "ERROR",
+      })
+    end
+  end
+  return entries
+end
+
+--- Parse build log content and populate diagnostics across project buffers
+---@param tool "maven"|"gradle"
+---@param log_content string
+function M.populate_from_log(tool, log_content)
+  local rust = require("cumulus.util.rust")
+  local entries = nil
+
+  if rust.is_available() then
+    entries = rust.parse_build_log(tool, log_content)
+  end
+
+  if not entries then
+    if tool == "maven" or tool == "mvn" then
+      entries = parse_maven_lua(log_content)
+    else
+      entries = parse_gradle_lua(log_content)
+    end
+  end
+
+  if not entries or #entries == 0 then
+    return
+  end
+
+  -- Group diagnostics by target file buffer
+  local by_file = {}
+  for _, entry in ipairs(entries) do
+    by_file[entry.file] = by_file[entry.file] or {}
+    table.insert(by_file[entry.file], entry)
+  end
+
+  for filepath, file_entries in pairs(by_file) do
+    local bufnr = vim.fn.bufnr(filepath, true)
+    if bufnr ~= -1 and vim.api.nvim_buf_is_valid(bufnr) then
+      vim.fn.bufload(bufnr)
+      local diagnostics = {}
+      for _, e in ipairs(file_entries) do
+        table.insert(diagnostics, {
+          lnum = math.max(0, e.line - 1),
+          col = e.col and math.max(0, e.col - 1) or 0,
+          message = e.message,
+          severity = vim.diagnostic.severity.ERROR,
+          source = "cumulus_build",
+        })
+      end
+      vim.diagnostic.set(ns, bufnr, diagnostics)
+    end
+  end
+end
+
+--- Clear build diagnostics for a buffer or all buffers
+---@param bufnr? number
+function M.clear(bufnr)
+  if bufnr then
+    vim.diagnostic.clear(ns, bufnr)
+  else
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      vim.diagnostic.clear(ns, buf)
+    end
+  end
+end
+
+return M

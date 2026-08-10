@@ -3,11 +3,14 @@
 ## Metadata
 - **Spec ID**: SPEC-007
 - **Title**: Test Runner Integration (JUnit 5, Gradle, Maven)
-- **Status**: BACKLOG
+- **Status**: REVIEW
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
+  - `crates/cumulus-core/src/test_parser.rs` (new)
+  - `crates/cumulus-core/src/main.rs` (extends)
   - `lua/cumulus/util/test-runner.lua` (new)
-  - `lua/cumulus/core/keymaps.lua` (extends)
+  - `lua/cumulus/util/rust.lua` (extends)
+  - `lua/cumulus/core/lang-keymaps.lua` (extends)
 
 ---
 
@@ -29,7 +32,7 @@ This spec adds test execution directly from the editor:
 - Detect test class/method from current buffer + cursor position
 - Generate Maven: `mvn test -Dtest=ClassName#methodName`
 - Generate Gradle: `./gradlew test --tests ClassName.methodName`
-- Parse JUnit 5 output for PASS/FAIL
+- Parse JUnit 5 output for PASS/FAIL via Rust native helper (`parse-test-output`) with Lua fallback
 - Populate diagnostics for failed tests
 
 **Out of scope:**
@@ -49,12 +52,15 @@ This spec adds test execution directly from the editor:
 
 ## Execution Checklist
 
-- [ ] Create `lua/cumulus/util/test-runner.lua`:
-  - [ ] Implement `detect_test_class_and_method()` → parses current Java buffer for test class/method name
-  - [ ] Implement `run_test_maven()` and `run_test_gradle()` → generate commands and run via terminal
-  - [ ] Implement `parse_test_output()` → extract PASS/FAIL from output
-  - [ ] Implement `populate_test_diagnostics()` → show test failures as diagnostics
-- [ ] Add to Java `lang_keymaps` stack:
+- [x] Create `crates/cumulus-core/src/test_parser.rs` (JUnit 5 Maven/Gradle test log parser)
+- [x] Extend `crates/cumulus-core/src/main.rs` with `parse-test-output` subcommand
+- [x] Extend `lua/cumulus/util/rust.lua` with `rust.parse_test_output()`
+- [x] Create `lua/cumulus/util/test-runner.lua`:
+  - [x] Implement `detect_test_class_and_method()` → parses current Java buffer for test class/method name
+  - [x] Implement `run_test_maven()` and `run_test_gradle()` → generate commands and run via terminal
+  - [x] Implement `parse_test_output()` → extract PASS/FAIL from output
+  - [x] Implement `populate_test_diagnostics()` → show test failures as diagnostics
+- [x] Add to Java `lang_keymaps` stack in `lua/cumulus/core/lang-keymaps.lua`:
   - `<leader>cjtt` → run nearest test
   - `<leader>cjtc` → run test class
   - `<leader>cjta` → run all tests

@@ -101,6 +101,44 @@ lang_keymaps.register({
       "Gradle: Select Task",
     },
     {
+      "<leader>cjo",
+      function()
+        local maven = require("cumulus.util.maven")
+        local gradle = require("cumulus.util.gradle")
+        maven.toggle_offline_mode()
+        gradle.toggle_offline_mode()
+      end,
+      "Toggle Offline Mode (-o / --offline)",
+    },
+    {
+      "<leader>cje",
+      function()
+        require("cumulus.util.endpoints").select_endpoint()
+      end,
+      "Spring Boot: Select REST Endpoint",
+    },
+    {
+      "<leader>cjb",
+      function()
+        require("cumulus.util.beans").select_bean()
+      end,
+      "Spring Boot: Select Bean Dependency",
+    },
+    {
+      "<leader>cjv",
+      function()
+        require("cumulus.util.migrations").validate_migrations()
+      end,
+      "Flyway: Validate Migrations",
+    },
+    {
+      "<leader>co",
+      function()
+        require("cumulus.util.import-optimizer").run()
+      end,
+      "Optimize Java/Kotlin Imports",
+    },
+    {
       "<leader>cjc",
       function()
         local maven = require("cumulus.util.maven")
@@ -118,41 +156,23 @@ lang_keymaps.register({
     {
       "<leader>cjta",
       function()
-        local maven = require("cumulus.util.maven")
-        local gradle = require("cumulus.util.gradle")
-        if maven.find_pom() then
-          maven.run_maven_cmd(maven.get_mvn_cmd() .. " test")
-        elseif gradle.find_gradle() then
-          gradle.run_gradle_cmd(gradle.get_gradle_cmd() .. " test")
-        else
-          vim.notify("No pom.xml or build.gradle found in project", vim.log.levels.WARN)
-        end
+        require("cumulus.util.test-runner").run_test("all")
       end,
       "JVM Build: Run All Tests",
     },
     {
-      "<leader>cjtm",
+      "<leader>cjtt",
       function()
-        local ok, jdtls = pcall(require, "jdtls")
-        if ok then
-          jdtls.test_nearest_method()
-        else
-          vim.notify("jdtls is not loaded", vim.log.levels.WARN)
-        end
+        require("cumulus.util.test-runner").run_test("nearest")
       end,
-      "JDTLS: Run Nearest Test Method",
+      "Run Nearest Test Method",
     },
     {
       "<leader>cjtc",
       function()
-        local ok, jdtls = pcall(require, "jdtls")
-        if ok then
-          jdtls.test_class()
-        else
-          vim.notify("jdtls is not loaded", vim.log.levels.WARN)
-        end
+        require("cumulus.util.test-runner").run_test("class")
       end,
-      "JDTLS: Run Current Test Class",
+      "Run Current Test Class",
     },
     {
       "<leader>cjtp",

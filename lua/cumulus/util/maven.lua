@@ -1,6 +1,11 @@
--- Cumulus Maven Utility Helper (Story 4.1 & AR4)
-
 local M = {}
+
+M.offline_mode = false
+
+function M.toggle_offline_mode()
+  M.offline_mode = not M.offline_mode
+  vim.notify("Maven Offline Mode: " .. (M.offline_mode and "ENABLED (-o)" or "DISABLED"), vim.log.levels.INFO)
+end
 
 function M.find_pom()
   local cwd = vim.fn.getcwd()
@@ -19,13 +24,20 @@ end
 function M.get_mvn_cmd()
   local cwd = vim.fn.getcwd()
   local mvnw = cwd .. "/mvnw"
+  local base = "mvn"
   if vim.fn.filereadable(mvnw) == 1 then
     if vim.fn.executable(mvnw) == 0 then
       vim.fn.system({ "chmod", "+x", mvnw })
     end
-    return "./mvnw"
+    base = "./mvnw"
   end
-  return "mvn"
+
+  local rust = require("cumulus.util.rust")
+  if M.offline_mode or (rust.is_available() and rust.check_network() == false) then
+    return base .. " -o"
+  end
+
+  return base
 end
 
 function M.run_maven_cmd(cmd)
@@ -78,6 +90,16 @@ function M.get_maven_goals()
     local current_file = vim.fn.expand("%:p:h")
     if current_file ~= "" then
       pom_path = vim.fn.findfile("pom.xml", current_file .. ";")
+    end
+  end
+
+  if pom_path ~= "" then
+    local rust = require("cumulus.util.rust")
+    if rust.is_available() then
+      local rust_goals = rust.parse_pom_goals(pom_path)
+      if rust_goals then
+        return rust_goals
+      end
     end
   end
 
