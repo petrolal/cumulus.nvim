@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-013
 - **Title**: Inline IntelliJ Code Inspections
-- **Status**: REVIEW
+- **Status**: BACKLOG
 - **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:

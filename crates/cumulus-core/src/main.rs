@@ -13,6 +13,7 @@ mod maven;
 mod migrations;
 mod multimodule;
 mod network;
+mod test_context;
 mod test_parser;
 
 use clap::{Parser, Subcommand};
@@ -121,6 +122,13 @@ enum Commands {
         #[arg(short, long)]
         file: Option<PathBuf>,
     },
+    /// Detect nearest test class and method at a given cursor line in a Java/Kotlin file
+    DetectTestContext {
+        #[arg(short, long)]
+        file: PathBuf,
+        #[arg(short, long, default_value = "1")]
+        line: usize,
+    },
     /// Simple ping response to confirm binary readiness
     Ping,
 }
@@ -129,6 +137,11 @@ fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::DetectTestContext { file, line } => {
+            let ctx = test_context::detect_test_context(&file, line);
+            let json = serde_json::to_string(&ctx).unwrap();
+            println!("{}", json);
+        }
         Commands::Ping => {
             println!(r#"{{"status":"ok","version":"0.1.0"}}"#);
         }

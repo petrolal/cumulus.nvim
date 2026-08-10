@@ -1,23 +1,29 @@
+-- Cumulus Maven Build Integration
+--
+-- Architecture: Lua is a bridge only. All parsing and analysis is done by
+-- the cumulus-core Rust binary. This file handles Neovim UI/terminal wiring.
+
 local M = {}
 
 M.offline_mode = false
 
 function M.toggle_offline_mode()
   M.offline_mode = not M.offline_mode
-  vim.notify("Maven Offline Mode: " .. (M.offline_mode and "ENABLED (-o)" or "DISABLED"), vim.log.levels.INFO)
+  vim.notify(
+    "Maven Offline Mode: " .. (M.offline_mode and "ENABLED (-o)" or "DISABLED"),
+    vim.log.levels.INFO
+  )
 end
 
 function M.find_pom()
   local cwd = vim.fn.getcwd()
   local pom = vim.fn.findfile("pom.xml", cwd .. ";")
-
   if pom == "" then
     local current_file = vim.fn.expand("%:p:h")
     if current_file ~= "" then
       pom = vim.fn.findfile("pom.xml", current_file .. ";")
     end
   end
-
   return pom ~= ""
 end
 
@@ -82,10 +88,11 @@ function M.sync_dependencies()
   })
 end
 
+--- Get Maven goals for the current project.
+--- All pom.xml parsing is done by the cumulus-core Rust binary (parse-pom subcommand).
 function M.get_maven_goals()
   local cwd = vim.fn.getcwd()
   local pom_path = vim.fn.findfile("pom.xml", cwd .. ";")
-
   if pom_path == "" then
     local current_file = vim.fn.expand("%:p:h")
     if current_file ~= "" then
@@ -93,71 +100,19 @@ function M.get_maven_goals()
     end
   end
 
-  if pom_path ~= "" then
-    local rust = require("cumulus.util.rust")
-    if rust.is_available() then
-      local rust_goals = rust.parse_pom_goals(pom_path)
-      if rust_goals then
-        return rust_goals
-      end
-    end
+  if pom_path == "" then
+    return {}
   end
 
-  local goals = {
-    "clean",
-    "validate",
-    "compile",
-    "test",
-    "package",
-    "verify",
-    "install",
-    "deploy",
-    "clean compile",
-    "clean test",
-    "clean package",
-    "clean install",
-    "clean verify",
-  }
-
-  if pom_path ~= "" then
-    local pom_content = table.concat(vim.fn.readfile(pom_path), "\n")
-    local plugin_goals = {}
-
-    if pom_content:match("spring%-boot%-maven%-plugin") then
-      table.insert(plugin_goals, "spring-boot:run")
-      table.insert(plugin_goals, "spring-boot:build-image")
-      table.insert(plugin_goals, "spring-boot:repackage")
-    end
-    if pom_content:match("quarkus%-maven%-plugin") then
-      table.insert(plugin_goals, "quarkus:dev")
-      table.insert(plugin_goals, "quarkus:build")
-      table.insert(plugin_goals, "quarkus:test")
-    end
-    if pom_content:match("maven%-surefire%-plugin") or pom_content:match("<test") then
-      table.insert(plugin_goals, "test-compile")
-      table.insert(plugin_goals, "surefire:test")
-    end
-    if pom_content:match("maven%-failsafe%-plugin") then
-      table.insert(plugin_goals, "failsafe:integration-test")
-      table.insert(plugin_goals, "verify")
-    end
-    if pom_content:match("exec%-maven%-plugin") then
-      table.insert(plugin_goals, "exec:java")
-      table.insert(plugin_goals, "exec:exec")
-    end
-
-    table.insert(plugin_goals, "dependency:tree")
-    table.insert(plugin_goals, "dependency:analyze")
-    table.insert(plugin_goals, "dependency:resolve")
-    table.insert(plugin_goals, "help:effective-pom")
-    table.insert(plugin_goals, "help:active-profiles")
-
-    for _, goal in ipairs(plugin_goals) do
-      table.insert(goals, goal)
-    end
+  local rust = require("cumulus.util.rust")
+  local goals = rust.parse_pom_goals(vim.fn.fnamemodify(pom_path, ":p"))
+  if goals and #goals > 0 then
+    return goals
   end
 
-  return goals
+  -- Binary missing or returned empty — surface the error
+  vim.notify("cumulus-core: failed to parse Maven goals from pom.xml", vim.log.levels.ERROR)
+  return {}
 end
 
 function M.run_maven_goal()

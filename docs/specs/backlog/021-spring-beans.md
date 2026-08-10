@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-021
 - **Title**: Spring Bean Dependency Graph Generator
-- **Status**: ACTIVE
+- **Status**: BACKLOG
 - **Author**: Antigravity Assistant & AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/beans.rs` (new)

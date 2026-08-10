@@ -1,11 +1,12 @@
 -- Cumulus Multi-Module Topology Helper (SPEC-008 & SPEC-017)
 --
--- Discovers sub-modules in Maven (`pom.xml`) and Gradle (`settings.gradle`)
--- repositories using the compiled Rust `cumulus-core` helper (with Lua fallback).
+-- Architecture: Lua is a bridge only. All Maven pom.xml and Gradle settings.gradle
+-- parsing is done by the cumulus-core Rust binary (parse-modules subcommand).
+-- No Lua fallbacks. If the binary is missing, the function errors explicitly.
 
 local M = {}
 
---- Parse sub-modules from Maven root pom.xml
+--- Parse sub-modules from Maven root pom.xml via Rust backend.
 ---@param pom_path? string
 ---@return table[] Array of { name = string, path = string }
 function M.get_maven_modules(pom_path)
@@ -15,34 +16,15 @@ function M.get_maven_modules(pom_path)
   end
 
   local rust = require("cumulus.util.rust")
-  if rust.is_available() then
-    local rust_mods = rust.parse_modules("maven", pom_path)
-    if rust_mods then
-      return rust_mods
-    end
+  local modules = rust.parse_modules("maven", pom_path)
+  if modules then
+    return modules
   end
 
-  -- Fallback Lua parser
-  local content = table.concat(vim.fn.readfile(pom_path), "\n")
-  local modules = {}
-  local in_modules = false
-  for line in content:gmatch("[^\r\n]+") do
-    if line:match("<modules>") then
-      in_modules = true
-    elseif line:match("</modules>") then
-      in_modules = false
-    elseif in_modules then
-      local mod = line:match("<module>%s*(.-)%s*</module>")
-      if mod and mod ~= "" then
-        local dir = vim.fn.fnamemodify(pom_path, ":p:h") .. "/" .. mod
-        table.insert(modules, { name = mod, path = dir })
-      end
-    end
-  end
-  return modules
+  error("cumulus-core: failed to parse Maven modules from " .. pom_path)
 end
 
---- Parse sub-modules from Gradle root settings.gradle / settings.gradle.kts
+--- Parse sub-modules from Gradle root settings.gradle via Rust backend.
 ---@param settings_path? string
 ---@return table[] Array of { name = string, path = string }
 function M.get_gradle_modules(settings_path)
@@ -55,26 +37,12 @@ function M.get_gradle_modules(settings_path)
   end
 
   local rust = require("cumulus.util.rust")
-  if rust.is_available() then
-    local rust_mods = rust.parse_modules("gradle", settings_path)
-    if rust_mods then
-      return rust_mods
-    end
+  local modules = rust.parse_modules("gradle", settings_path)
+  if modules then
+    return modules
   end
 
-  -- Fallback Lua parser
-  local content = table.concat(vim.fn.readfile(settings_path), "\n")
-  local modules = {}
-  for line in content:gmatch("[^\r\n]+") do
-    local mod = line:match("include%s*%(?['\"]([^'\"]+)['\"]%)?")
-    if mod and mod ~= "" then
-      local clean_mod = mod:gsub("^:", "")
-      local rel_path = clean_mod:gsub(":", "/")
-      local dir = vim.fn.fnamemodify(settings_path, ":p:h") .. "/" .. rel_path
-      table.insert(modules, { name = clean_mod, path = dir })
-    end
-  end
-  return modules
+  error("cumulus-core: failed to parse Gradle modules from " .. settings_path)
 end
 
 return M

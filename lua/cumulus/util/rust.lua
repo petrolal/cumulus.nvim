@@ -387,4 +387,30 @@ function M.parse_git_conflicts(content)
   return nil
 end
 
+--- Detect nearest test class and method at a given cursor line in a Java/Kotlin file.
+--- Replaces the Lua regex-based detect_test_info() that previously lived in test-runner.lua.
+---@param file_path string Absolute path to the Java/Kotlin source file
+---@param cursor_line number 1-indexed line number of the cursor
+---@return { class_name: string|nil, method_name: string|nil }|nil
+function M.detect_test_context(file_path, cursor_line)
+  local bin = M.get_bin()
+  if not bin then
+    error("cumulus-core binary not found — cannot detect test context")
+  end
+
+  local res = vim.system(
+    { bin, "detect-test-context", "--file", file_path, "--line", tostring(cursor_line) },
+    { text = true }
+  ):wait()
+
+  if res.code == 0 and res.stdout ~= "" then
+    local ok, parsed = pcall(vim.json.decode, res.stdout)
+    if ok and type(parsed) == "table" then
+      return parsed
+    end
+  end
+
+  return nil
+end
+
 return M

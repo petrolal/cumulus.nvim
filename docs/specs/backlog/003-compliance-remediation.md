@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-003
 - **Title**: Compliance Remediation (Lazy-Loading, DB Client Parity, SPEC-001 Drift)
-- **Status**: REVIEW
+- **Status**: BACKLOG
 - **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:

@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-011
 - **Title**: Gradle/Maven Offline Mode Detection
-- **Status**: REVIEW
+- **Status**: BACKLOG
 - **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:

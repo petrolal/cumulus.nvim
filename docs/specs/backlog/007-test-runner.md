@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-007
 - **Title**: Test Runner Integration (JUnit 5, Gradle, Maven)
-- **Status**: REVIEW
+- **Status**: BACKLOG
 - **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:

@@ -1,57 +1,40 @@
 -- Cumulus JUnit 5 Test Runner Integration (SPEC-007)
 --
--- Detects nearest test method or test class, constructs Maven/Gradle test execution
--- commands, and parses test results for inline diagnostic reporting.
+-- Architecture: Lua is a bridge only. All Java/Kotlin source parsing is done
+-- by the cumulus-core Rust binary. This file handles Neovim terminal wiring
+-- and diagnostic display only.
 
 local M = {}
 
-local test_ns = vim.api.nvim_create_namespace("cumulus_test")
-
---- Detects current Java/Kotlin test class and nearest test method based on cursor position
+--- Detect current Java/Kotlin test class and nearest test method using Rust backend.
 ---@param bufnr? number
 ---@return { class_name: string|nil, method_name: string|nil }
 function M.detect_test_info(bufnr)
   bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local file_path = vim.api.nvim_buf_get_name(bufnr)
   local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
 
-  local class_name = nil
-  for _, line in ipairs(lines) do
-    local c = line:match("public%s+class%s+([A-Za-z0-9_]+)")
-      or line:match("class%s+([A-Za-z0-9_]+)")
-    if c then
-      class_name = c
-      break
-    end
+  local rust = require("cumulus.util.rust")
+  local ctx = rust.detect_test_context(file_path, cursor_line)
+  if ctx then
+    return ctx
   end
 
-  local method_name = nil
-  -- Scan upwards from cursor line to find nearest @Test or test method
-  for l = cursor_line, 1, -1 do
-    local line = lines[l] or ""
-    local m = line:match("void%s+([A-Za-z0-9_]+)%s*%(")
-      or line:match("fun%s+([A-Za-z0-9_]+)%s*%(")
-    if m then
-      method_name = m
-      break
-    end
-  end
-
-  return { class_name = class_name, method_name = method_name }
+  return { class_name = nil, method_name = nil }
 end
 
---- Parse test log output and populate diagnostics for failed tests
+--- Parse test log output and display results via Neovim notify.
+--- All log parsing is done by the Rust backend (parse-test-output subcommand).
 ---@param log_content string
 function M.process_results(log_content)
   local rust = require("cumulus.util.rust")
-  local entries = rust.is_available() and rust.parse_test_output(log_content) or nil
+  local entries = rust.parse_test_output(log_content)
 
   if not entries or #entries == 0 then
     return
   end
 
-  local failures = 0
-  local passed = 0
+  local failures, passed = 0, 0
   for _, entry in ipairs(entries) do
     if entry.status == "FAILED" then
       failures = failures + 1
@@ -75,7 +58,7 @@ function M.process_results(log_content)
   end
 end
 
---- Run test suite in terminal split
+--- Run test suite in terminal split.
 ---@param mode "nearest"|"class"|"all"
 function M.run_test(mode)
   local maven = require("cumulus.util.maven")
@@ -128,7 +111,7 @@ function M.run_test(mode)
         end
       end
     end,
-    on_exit = function(_, code)
+    on_exit = function()
       local log = table.concat(output_lines, "\n")
       M.process_results(log)
     end,
