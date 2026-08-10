@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-016
 - **Title**: Rust Helper Migration for Build & Log Diagnostics Parsing
-- **Status**: REVIEW
+- **Implementation**: Rust (minimal Lua)
 - **Author**: AI Systems Architect & Antigravity Assistant
 - **Target Files/Paths**:
   - `crates/cumulus-core/Cargo.toml` (new)

@@ -4,6 +4,8 @@
 - **Spec ID**: SPEC-003
 - **Title**: Compliance Remediation (Lazy-Loading, DB Client Parity, SPEC-001 Drift)
 - **Status**: REVIEW
+- **Implementation**: Rust (minimal Lua)
+- **Implementation**: Rust (minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `lua/cumulus/plugins/editor-completion.lua`

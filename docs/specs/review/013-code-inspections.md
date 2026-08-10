@@ -4,6 +4,7 @@
 - **Spec ID**: SPEC-013
 - **Title**: Inline IntelliJ Code Inspections
 - **Status**: REVIEW
+- **Implementation**: Rust (minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/inspection_parser.rs` (new)

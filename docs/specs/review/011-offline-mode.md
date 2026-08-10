@@ -4,6 +4,7 @@
 - **Spec ID**: SPEC-011
 - **Title**: Gradle/Maven Offline Mode Detection
 - **Status**: REVIEW
+- **Implementation**: Rust (minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/network.rs` (new)

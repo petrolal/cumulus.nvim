@@ -4,6 +4,9 @@
 - **Spec ID**: SPEC-007
 - **Title**: Test Runner Integration (JUnit 5, Gradle, Maven)
 - **Status**: REVIEW
+- **Implementation**: Rust (minimal Lua)
+- **Implementation**: Rust (minimal Lua)
+- **Implementation**: Rust
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/test_parser.rs` (new)
