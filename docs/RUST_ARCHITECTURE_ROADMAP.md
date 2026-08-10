@@ -67,6 +67,21 @@
 9. **`SPEC-015` (Project Nvimrc Template & Local Overrides)**:
    - *Rust Role*: Implement `cumulus-core parse-local-config` to safely load and sanitize `.cumulus.json` workspace settings.
 
+10. **`SPEC-026` (Direct Maven & Gradle Dependency Resolver)**:
+    - *Rust Role*: Implement `cumulus-core resolve-deps` to parse `pom.xml` & `libs.versions.toml` in < 10ms.
+
+11. **`SPEC-027` (Instant Java & Kotlin CodeLens Engine)**:
+    - *Rust Role*: Implement `cumulus-core extract-codelens` to scan `@Test`, `main`, `@Scheduled` on buffer open.
+
+12. **`SPEC-028` (Multi-Module Topological Build Order & DAG Solver)**:
+    - *Rust Role*: Implement `cumulus-core compute-build-order` for targeted sub-project compilation.
+
+13. **`SPEC-029` (Dependency CVE Vulnerability & Security Scanner)**:
+    - *Rust Role*: Implement `cumulus-core audit-deps` to match coordinates against security database.
+
+14. **`SPEC-030` (Session State & Layout Sanitizer)**:
+    - *Rust Role*: Implement `cumulus-core session-sanitize` to strip scratch windows and sanitize `persistence.nvim` sessions.
+
 ---
 
 ## 4. Developer & AI Assistant Guidelines

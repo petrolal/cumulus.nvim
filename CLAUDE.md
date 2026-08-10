@@ -74,6 +74,11 @@ Remaining Backlog Specifications:
 - `SPEC-012`: Gradle Wrapper Lock & SHA-256 Checksum Verification
 - `SPEC-014`: Platform & Environment Health Checks
 - `SPEC-015`: Project Nvimrc Template & Local Overrides
+- `SPEC-026`: Direct Maven & Gradle Dependency Resolver (`resolve-deps`)
+- `SPEC-027`: Instant Java & Kotlin CodeLens Engine (`extract-codelens`)
+- `SPEC-028`: Multi-Module Topological Build Order & DAG Solver (`compute-build-order`)
+- `SPEC-029`: Dependency CVE Vulnerability & Security Scanner (`audit-deps`)
+- `SPEC-030`: Session State & Layout Sanitizer (`session-sanitize`)
 
 ### 4. Neovim Lua & Idiomatic Standards
 - Use native APIs: `vim.api.nvim_*`, `vim.keymap.set`, `vim.diagnostic.*`, `vim.lsp.*` — avoid legacy `vim.cmd("...")` Vimscript strings where a Lua API exists.
