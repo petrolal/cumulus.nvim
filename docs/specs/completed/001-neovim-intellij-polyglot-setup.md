@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-001
 - **Title**: Neovim IntelliJ Polyglot Baseline Setup
-- **Status**: ACTIVE
+- **Status**: COMPLETED
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `lua/cumulus/plugins/lsp-java.lua`
