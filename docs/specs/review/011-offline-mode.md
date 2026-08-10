@@ -4,15 +4,28 @@
 - **Spec ID**: SPEC-011
 - **Title**: Gradle/Maven Offline Mode Detection
 - **Status**: REVIEW
-- **Implementation**: Rust (minimal Lua)
+- **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/network.rs` (new)
   - `crates/cumulus-core/src/main.rs` (extends)
   - `lua/cumulus/util/rust.lua` (extends)
-  - `lua/cumulus/util/maven.lua` (extends)
-  - `lua/cumulus/util/gradle.lua` (extends)
 
+---
+
+---
+
+## Architecture
+
+**Lua is a bridge to the Rust backend. That is it.**
+
+```
+Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+```
+
+- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
+- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
+- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
 ---
 
 ## Goal & Intent
@@ -53,10 +66,9 @@ This spec adds network detection and automatic offline mode suggestion:
 - [x] Create `crates/cumulus-core/src/network.rs` (TCP socket network connectivity checker)
 - [x] Extend `crates/cumulus-core/src/main.rs` with `check-network` subcommand
 - [x] Extend `lua/cumulus/util/rust.lua` with `rust.check_network()`
-- [x] Extend `lua/cumulus/util/maven.lua`:
+- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
   - [x] Implement `toggle_offline_mode()`
   - [x] Auto-add `-o` flag when offline or toggled
-- [x] Extend `lua/cumulus/util/gradle.lua`: Auto-add `--offline` flag when offline or toggled
 - [x] Add `<leader>cjo` keymap to toggle offline mode setting in `lua/cumulus/core/keymaps.lua`
 
 ---

@@ -9,8 +9,23 @@
   - `crates/cumulus-core/src/imports.rs` (new)
   - `crates/cumulus-core/src/main.rs` (extends)
   - `lua/cumulus/util/rust.lua` (extends)
-  - `lua/cumulus/util/import-optimizer.lua` (new)
 
+- **Implementation**: Rust (Lua bridge only — minimal Lua)
+---
+
+---
+
+## Architecture
+
+**Lua is a bridge to the Rust backend. That is it.**
+
+```
+Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+```
+
+- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
+- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
+- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
 ---
 
 ## Goal & Intent
@@ -23,4 +38,4 @@ Parse Java/Kotlin file imports, sort according to IntelliJ ordering conventions,
 - [ ] Add `optimize-imports` subcommand in `main.rs`
 - [ ] Add unit tests in Rust
 - [ ] Add Lua binding in `lua/cumulus/util/rust.lua`
-- [ ] Create `lua/cumulus/util/import-optimizer.lua`
+- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)

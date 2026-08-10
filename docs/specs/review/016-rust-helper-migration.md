@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-016
 - **Title**: Rust Helper Migration for Build & Log Diagnostics Parsing
-- **Implementation**: Rust (minimal Lua)
+- **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect & Antigravity Assistant
 - **Target Files/Paths**:
   - `crates/cumulus-core/Cargo.toml` (new)
@@ -12,12 +12,24 @@
   - `crates/cumulus-core/src/gradle.rs` (new)
   - `crates/cumulus-core/src/log_parser.rs` (new)
   - `lua/cumulus/util/rust.lua` (new)
-  - `lua/cumulus/util/maven.lua` (extends)
-  - `lua/cumulus/util/gradle.lua` (extends)
-  - `lua/cumulus/util/build-diagnostics.lua` (new / extends)
   - `lua/cumulus/health.lua` (extends)
   - `scripts/validate.sh` (extends)
 
+---
+
+---
+
+## Architecture
+
+**Lua is a bridge to the Rust backend. That is it.**
+
+```
+Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+```
+
+- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
+- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
+- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
 ---
 
 ## Goal & Intent

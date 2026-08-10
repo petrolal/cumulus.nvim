@@ -6,9 +6,24 @@
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
-  - `lua/cumulus/util/multimodule.lua` (new)
   - `lua/cumulus/plugins/editor-telescope.lua` (extends)
 
+- **Implementation**: Rust (Lua bridge only — minimal Lua)
+---
+
+---
+
+## Architecture
+
+**Lua is a bridge to the Rust backend. That is it.**
+
+```
+Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+```
+
+- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
+- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
+- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
 ---
 
 ## Goal & Intent
@@ -45,8 +60,7 @@ Enterprise Maven/Gradle projects use multi-module structures with dozens of sub-
 ---
 
 ## Execution Checklist
-
-- [ ] Create `lua/cumulus/util/multimodule.lua`:
+- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
   - [ ] Implement `parse_maven_modules()` → read root pom.xml, extract `<module>` list
   - [ ] Implement `parse_gradle_modules()` → read settings.gradle, extract `include` list
   - [ ] Implement `get_module_info()` → read module pom.xml/build.gradle and extract name, description

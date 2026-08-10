@@ -6,12 +6,25 @@
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
-  - `lua/cumulus/util/build-diagnostics.lua` (new)
-  - `lua/cumulus/util/maven.lua` (extends)
-  - `lua/cumulus/util/gradle.lua` (extends)
   - `lua/cumulus/core/keymaps.lua` (extends)
   - `lua/cumulus/plugins/ui-config.lua` (extends)
 
+- **Implementation**: Rust (Lua bridge only — minimal Lua)
+---
+
+---
+
+## Architecture
+
+**Lua is a bridge to the Rust backend. That is it.**
+
+```
+Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+```
+
+- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
+- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
+- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
 ---
 
 ## Goal & Intent
@@ -51,8 +64,6 @@ The implementation integrates seamlessly with JDTLS diagnostics and existing for
 ## Prerequisite Analysis
 
 ### Existing Build Infrastructure
-- `lua/cumulus/util/maven.lua`: Already runs Maven commands via `vim.fn.termopen()` in a split buffer; on_exit callback only notifies exit code, not error details
-- `lua/cumulus/util/gradle.lua`: Same pattern as Maven; captures terminal but discards content
 - `lua/cumulus/core/keymaps.lua`: `<leader>cj*` group already exists for JVM build commands (Maven goals, Gradle tasks, Spring Boot runner)
 - `lua/cumulus/plugins/ui-config.lua`: Trouble.nvim is already configured; `:Trouble diagnostics` works with any LSP diagnostics
 
@@ -90,8 +101,7 @@ The implementation integrates seamlessly with JDTLS diagnostics and existing for
 ## Execution Checklist
 
 ### Phase 1: Core Parser & Diagnostic Population
-
-- [ ] **A1**: Create `lua/cumulus/util/build-diagnostics.lua`:
+- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
   - [ ] Implement `parse_maven_output(text)` → returns table of `{ file, line, col, message, severity }`
     - Pattern 1: `[ERROR] /path/to/File.java:[line]: message` (compiler errors)
     - Pattern 2: `[FAILURE] message` (build failure summary, extracts first file reference if present)
@@ -102,16 +112,12 @@ The implementation integrates seamlessly with JDTLS diagnostics and existing for
     - Pattern 3: Stack trace patterns (same as Maven)
   - [ ] Implement `populate_diagnostics(bufnr, diagnostics, namespace)` to call `vim.diagnostic.set()`
   - [ ] Validate all patterns against sample Maven/Gradle output from real SpringBoot projects
-
-- [ ] **A2**: Extend `lua/cumulus/util/maven.lua`:
   - [ ] In `run_maven_cmd()`, modify the `on_exit` callback to:
     - [ ] Capture full terminal buffer content via `vim.api.nvim_buf_get_lines()`
     - [ ] Call `build_diagnostics.parse_maven_output()` on the captured text
     - [ ] Call `build_diagnostics.populate_diagnostics()` for each source file mentioned
     - [ ] Show notification: `vim.notify("Build failed with X errors", ERROR)` only if errors found
   - [ ] Add `<leader>cje` (jvm: error list) keymap that opens `:Trouble diagnostics` filtered to build errors
-
-- [ ] **A3**: Extend `lua/cumulus/util/gradle.lua`:
   - [ ] Same changes as A2, but for Gradle patterns
   - [ ] Handle both `./gradlew` and `gradle` command formats
 

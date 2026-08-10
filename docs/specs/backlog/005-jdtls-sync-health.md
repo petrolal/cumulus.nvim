@@ -6,10 +6,25 @@
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
-  - `lua/cumulus/util/jdtls-sync.lua` (new)
   - `lua/cumulus/core/keymaps.lua` (extends)
   - `lua/cumulus/core/autocmds.lua` (extends)
 
+- **Implementation**: Rust (Lua bridge only — minimal Lua)
+---
+
+---
+
+## Architecture
+
+**Lua is a bridge to the Rust backend. That is it.**
+
+```
+Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+```
+
+- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
+- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
+- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
 ---
 
 ## Goal & Intent
@@ -56,8 +71,7 @@ This spec implements **automatic sync detection**: on buffer enter in a Java pro
 ---
 
 ## Execution Checklist
-
-- [ ] Create `lua/cumulus/util/jdtls-sync.lua`:
+- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
   - [ ] Implement `is_sync_needed()` → returns bool by comparing pom.xml/build.gradle mtime vs. jdtls.start_time (stored globally)
   - [ ] Implement `sync_and_restart()` → run Maven/Gradle sync, wait, restart JDTLS
   - [ ] Implement `statusline_component()` → returns statusline widget text/highlight

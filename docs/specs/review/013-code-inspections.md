@@ -4,7 +4,7 @@
 - **Spec ID**: SPEC-013
 - **Title**: Inline IntelliJ Code Inspections
 - **Status**: REVIEW
-- **Implementation**: Rust (minimal Lua)
+- **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/inspection_parser.rs` (new)
@@ -13,6 +13,21 @@
   - `lua/cumulus/plugins/tools-linting.lua` (extends)
   - `lua/cumulus/plugins/tools-mason.lua` (extends)
 
+---
+
+---
+
+## Architecture
+
+**Lua is a bridge to the Rust backend. That is it.**
+
+```
+Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+```
+
+- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
+- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
+- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
 ---
 
 ## Goal & Intent

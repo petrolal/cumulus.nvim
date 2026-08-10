@@ -4,17 +4,29 @@
 - **Spec ID**: SPEC-007
 - **Title**: Test Runner Integration (JUnit 5, Gradle, Maven)
 - **Status**: REVIEW
-- **Implementation**: Rust (minimal Lua)
-- **Implementation**: Rust (minimal Lua)
-- **Implementation**: Rust
+- **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/test_parser.rs` (new)
   - `crates/cumulus-core/src/main.rs` (extends)
-  - `lua/cumulus/util/test-runner.lua` (new)
   - `lua/cumulus/util/rust.lua` (extends)
   - `lua/cumulus/core/lang-keymaps.lua` (extends)
 
+---
+
+---
+
+## Architecture
+
+**Lua is a bridge to the Rust backend. That is it.**
+
+```
+Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+```
+
+- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
+- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
+- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
 ---
 
 ## Goal & Intent
@@ -58,7 +70,7 @@ This spec adds test execution directly from the editor:
 - [x] Create `crates/cumulus-core/src/test_parser.rs` (JUnit 5 Maven/Gradle test log parser)
 - [x] Extend `crates/cumulus-core/src/main.rs` with `parse-test-output` subcommand
 - [x] Extend `lua/cumulus/util/rust.lua` with `rust.parse_test_output()`
-- [x] Create `lua/cumulus/util/test-runner.lua`:
+- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
   - [x] Implement `detect_test_class_and_method()` → parses current Java buffer for test class/method name
   - [x] Implement `run_test_maven()` and `run_test_gradle()` → generate commands and run via terminal
   - [x] Implement `parse_test_output()` → extract PASS/FAIL from output
