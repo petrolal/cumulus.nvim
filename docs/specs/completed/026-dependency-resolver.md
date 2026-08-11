@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-026
 - **Title**: Direct Maven & Gradle Dependency Resolver
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Author**: Antigravity Assistant & AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/dep_resolver.rs` (new)
@@ -46,8 +46,8 @@ Parse `pom.xml` dependency management and Gradle version catalogs (`libs.version
 ---
 
 ## Execution Checklist
-- [ ] Implement `crates/cumulus-core/src/dep_resolver.rs`
-- [ ] Add `resolve-deps` subcommand in `main.rs`
-- [ ] Add Rust unit tests
-- [ ] Add Lua bridge binding in `lua/cumulus/util/rust.lua`
-- [ ] Connect to `maven.lua` and `gradle.lua`
+- [x] Implement `crates/cumulus-core/src/dep_resolver.rs`
+- [x] Add `resolve-deps` subcommand in `main.rs`
+- [x] Add Rust unit tests
+- [x] Add Lua bridge binding in `lua/cumulus/util/rust.lua`
+- [x] Connect to `maven.lua` and `gradle.lua`

@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-013
 - **Title**: Inline IntelliJ Code Inspections
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -86,10 +86,10 @@ nvim --headless --startuptime /tmp/nvim-startuptime.log +qa && grep "NVIM STARTE
 ```
 
 ### Acceptance Criteria
-- [ ] Checkstyle warnings appear on Java files (style issues)
-- [ ] SpotBugs warnings appear (potential bugs)
-- [ ] Warnings show in gutter and Trouble
-- [ ] Startup time < 50ms (lint is on-demand only)
+- [x] Checkstyle warnings appear on Java files (style issues)
+- [x] SpotBugs warnings appear (potential bugs)
+- [x] Warnings show in gutter and Trouble
+- [x] Startup time < 50ms (lint is on-demand only)
 
 ---
 

@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-007
 - **Title**: Test Runner Integration (JUnit 5, Gradle, Maven)
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -70,7 +70,7 @@ This spec adds test execution directly from the editor:
 - [x] Create `crates/cumulus-core/src/test_parser.rs` (JUnit 5 Maven/Gradle test log parser)
 - [x] Extend `crates/cumulus-core/src/main.rs` with `parse-test-output` subcommand
 - [x] Extend `lua/cumulus/util/rust.lua` with `rust.parse_test_output()`
-- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
+- [x] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
   - [x] Implement `detect_test_class_and_method()` → parses current Java buffer for test class/method name
   - [x] Implement `run_test_maven()` and `run_test_gradle()` → generate commands and run via terminal
   - [x] Implement `parse_test_output()` → extract PASS/FAIL from output
@@ -91,10 +91,10 @@ nvim --headless --startuptime /tmp/nvim-startuptime.log +qa && grep "NVIM STARTE
 ```
 
 ### Acceptance Criteria
-- [ ] `<leader>cjtt` runs nearest test and shows result
-- [ ] `<leader>cjtc` runs test class
-- [ ] Failed tests show in diagnostics
-- [ ] PASS/FAIL status visible in statusline
+- [x] `<leader>cjtt` runs nearest test and shows result
+- [x] `<leader>cjtc` runs test class
+- [x] Failed tests show in diagnostics
+- [x] PASS/FAIL status visible in statusline
 
 ---
 

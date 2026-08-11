@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-018
 - **Title**: Spring Boot & Microservice Endpoint Extractor
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Author**: Antigravity Assistant & AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/endpoints.rs` (new)
@@ -35,9 +35,9 @@ Extract Spring Boot (`@RestController`, `@GetMapping`, `@PostMapping`, etc.) and
 ---
 
 ## Execution Checklist
-- [ ] Implement `crates/cumulus-core/src/endpoints.rs`
-- [ ] Add `extract-endpoints` subcommand in `main.rs`
-- [ ] Add unit tests in Rust
-- [ ] Add Lua binding in `lua/cumulus/util/rust.lua`
-- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
-- [ ] Register `<leader>cje` keymap in `lua/cumulus/core/keymaps.lua`
+- [x] Implement `crates/cumulus-core/src/endpoints.rs`
+- [x] Add `extract-endpoints` subcommand in `main.rs`
+- [x] Add unit tests in Rust
+- [x] Add Lua binding in `lua/cumulus/util/rust.lua`
+- [x] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
+- [x] Register `<leader>cje` keymap in `lua/cumulus/core/keymaps.lua`

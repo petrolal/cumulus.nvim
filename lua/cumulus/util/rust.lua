@@ -413,4 +413,64 @@ function M.detect_test_context(file_path, cursor_line)
   return nil
 end
 
+--- Resolve direct project dependencies using Rust helper (SPEC-026)
+---@param file_path string Path to pom.xml or libs.versions.toml
+---@return table[]|nil Array of { group = string, artifact = string, version = string, scope = string }
+function M.resolve_deps(file_path)
+  local bin = M.get_bin()
+  if not bin then
+    return nil
+  end
+
+  local res = vim.system({ bin, "resolve-deps", "--file", file_path }, { text = true }):wait()
+  if res.code == 0 and res.stdout ~= "" then
+    local ok, parsed = pcall(vim.json.decode, res.stdout)
+    if ok and type(parsed) == "table" then
+      return parsed
+    end
+  end
+
+  return nil
+end
+
+--- Extract instant Java & Kotlin CodeLens items using Rust helper (SPEC-027)
+---@param file_path string Path to Java or Kotlin source file
+---@return table[]|nil Array of { line = number, title = string, command = string, args = string[] }
+function M.extract_codelens(file_path)
+  local bin = M.get_bin()
+  if not bin then
+    return nil
+  end
+
+  local res = vim.system({ bin, "extract-codelens", "--file", file_path }, { text = true }):wait()
+  if res.code == 0 and res.stdout ~= "" then
+    local ok, parsed = pcall(vim.json.decode, res.stdout)
+    if ok and type(parsed) == "table" then
+      return parsed
+    end
+  end
+
+  return nil
+end
+
+--- Solve multi-module topological build order & DAG using Rust helper (SPEC-028)
+---@param dir_path string Root project directory
+---@return table[]|nil Array of { step = number, module_name = string, path = string, build_command = string }
+function M.compute_build_order(dir_path)
+  local bin = M.get_bin()
+  if not bin then
+    return nil
+  end
+
+  local res = vim.system({ bin, "compute-build-order", "--dir", dir_path }, { text = true }):wait()
+  if res.code == 0 and res.stdout ~= "" then
+    local ok, parsed = pcall(vim.json.decode, res.stdout)
+    if ok and type(parsed) == "table" then
+      return parsed
+    end
+  end
+
+  return nil
+end
+
 return M

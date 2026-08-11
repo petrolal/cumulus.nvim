@@ -210,3 +210,34 @@ vim.api.nvim_create_autocmd("BufNewFile", {
     vim.api.nvim_win_set_cursor(0, { #lines - 1, 4 })
   end,
 })
+
+-- Instant Java & Kotlin CodeLens rendering via Rust engine (SPEC-027)
+local codelens_ns = vim.api.nvim_create_namespace("cumulus_codelens")
+vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
+  group = augroup("instant_codelens"),
+  pattern = { "*.java", "*.kt" },
+  callback = function(event)
+    local rust = require("cumulus.util.rust")
+    if not rust.is_available() then
+      return
+    end
+
+    local filepath = vim.api.nvim_buf_get_name(event.buf)
+    if filepath == "" or vim.fn.filereadable(filepath) == 0 then
+      return
+    end
+
+    local items = rust.extract_codelens(filepath)
+    vim.api.nvim_buf_clear_namespace(event.buf, codelens_ns, 0, -1)
+
+    if items and #items > 0 then
+      for _, item in ipairs(items) do
+        local lnum = math.max(0, item.line - 1)
+        vim.api.nvim_buf_set_extmark(event.buf, codelens_ns, lnum, 0, {
+          virt_text = { { "  " .. item.title, "Comment" } },
+          virt_text_pos = "eol",
+        })
+      end
+    end
+  end,
+})

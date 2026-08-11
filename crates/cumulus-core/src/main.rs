@@ -1,6 +1,9 @@
 mod beans;
+mod codelens;
 mod conflicts;
 mod coverage;
+mod dag;
+mod dep_resolver;
 mod endpoints;
 mod gradle;
 mod imports;
@@ -128,6 +131,21 @@ enum Commands {
         file: PathBuf,
         #[arg(short, long, default_value = "1")]
         line: usize,
+    },
+    /// Resolve direct dependencies from Maven pom.xml or Gradle libs.versions.toml
+    ResolveDeps {
+        #[arg(short, long)]
+        file: PathBuf,
+    },
+    /// Extract instant Java & Kotlin CodeLens items from source file
+    ExtractCodelens {
+        #[arg(short, long)]
+        file: PathBuf,
+    },
+    /// Solve multi-module topological build order and DAG
+    ComputeBuildOrder {
+        #[arg(short, long)]
+        dir: PathBuf,
     },
     /// Simple ping response to confirm binary readiness
     Ping,
@@ -307,6 +325,21 @@ fn main() -> io::Result<()> {
             };
             let blocks = conflicts::parse_git_conflicts_content(&content);
             let json = serde_json::to_string(&blocks).unwrap();
+            println!("{}", json);
+        }
+        Commands::ResolveDeps { file } => {
+            let deps = dep_resolver::resolve_dependencies(&file);
+            let json = serde_json::to_string(&deps).unwrap();
+            println!("{}", json);
+        }
+        Commands::ExtractCodelens { file } => {
+            let items = codelens::extract_codelens(&file);
+            let json = serde_json::to_string(&items).unwrap();
+            println!("{}", json);
+        }
+        Commands::ComputeBuildOrder { dir } => {
+            let steps = dag::compute_build_order(&dir);
+            let json = serde_json::to_string(&steps).unwrap();
             println!("{}", json);
         }
     }

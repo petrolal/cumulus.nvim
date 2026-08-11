@@ -129,4 +129,19 @@ function M.run_gradle_task()
   end)
 end
 
+--- Get direct Gradle project dependencies (version catalog) via Rust helper.
+---@param catalog_path? string
+---@return table[]|nil
+function M.get_dependencies(catalog_path)
+  catalog_path = catalog_path or (vim.fn.getcwd() .. "/gradle/libs.versions.toml")
+  if vim.fn.filereadable(catalog_path) == 0 then
+    catalog_path = vim.fn.getcwd() .. "/libs.versions.toml"
+  end
+  local rust = require("cumulus.util.rust")
+  if rust.is_available() then
+    return rust.resolve_deps(catalog_path)
+  end
+  return nil
+end
+
 return M

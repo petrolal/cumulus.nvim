@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-008
 - **Title**: Multi-Module Project Navigation
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `lua/cumulus/plugins/editor-telescope.lua` (extends)
@@ -60,13 +60,13 @@ Enterprise Maven/Gradle projects use multi-module structures with dozens of sub-
 ---
 
 ## Execution Checklist
-- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
-  - [ ] Implement `parse_maven_modules()` → read root pom.xml, extract `<module>` list
-  - [ ] Implement `parse_gradle_modules()` → read settings.gradle, extract `include` list
-  - [ ] Implement `get_module_info()` → read module pom.xml/build.gradle and extract name, description
-- [ ] Extend `lua/cumulus/plugins/editor-telescope.lua`:
-  - [ ] Add `:Telescope maven_modules` command
-  - [ ] Add `:Telescope gradle_modules` command
+- [x] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
+  - [x] Implement `parse_maven_modules()` → read root pom.xml, extract `<module>` list
+  - [x] Implement `parse_gradle_modules()` → read settings.gradle, extract `include` list
+  - [x] Implement `get_module_info()` → read module pom.xml/build.gradle and extract name, description
+- [x] Extend `lua/cumulus/plugins/editor-telescope.lua`:
+  - [x] Add `:Telescope maven_modules` command
+  - [x] Add `:Telescope gradle_modules` command
 
 ---
 
@@ -79,10 +79,10 @@ nvim --headless --startuptime /tmp/nvim-startuptime.log +qa && grep "NVIM STARTE
 ```
 
 ### Acceptance Criteria
-- [ ] `:Telescope maven_modules` shows list of modules
-- [ ] `:Telescope gradle_modules` works for Gradle projects
-- [ ] Selecting module opens its pom.xml/build.gradle
-- [ ] Preview shows module info
+- [x] `:Telescope maven_modules` shows list of modules
+- [x] `:Telescope gradle_modules` works for Gradle projects
+- [x] Selecting module opens its pom.xml/build.gradle
+- [x] Preview shows module info
 
 ---
 

@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-017
 - **Title**: Rust Helper Expansion: Multi-Module, Stack Trace & Java Header Generators
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Author**: AI Systems Architect & Antigravity Assistant
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/multimodule.rs` (new)

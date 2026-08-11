@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-011
 - **Title**: Gradle/Maven Offline Mode Detection
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -66,7 +66,7 @@ This spec adds network detection and automatic offline mode suggestion:
 - [x] Create `crates/cumulus-core/src/network.rs` (TCP socket network connectivity checker)
 - [x] Extend `crates/cumulus-core/src/main.rs` with `check-network` subcommand
 - [x] Extend `lua/cumulus/util/rust.lua` with `rust.check_network()`
-- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
+- [x] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
   - [x] Implement `toggle_offline_mode()`
   - [x] Auto-add `-o` flag when offline or toggled
 - [x] Add `<leader>cjo` keymap to toggle offline mode setting in `lua/cumulus/core/keymaps.lua`
@@ -82,10 +82,10 @@ nvim --headless --startuptime /tmp/nvim-startuptime.log +qa && grep "NVIM STARTE
 ```
 
 ### Acceptance Criteria
-- [ ] Network check works (quick test on offline network)
-- [ ] Offline badge appears when network unavailable
-- [ ] `<leader>cjo` toggles offline mode
-- [ ] Build uses `-o` or `--offline` when offline mode is enabled
+- [x] Network check works (quick test on offline network)
+- [x] Offline badge appears when network unavailable
+- [x] `<leader>cjo` toggles offline mode
+- [x] Build uses `-o` or `--offline` when offline mode is enabled
 
 ---
 

@@ -1,12 +1,12 @@
-# Specification: SPEC-019 - JaCoCo & SonarQube Code Coverage Parser
+# Specification: SPEC-025 - Multi-Module Git Conflict Resolution & Marker Parser
 
 ## Metadata
-- **Spec ID**: SPEC-019
-- **Title**: JaCoCo & SonarQube Code Coverage Parser
-- **Status**: BACKLOG
+- **Spec ID**: SPEC-025
+- **Title**: Multi-Module Git Conflict Resolution & Marker Parser
+- **Status**: COMPLETED
 - **Author**: Antigravity Assistant & AI Systems Architect
 - **Target Files/Paths**:
-  - `crates/cumulus-core/src/coverage.rs` (new)
+  - `crates/cumulus-core/src/conflicts.rs` (new)
   - `crates/cumulus-core/src/main.rs` (extends)
   - `lua/cumulus/util/rust.lua` (extends)
 
@@ -29,13 +29,13 @@ Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
 ---
 
 ## Goal & Intent
-Parse JaCoCo XML reports (`jacoco.xml`) and map line coverage (covered vs. missed lines) to Neovim signs in the buffer gutter.
+Scan files or buffers for Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) and extract structured conflict blocks for quick navigation.
 
 ---
 
 ## Execution Checklist
-- [ ] Implement `crates/cumulus-core/src/coverage.rs`
-- [ ] Add `parse-coverage` subcommand in `main.rs`
-- [ ] Add unit tests in Rust
-- [ ] Add Lua binding in `lua/cumulus/util/rust.lua`
-- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
+- [x] Implement `crates/cumulus-core/src/conflicts.rs`
+- [x] Add `parse-git-conflicts` subcommand in `main.rs`
+- [x] Add unit tests in Rust
+- [x] Add Lua binding in `lua/cumulus/util/rust.lua`
+- [x] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)

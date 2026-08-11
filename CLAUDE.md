@@ -49,34 +49,36 @@ Specifications follow an Agile development flow (`backlog` → `active` → `rev
 - `docs/specs/review/NNN-slug.md` — implemented work undergoing review and verification checks (moved from `active/` upon completing `/implement-task` with status `REVIEW`).
 - `docs/specs/completed/NNN-slug.md` — fully verified and archived work (moved from `review/` via `/review-task` with status `COMPLETED`).
 
-Active/Review Specifications:
-- `SPEC-007` (Review): Test Runner Integration (JUnit 5, Gradle, Maven)
-- `SPEC-011` (Review): Gradle/Maven Offline Mode Detection & Toggle
-- `SPEC-013` (Review): Inline IntelliJ Code Inspections & Checkstyle Integration
-- `SPEC-016` (Review): Rust Helper Migration for Build & Log Diagnostics Parsing
-- `SPEC-017` (Review): Rust Helper Expansion: Multi-Module, Stack Trace & Java Header Generators
-- `SPEC-018` (Review): Spring Boot & Microservice Endpoint Extractor
-- `SPEC-019` (Review): JaCoCo & SonarQube Code Coverage Parser
-- `SPEC-020` (Review): Flyway & Liquibase Migration Validator
-- `SPEC-021` (Review): Spring Bean Dependency Graph Generator
-- `SPEC-022` (Review): High-Speed Log File Indexer & Stream Parser
-- `SPEC-023` (Review): Java/Kotlin Import Optimizer
-- `SPEC-024` (Review): Helm Chart Values & Kubernetes Schema Validator
-- `SPEC-025` (Review): Multi-Module Git Conflict Resolution & Marker Parser
+Completed Specifications:
+- `SPEC-001`: Neovim & IntelliJ Polyglot Setup
+- `SPEC-004`: Build Error Capture & Diagnostics Integration
+- `SPEC-007`: Test Runner Integration (JUnit 5, Gradle, Maven)
+- `SPEC-008`: Multi-Module Telescope Navigation (`:Telescope maven_modules` / `gradle_modules`)
+- `SPEC-011`: Gradle/Maven Offline Mode Detection & Toggle
+- `SPEC-013`: Inline IntelliJ Code Inspections & Checkstyle Integration
+- `SPEC-016`: Rust Helper Migration for Build & Log Diagnostics Parsing
+- `SPEC-017`: Rust Helper Expansion: Multi-Module, Stack Trace & Java Header Generators
+- `SPEC-018`: Spring Boot & Microservice Endpoint Extractor
+- `SPEC-019`: JaCoCo & SonarQube Code Coverage Parser
+- `SPEC-020`: Flyway & Liquibase Migration Validator
+- `SPEC-021`: Spring Bean Dependency Graph Generator
+- `SPEC-022`: High-Speed Log File Indexer & Stream Parser
+- `SPEC-023`: Java/Kotlin Import Optimizer
+- `SPEC-024`: Helm Chart Values & Kubernetes Schema Validator
+- `SPEC-025`: Multi-Module Git Conflict Resolution & Marker Parser
+- `SPEC-026`: Direct Maven & Gradle Dependency Resolver (`resolve-deps`)
+- `SPEC-027`: Instant Java & Kotlin CodeLens Engine (`extract-codelens`)
+- `SPEC-028`: Multi-Module Topological Build Order & DAG Solver (`compute-build-order`)
 
 Remaining Backlog Specifications:
 - `SPEC-002`: HTML/XML Markup Extension
 - `SPEC-005`: JDTLS Classpath Sync Health Check
 - `SPEC-006`: SpringBoot Debug Configuration & Hotswap (`<leader>ds`)
-- `SPEC-008`: Multi-Module Telescope Navigation (`:Telescope maven_modules` / `gradle_modules`)
 - `SPEC-009`: Dependency Lens & Version Checker
 - `SPEC-010`: Runtime Exception Stack Trace Drill-Down
 - `SPEC-012`: Gradle Wrapper Lock & SHA-256 Checksum Verification
 - `SPEC-014`: Platform & Environment Health Checks
 - `SPEC-015`: Project Nvimrc Template & Local Overrides
-- `SPEC-026`: Direct Maven & Gradle Dependency Resolver (`resolve-deps`)
-- `SPEC-027`: Instant Java & Kotlin CodeLens Engine (`extract-codelens`)
-- `SPEC-028`: Multi-Module Topological Build Order & DAG Solver (`compute-build-order`)
 - `SPEC-029`: Dependency CVE Vulnerability & Security Scanner (`audit-deps`)
 - `SPEC-030`: Session State & Layout Sanitizer (`session-sanitize`)
 

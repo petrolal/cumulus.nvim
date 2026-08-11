@@ -137,4 +137,16 @@ function M.run_maven_goal()
   end)
 end
 
+--- Get direct Maven project dependencies via Rust helper.
+---@param pom_path? string
+---@return table[]|nil
+function M.get_dependencies(pom_path)
+  pom_path = pom_path or (vim.fn.getcwd() .. "/pom.xml")
+  local rust = require("cumulus.util.rust")
+  if rust.is_available() then
+    return rust.resolve_deps(pom_path)
+  end
+  return nil
+end
+
 return M

@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-027
 - **Title**: Instant Java & Kotlin CodeLens Engine
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Author**: Antigravity Assistant & AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/codelens.rs` (new)
@@ -44,8 +44,8 @@ Scan Java/Kotlin source files on buffer open (`cumulus-core extract-codelens`) f
 ---
 
 ## Execution Checklist
-- [ ] Implement `crates/cumulus-core/src/codelens.rs`
-- [ ] Add `extract-codelens` subcommand in `main.rs`
-- [ ] Add Rust unit tests
-- [ ] Add Lua bridge binding in `lua/cumulus/util/rust.lua`
-- [ ] Connect to `autocmds.lua` on `BufReadPost`
+- [x] Implement `crates/cumulus-core/src/codelens.rs`
+- [x] Add `extract-codelens` subcommand in `main.rs`
+- [x] Add Rust unit tests
+- [x] Add Lua bridge binding in `lua/cumulus/util/rust.lua`
+- [x] Connect to `autocmds.lua` on `BufReadPost`

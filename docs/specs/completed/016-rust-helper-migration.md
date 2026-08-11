@@ -3,6 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-016
 - **Title**: Rust Helper Migration for Build & Log Diagnostics Parsing
+- **Status**: COMPLETED
 - **Implementation**: Rust (Lua bridge only — minimal Lua)
 - **Author**: AI Systems Architect & Antigravity Assistant
 - **Target Files/Paths**:

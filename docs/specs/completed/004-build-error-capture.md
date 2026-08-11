@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-004
 - **Title**: Build Error Capture & Diagnostics Integration
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `lua/cumulus/core/keymaps.lua` (extends)
@@ -101,51 +101,51 @@ The implementation integrates seamlessly with JDTLS diagnostics and existing for
 ## Execution Checklist
 
 ### Phase 1: Core Parser & Diagnostic Population
-- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
-  - [ ] Implement `parse_maven_output(text)` → returns table of `{ file, line, col, message, severity }`
+- [x] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
+  - [x] Implement `parse_maven_output(text)` → returns table of `{ file, line, col, message, severity }`
     - Pattern 1: `[ERROR] /path/to/File.java:[line]: message` (compiler errors)
     - Pattern 2: `[FAILURE] message` (build failure summary, extracts first file reference if present)
     - Pattern 3: `at com.example.ClassName.method(File.java:line)` in stack traces
-  - [ ] Implement `parse_gradle_output(text)` → same return signature
+  - [x] Implement `parse_gradle_output(text)` → same return signature
     - Pattern 1: `error: /path/to/File.java:[line]: message` (compiler errors)
     - Pattern 2: `FAILURE: Build failed with exception` + subsequent error lines
     - Pattern 3: Stack trace patterns (same as Maven)
-  - [ ] Implement `populate_diagnostics(bufnr, diagnostics, namespace)` to call `vim.diagnostic.set()`
-  - [ ] Validate all patterns against sample Maven/Gradle output from real SpringBoot projects
-  - [ ] In `run_maven_cmd()`, modify the `on_exit` callback to:
-    - [ ] Capture full terminal buffer content via `vim.api.nvim_buf_get_lines()`
-    - [ ] Call `build_diagnostics.parse_maven_output()` on the captured text
-    - [ ] Call `build_diagnostics.populate_diagnostics()` for each source file mentioned
-    - [ ] Show notification: `vim.notify("Build failed with X errors", ERROR)` only if errors found
-  - [ ] Add `<leader>cje` (jvm: error list) keymap that opens `:Trouble diagnostics` filtered to build errors
-  - [ ] Same changes as A2, but for Gradle patterns
-  - [ ] Handle both `./gradlew` and `gradle` command formats
+  - [x] Implement `populate_diagnostics(bufnr, diagnostics, namespace)` to call `vim.diagnostic.set()`
+  - [x] Validate all patterns against sample Maven/Gradle output from real SpringBoot projects
+  - [x] In `run_maven_cmd()`, modify the `on_exit` callback to:
+    - [x] Capture full terminal buffer content via `vim.api.nvim_buf_get_lines()`
+    - [x] Call `build_diagnostics.parse_maven_output()` on the captured text
+    - [x] Call `build_diagnostics.populate_diagnostics()` for each source file mentioned
+    - [x] Show notification: `vim.notify("Build failed with X errors", ERROR)` only if errors found
+  - [x] Add `<leader>cje` (jvm: error list) keymap that opens `:Trouble diagnostics` filtered to build errors
+  - [x] Same changes as A2, but for Gradle patterns
+  - [x] Handle both `./gradlew` and `gradle` command formats
 
 ### Phase 2: Keymaps & UX Integration
 
-- [ ] **B1**: Extend `lua/cumulus/core/keymaps.lua`:
-  - [ ] Add to Java `lang_keymaps` stack (filetypes: `java`, `kotlin`, `groovy`):
+- [x] **B1**: Extend `lua/cumulus/core/keymaps.lua`:
+  - [x] Add to Java `lang_keymaps` stack (filetypes: `java`, `kotlin`, `groovy`):
     - `<leader>cje` → `:Trouble diagnostics filter={severity=vim.diagnostic.severity.ERROR}`
     - `<leader>cjc` → `vim.diagnostic.set_loclist()` to populate quicklist
-  - [ ] Confirm `<leader>cd` (Line Diagnostics, already global) opens float with build errors
+  - [x] Confirm `<leader>cd` (Line Diagnostics, already global) opens float with build errors
 
-- [ ] **B2**: Extend `lua/cumulus/plugins/ui-config.lua`:
-  - [ ] Ensure `trouble.nvim` config surfaces build diagnostics in `opts.icons` or custom filter
-  - [ ] No code changes needed if defaults already display all namespaces; verify via `:Trouble`
+- [x] **B2**: Extend `lua/cumulus/plugins/ui-config.lua`:
+  - [x] Ensure `trouble.nvim` config surfaces build diagnostics in `opts.icons` or custom filter
+  - [x] No code changes needed if defaults already display all namespaces; verify via `:Trouble`
 
 ### Phase 3: Testing & Verification
 
-- [ ] **C1**: Create test file `lua/cumulus/util/build-diagnostics_spec.lua` (optional but recommended):
-  - [ ] Unit tests for Maven parser against real build output samples
-  - [ ] Unit tests for Gradle parser
-  - [ ] Verify diagnostic table structure matches `vim.diagnostic` expectations
+- [x] **C1**: Create test file `lua/cumulus/util/build-diagnostics_spec.lua` (optional but recommended):
+  - [x] Unit tests for Maven parser against real build output samples
+  - [x] Unit tests for Gradle parser
+  - [x] Verify diagnostic table structure matches `vim.diagnostic` expectations
 
-- [ ] **C2**: Manual testing:
-  - [ ] Create a Java file with a deliberate compilation error (e.g., undefined variable)
-  - [ ] Run Maven build via `<leader>cjm clean compile` → verify error appears in gutter + Trouble
-  - [ ] Run Gradle build via `<leader>cjg build` → verify error capture
-  - [ ] Verify diagnostic clears on successful rebuild
-  - [ ] Test multi-file error scenario (multi-module project)
+- [x] **C2**: Manual testing:
+  - [x] Create a Java file with a deliberate compilation error (e.g., undefined variable)
+  - [x] Run Maven build via `<leader>cjm clean compile` → verify error appears in gutter + Trouble
+  - [x] Run Gradle build via `<leader>cjg build` → verify error capture
+  - [x] Verify diagnostic clears on successful rebuild
+  - [x] Test multi-file error scenario (multi-module project)
 
 ---
 
@@ -177,17 +177,17 @@ nvim -c "tabnew" -c "edit /path/to/test-project/src/main/java/ErrorFile.java"
 ```
 
 ### Acceptance Criteria
-- [ ] `build-diagnostics.lua` exists and exports `parse_maven_output()`, `parse_gradle_output()`, `populate_diagnostics()`
-- [ ] Maven/Gradle build failures populate diagnostics in namespace `"cumulus_build"`
-- [ ] Errors appear in line gutter, Trouble.nvim, and statusline
-- [ ] `<leader>cje` opens Trouble filtered to build errors
-- [ ] `<leader>cd` shows build errors (float, same as LSP errors)
-- [ ] Successful rebuilds clear previous build diagnostics
-- [ ] `scripts/validate.sh` passes
-- [ ] Startup time remains < 50ms
-- [ ] All target files pass `luac -p` syntax check
-- [ ] DevOps guardrail: zero diffs on frozen files
-- [ ] Multi-module (Maven/Gradle) project errors parse correctly
+- [x] `build-diagnostics.lua` exists and exports `parse_maven_output()`, `parse_gradle_output()`, `populate_diagnostics()`
+- [x] Maven/Gradle build failures populate diagnostics in namespace `"cumulus_build"`
+- [x] Errors appear in line gutter, Trouble.nvim, and statusline
+- [x] `<leader>cje` opens Trouble filtered to build errors
+- [x] `<leader>cd` shows build errors (float, same as LSP errors)
+- [x] Successful rebuilds clear previous build diagnostics
+- [x] `scripts/validate.sh` passes
+- [x] Startup time remains < 50ms
+- [x] All target files pass `luac -p` syntax check
+- [x] DevOps guardrail: zero diffs on frozen files
+- [x] Multi-module (Maven/Gradle) project errors parse correctly
 
 ---
 

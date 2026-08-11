@@ -1,12 +1,12 @@
-# Specification: SPEC-020 - Flyway & Liquibase Migration Validator
+# Specification: SPEC-019 - JaCoCo & SonarQube Code Coverage Parser
 
 ## Metadata
-- **Spec ID**: SPEC-020
-- **Title**: Flyway & Liquibase Migration Validator
-- **Status**: BACKLOG
+- **Spec ID**: SPEC-019
+- **Title**: JaCoCo & SonarQube Code Coverage Parser
+- **Status**: COMPLETED
 - **Author**: Antigravity Assistant & AI Systems Architect
 - **Target Files/Paths**:
-  - `crates/cumulus-core/src/migrations.rs` (new)
+  - `crates/cumulus-core/src/coverage.rs` (new)
   - `crates/cumulus-core/src/main.rs` (extends)
   - `lua/cumulus/util/rust.lua` (extends)
 
@@ -29,13 +29,13 @@ Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
 ---
 
 ## Goal & Intent
-Validate Flyway (`V1__...sql`) and Liquibase migration scripts for version ordering, naming conventions, and duplicate version conflicts.
+Parse JaCoCo XML reports (`jacoco.xml`) and map line coverage (covered vs. missed lines) to Neovim signs in the buffer gutter.
 
 ---
 
 ## Execution Checklist
-- [ ] Implement `crates/cumulus-core/src/migrations.rs`
-- [ ] Add `validate-migrations` subcommand in `main.rs`
-- [ ] Add unit tests in Rust
-- [ ] Add Lua binding in `lua/cumulus/util/rust.lua`
-- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
+- [x] Implement `crates/cumulus-core/src/coverage.rs`
+- [x] Add `parse-coverage` subcommand in `main.rs`
+- [x] Add unit tests in Rust
+- [x] Add Lua binding in `lua/cumulus/util/rust.lua`
+- [x] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)

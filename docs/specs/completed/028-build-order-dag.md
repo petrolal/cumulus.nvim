@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-028
 - **Title**: Multi-Module Topological Build Order & DAG Solver
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Author**: Antigravity Assistant & AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/dag.rs` (new)
@@ -43,8 +43,8 @@ Parse all sub-module dependencies in multi-module Maven/Gradle projects, constru
 ---
 
 ## Execution Checklist
-- [ ] Implement `crates/cumulus-core/src/dag.rs`
-- [ ] Add `compute-build-order` subcommand in `main.rs`
-- [ ] Add Rust unit tests
-- [ ] Add Lua bridge binding in `lua/cumulus/util/rust.lua`
-- [ ] Connect to `multimodule.lua`
+- [x] Implement `crates/cumulus-core/src/dag.rs`
+- [x] Add `compute-build-order` subcommand in `main.rs`
+- [x] Add Rust unit tests
+- [x] Add Lua bridge binding in `lua/cumulus/util/rust.lua`
+- [x] Connect to `multimodule.lua`

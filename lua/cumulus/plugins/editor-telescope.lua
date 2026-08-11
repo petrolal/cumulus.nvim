@@ -129,6 +129,14 @@ return {
       telescope.setup(opts)
       pcall(telescope.load_extension, "fzf")
       pcall(telescope.load_extension, "ui-select")
+
+      vim.api.nvim_create_user_command("TelescopeMavenModules", function()
+        require("cumulus.util.multimodule").select_module("maven")
+      end, { desc = "List and open Maven sub-modules (SPEC-008)" })
+
+      vim.api.nvim_create_user_command("TelescopeGradleModules", function()
+        require("cumulus.util.multimodule").select_module("gradle")
+      end, { desc = "List and open Gradle sub-modules (SPEC-008)" })
     end,
   },
 }

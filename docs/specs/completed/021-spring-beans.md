@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-021
 - **Title**: Spring Bean Dependency Graph Generator
-- **Status**: BACKLOG
+- **Status**: COMPLETED
 - **Author**: Antigravity Assistant & AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/beans.rs` (new)
@@ -34,8 +34,8 @@ Scan Spring stereotypes (`@Component`, `@Service`, `@Repository`, `@Bean`, `@Aut
 ---
 
 ## Execution Checklist
-- [ ] Implement `crates/cumulus-core/src/beans.rs`
-- [ ] Add `parse-spring-beans` subcommand in `main.rs`
-- [ ] Add unit tests in Rust
-- [ ] Add Lua binding in `lua/cumulus/util/rust.lua`
-- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
+- [x] Implement `crates/cumulus-core/src/beans.rs`
+- [x] Add `parse-spring-beans` subcommand in `main.rs`
+- [x] Add unit tests in Rust
+- [x] Add Lua binding in `lua/cumulus/util/rust.lua`
+- [x] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
