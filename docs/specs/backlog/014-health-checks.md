@@ -6,94 +6,106 @@
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
+  - `crates/cumulus-core/src/system_health.rs` (new)
+  - `crates/cumulus-core/src/main.rs` (extends)
+  - `lua/cumulus/util/rust.lua` (extends)
   - `lua/cumulus/health.lua` (extends)
   - `lua/cumulus/core/init.lua` (extends)
 
-- **Implementation**: Rust (Lua bridge only — minimal Lua)
----
+- **Implementation**: Rust (Lua bridge only — zero pure-Lua shell execution loops)
 
 ---
 
 ## Architecture
 
-**Lua is a bridge to the Rust backend. That is it.**
+**Lua is a bridge to the Rust backend. All binary discovery, environment variable validation, and Mason package directory verification live in Rust.**
 
 ```
-Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+:checkhealth cumulus  →  Lua (rust.check_system_health)  →  cumulus-core check-system-health  →  JSON Response  →  Formatted Report
 ```
 
-- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
-- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
-- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
+- **Rust Engine (`crates/cumulus-core`)**: `check-system-health` inspects system PATH binaries (`rg`, `fd`, `git`, `cargo`, `npm`, `node`, `python3`, `java`, `mvn`, `gradle`), verifies `JAVA_HOME` environment directory validity, parses Java JDK version (`>= 17`), verifies Mason tool installation directories (`~/.local/share/nvim/mason/bin/`), and returns JSON payload:
+  ```json
+  {
+    "overall_ok": true,
+    "checks": [
+      {
+        "category": "JVM Environment",
+        "name": "Java JDK",
+        "status": "OK",
+        "message": "JDK 21 installed at /usr/lib/jvm/java-21-openjdk",
+        "fix_suggestion": null
+      }
+    ]
+  }
+  ```
+- **Lua Bridge (`lua/cumulus/util/rust.lua`)**: `rust.check_system_health()` invokes `cumulus-core` and returns the decoded health table.
+- **UI Integration**: `lua/cumulus/health.lua` iterates over Rust output to populate Neovim `:checkhealth` sections. On `VimEnter`, a lightweight notification summarizes any system health warnings.
+
 ---
 
 ## Goal & Intent
-
-New team members (or after system updates) often have missing/outdated tooling. JDTLS doesn't load because Java isn't installed, Maven is outdated, or Mason didn't auto-install packages. They don't realize there's a problem until trying to code and getting cryptic LSP errors.
-
-This spec enhances the health check system to catch setup issues immediately:
-- Check Java version (report installed versions, warn if < 11)
-- Check Maven/Gradle installed & executable
-- Check JAVA_HOME environment variable is set
-- Check Mason packages: `jdtls`, `kotlin-language-server`, `google-java-format`, etc.
-- Check Git hooks are configured (pre-commit validation)
-- Display warnings or errors on VimEnter (quiet; full report via `:checkhealth cumulus`)
+Automate platform verification and developer environment diagnostics, ensuring missing binaries, invalid `JAVA_HOME` paths, or uninstalled Mason tools are caught immediately upon editor startup.
 
 ---
 
 ## Scope Boundaries
 
 **In scope:**
-- Comprehensive tool/dependency checks
-- Visual warning badges on startup
-- Detailed report via `:checkhealth cumulus`
-- Quick-fix suggestions (e.g., "Run `:Mason` to install missing tools")
+- High-speed Rust platform health checker (`check-system-health`).
+- Environment variable and binary version parser in Rust.
+- IPC binding in `lua/cumulus/util/rust.lua`.
+- Integration into `lua/cumulus/health.lua` and `lua/cumulus/core/init.lua`.
 
 **Out of scope:**
-- Auto-install tools (require explicit user action via Mason)
-- System package installation (use existing package managers)
+- Auto-installing OS package manager dependencies.
+- Modifying frozen DevOps specs.
 
 ---
 
 ## Prerequisite Analysis
 
-- `lua/cumulus/health.lua` already exists
-- Checks can use `vim.fn.system()`, `vim.fn.executable()`, environment variables
+- `lua/cumulus/health.lua` currently contains hardcoded Lua loops calling `vim.fn.executable()`. `SPEC-014` replaces these loops with a single call to `rust.check_system_health()`.
+
+---
+
+## Constraints & Guardrails
+
+1. **Rust-First Directive**: All binary version checking, PATH scanning, and env var validation MUST reside in Rust (`crates/cumulus-core/src/system_health.rs`).
+2. **DevOps Guardrail**: Never touch frozen DevOps specs.
+3. **Zero Free Files**: All bridge logic resides in `lua/cumulus/util/rust.lua`.
+4. **Performance Budget**: Health check completes under 4ms.
 
 ---
 
 ## Execution Checklist
 
-- [ ] Extend `lua/cumulus/health.lua`:
-  - [ ] Implement `check_java_version()` → reports installed versions, warns if < 11
-  - [ ] Implement `check_maven_gradle()` → verifies both are executable
-  - [ ] Implement `check_java_home()` → verifies JAVA_HOME env var is set
-  - [ ] Implement `check_mason_packages()` → lists missing packages from ensure_installed
-  - [ ] Implement `check_git_hooks()` → verifies pre-commit hooks exist
-  - [ ] Add all to health report, color-coded (✓ OK, ⚠ WARN, ✗ ERROR)
-- [ ] Extend `lua/cumulus/core/init.lua`:
-  - [ ] On VimEnter, run health checks
-  - [ ] Show summary notification with any WARN/ERROR counts
-  - [ ] Suggest: "Run `:checkhealth cumulus` for details"
+- [ ] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
+  - Create `crates/cumulus-core/src/system_health.rs`.
+  - Add `CheckSystemHealth` subcommand to `main.rs`.
+  - Implement PATH executable scanner, JDK version parser, `JAVA_HOME` validator, and Mason directory inspector.
+  - Add Rust unit tests in `system_health.rs`.
+
+- [ ] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
+  - Add `M.check_system_health()` function calling `cumulus-core check-system-health`.
+
+- [ ] **Task 3: Healthcheck & Startup Wiring**
+  - Refactor `lua/cumulus/health.lua` to render results from `rust.check_system_health()`.
+  - Add lightweight startup health summary in `lua/cumulus/core/init.lua`.
 
 ---
 
-## Verification Commands
+## Verification Commands & Acceptance Criteria
 
 ```bash
+cargo test --manifest-path crates/cumulus-core/Cargo.toml
 bash scripts/validate.sh
-luac -p lua/cumulus/health.lua lua/cumulus/core/init.lua
+luac -p lua/cumulus/util/rust.lua lua/cumulus/health.lua lua/cumulus/core/init.lua
 nvim --headless "+checkhealth cumulus" +qa
 ```
 
 ### Acceptance Criteria
-- [ ] `:checkhealth cumulus` shows comprehensive tool/dependency status
-- [ ] VimEnter shows quiet notification with issues found
-- [ ] All checks pass with properly configured system
-- [ ] Helpful error messages guide user to fixes
-
----
-
-## Summary
-
-Catch setup issues immediately; reduce onboarding time by 50% by automating verification of all required tools and dependencies.
+- [ ] `cargo test` passes with new `system_health` unit tests.
+- [ ] `check-system-health` subcommand returns JSON array of system checks.
+- [ ] `:checkhealth cumulus` displays comprehensive report driven by Rust output.
+- [ ] Zero pure-Lua binary checking loops in `health.lua`.

@@ -6,99 +6,97 @@
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
+  - `crates/cumulus-core/src/jdtls_sync.rs` (new)
+  - `crates/cumulus-core/src/main.rs` (extends)
+  - `lua/cumulus/util/rust.lua` (extends)
   - `lua/cumulus/core/keymaps.lua` (extends)
   - `lua/cumulus/core/autocmds.lua` (extends)
+  - `ftplugin/java.lua` (extends)
 
-- **Implementation**: Rust (Lua bridge only — minimal Lua)
----
+- **Implementation**: Rust (Lua bridge only — zero pure-Lua file parsing or mtime checks)
 
 ---
 
 ## Architecture
 
-**Lua is a bridge to the Rust backend. That is it.**
+**Lua is a bridge to the Rust backend. All filesystem scanning and mtime comparison logic lives in Rust.**
 
 ```
-Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+Neovim Autocmd  →  Lua (rust.check_jdtls_sync)  →  cumulus-core check-jdtls-sync  →  JSON Response  →  Statusline / Keymap Sync
 ```
 
-- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
-- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
-- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
+- **Rust Engine (`crates/cumulus-core`)**: `check-jdtls-sync --dir <path> --start-time <epoch>` scans `pom.xml`, `build.gradle`, `settings.gradle`, and `gradle/libs.versions.toml` `mtime` against JDTLS session start timestamp. Returns JSON payload: `{ "sync_needed": bool, "modified_file": string|null }`.
+- **Lua Bridge (`lua/cumulus/util/rust.lua`)**: `rust.check_jdtls_sync(dir_path, start_time)` calls `cumulus-core` and returns the decoded status table. Zero Lua mtime parsing.
+- **UI Integration**: Displays statusline badge `🔄 Resync needed` when `sync_needed` is true, and binds `<leader>cjs` to execute Maven/Gradle dependency resolve + JDTLS restart.
+
 ---
 
 ## Goal & Intent
-
-JDTLS maintains an internal classpath cache based on `pom.xml`/`build.gradle` state at startup. When a developer adds or updates a Maven/Gradle dependency, JDTLS continues to use the stale classpath until manually restarted. This causes autocomplete to miss new imports, type inference to fail, and diagnostics to reference outdated APIs—all without visual indication that JDTLS is out of sync.
-
-This spec implements **automatic sync detection**: on buffer enter in a Java project, check if `pom.xml`/`build.gradle` has been modified since JDTLS started. If yes, display a statusline badge (`🔄 Resync needed`) and provide a one-keypress restart via `<leader>cjs` (jvm: sync). This closes the "invisible staleness" gap and aligns with IntelliJ's transparency about classpath state.
+Eliminate the "invisible classpath staleness" bug in Java/Kotlin development. When a developer updates `pom.xml` or `build.gradle`, JDTLS retains stale dependencies in its classpath cache until restarted. This spec automatically detects configuration changes using Rust native filesystem checks and provides a single keypress resync (`<leader>cjs`).
 
 ---
 
 ## Scope Boundaries
 
 **In scope:**
-- Detect `pom.xml`/`build.gradle` modification time vs. JDTLS session start time
-- Show statusline indicator when sync is needed
-- Add keymap `<leader>cjs` to run Maven/Gradle dependency resolution + JDTLS restart
-- Clear indicator on successful sync
+- High-speed Rust scanner (`check-jdtls-sync`) for build configuration file modifications.
+- IPC binding in `lua/cumulus/util/rust.lua`.
+- Statusline badge and `<leader>cjs` keymap in JVM `lang_keymaps` stack.
+- Capturing JDTLS start timestamp in `ftplugin/java.lua`.
 
 **Out of scope:**
-- Auto-restart JDTLS without user prompt (requires explicit action for safety)
-- Modify frozen DevOps files
-- Handle Gradle build cache invalidation beyond `--refresh-dependencies`
-- Track individual dependency updates; check only filesystem mtime
+- Modifying frozen DevOps specs.
+- Automatic un-prompted JDTLS restart (resync must be user-triggered).
 
 ---
 
 ## Prerequisite Analysis
 
-- JDTLS is launched via `ftplugin/java.lua` on first Java buffer entry; start time can be captured via `os.time()` in that file
-- Statusline: snacks.nvim already provides a way to extend statusline components
-- `<leader>cjs` can be added to the Java `lang_keymaps` stack in `lua/cumulus/core/keymaps.lua`
-- Maven sync: `mvn dependency:resolve -q` is already used in `maven.lua`; integrate output parsing
-- Gradle sync: `./gradlew dependencies` or `./gradlew --refresh-dependencies`
+- `ftplugin/java.lua` starts JDTLS; can record `_G.cumulus_jdtls_start_time = os.time()`.
+- `lua/cumulus/util/rust.lua` already handles IPC for `cumulus-core`.
+- `lua/cumulus/util/maven.lua` and `gradle.lua` provide dependency resolution commands (`mvn dependency:resolve` / `./gradlew dependencies`).
 
 ---
 
 ## Constraints & Guardrails
 
-1. **DevOps Immutability Guardrail**: No frozen files modified
-2. **Zero Free Files Policy**: All code in `lua/cumulus/util/` and keymaps in `lua/cumulus/core/`
-3. **Performance**: Mtime check is <1ms; sync is user-triggered, not automatic
-4. **Startup Budget**: No impact; run on buffer enter only
+1. **Rust-First Directive**: All file discovery and mtime logic MUST reside in `crates/cumulus-core/src/jdtls_sync.rs`. No `uv.fs_stat` or `os.rename` in Lua.
+2. **DevOps Guardrail**: Never touch frozen paths (`cloud-*.lua`, `lsp-devops.lua`, `tools-dap-devops.lua`).
+3. **Zero Free Files**: Implement all bridge logic in `lua/cumulus/util/rust.lua` and keymaps in `lua/cumulus/core/keymaps.lua`.
+4. **Performance**: Rust execution time < 2ms. No impact on startup budget.
 
 ---
 
 ## Execution Checklist
-- [ ] Add feature binding to `lua/cumulus/util/rust.lua` (single Lua dispatcher)
-  - [ ] Implement `is_sync_needed()` → returns bool by comparing pom.xml/build.gradle mtime vs. jdtls.start_time (stored globally)
-  - [ ] Implement `sync_and_restart()` → run Maven/Gradle sync, wait, restart JDTLS
-  - [ ] Implement `statusline_component()` → returns statusline widget text/highlight
-- [ ] Extend `ftplugin/java.lua`: Store JDTLS start time in a module-level variable
-- [ ] Extend `lua/cumulus/core/keymaps.lua`: Add `<leader>cjs` to Java lang_keymaps stack
-- [ ] Extend `lua/cumulus/core/autocmds.lua`: Wire statusline update on BufEnter for Java files
-- [ ] Test: Add dependency to pom.xml, verify badge appears + `<leader>cjs` syncs
+
+- [ ] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
+  - Create `crates/cumulus-core/src/jdtls_sync.rs`.
+  - Add `CheckJdtlsSync { dir: PathBuf, start_time: u64 }` subcommand to `main.rs`.
+  - Implement mtime comparison against `pom.xml`, `build.gradle`, `build.gradle.kts`, `settings.gradle`, `settings.gradle.kts`, `gradle/libs.versions.toml`.
+  - Add Rust unit tests in `jdtls_sync.rs`.
+
+- [ ] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
+  - Add `M.check_jdtls_sync(dir_path, start_time)` function calling `cumulus-core check-jdtls-sync`.
+
+- [ ] **Task 3: Editor Wiring**
+  - Store `_G.cumulus_jdtls_start_time` on JDTLS attach in `ftplugin/java.lua`.
+  - Add `<leader>cjs` (JVM Sync) keymap in `lua/cumulus/core/keymaps.lua` to run Maven/Gradle dependency sync and trigger `:JdtRestart`.
+  - Wire `BufEnter` autocmd in `lua/cumulus/core/autocmds.lua` for Java files to check sync status and update statusline.
 
 ---
 
-## Verification Commands
+## Verification Commands & Acceptance Criteria
 
 ```bash
+cargo test --manifest-path crates/cumulus-core/Cargo.toml
 bash scripts/validate.sh
-luac -p lua/cumulus/util/jdtls-sync.lua lua/cumulus/core/keymaps.lua lua/cumulus/core/autocmds.lua
-nvim --headless "+Lazy! sync" +qa
-nvim --headless --startuptime /tmp/nvim-startuptime.log +qa && grep "NVIM STARTED" /tmp/nvim-startuptime.log
+luac -p lua/cumulus/util/rust.lua lua/cumulus/core/keymaps.lua lua/cumulus/core/autocmds.lua
+nvim --headless "+checkhealth cumulus" +qa
 ```
 
 ### Acceptance Criteria
-- [ ] Statusline badge appears when pom.xml/build.gradle is modified
-- [ ] `<leader>cjs` runs Maven/Gradle sync and restarts JDTLS
-- [ ] Badge clears after successful sync
-- [ ] No startup time impact (<50ms maintained)
-
----
-
-## Summary
-
-Eliminates the "invisible classpath staleness" trap by providing visual feedback and one-keypress sync. Critical for smooth iterative development in multi-module projects.
+- [ ] `cargo test` passes with new `jdtls_sync` tests.
+- [ ] `check-jdtls-sync` subcommand returns JSON `{ "sync_needed": true, "modified_file": "pom.xml" }` when pom.xml is updated after start_time.
+- [ ] Statusline displays resync badge when build configuration changes.
+- [ ] `<leader>cjs` triggers build sync and JDTLS restart, clearing the badge.
+- [ ] No pure-Lua mtime checking code exists.

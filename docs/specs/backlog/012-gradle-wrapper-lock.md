@@ -1,86 +1,109 @@
-# Specification: SPEC-012 - Gradle Wrapper Version Lock Check
+# Specification: SPEC-012 - Gradle Wrapper Version Lock & SHA-256 Verification
 
 ## Metadata
 - **Spec ID**: SPEC-012
-- **Title**: Gradle Wrapper Version Lock Check
+- **Title**: Gradle Wrapper Version Lock & SHA-256 Verification
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
+  - `crates/cumulus-core/src/gradle_wrapper.rs` (new)
+  - `crates/cumulus-core/src/main.rs` (extends)
+  - `lua/cumulus/util/rust.lua` (extends)
   - `lua/cumulus/health.lua` (extends)
 
-- **Implementation**: Rust (Lua bridge only — minimal Lua)
----
+- **Implementation**: Rust (Lua bridge only — zero pure-Lua properties/YAML regex parsing)
 
 ---
 
 ## Architecture
 
-**Lua is a bridge to the Rust backend. That is it.**
+**Lua is a bridge to the Rust backend. All wrapper property parsing, SHA-256 checksum verification, and CI workflow analysis live in Rust.**
 
 ```
-Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+:checkhealth cumulus  →  Lua (rust.verify_gradle_wrapper)  →  cumulus-core verify-gradle-wrapper  →  JSON Response  →  Health Report
 ```
 
-- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
-- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
-- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
+- **Rust Engine (`crates/cumulus-core`)**: `verify-gradle-wrapper --dir <path>` parses `gradle/wrapper/gradle-wrapper.properties`, extracts `distributionUrl` and `distributionSha256Sum`, compares local Gradle version against CI configuration files (`.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`), verifies wrapper binary SHA-256 integrity if present, and outputs JSON payload:
+  ```json
+  {
+    "local_version": "7.6.1",
+    "ci_version": "8.5",
+    "sha256_configured": true,
+    "sha256_valid": true,
+    "issues": [
+      "Gradle version mismatch: local=7.6.1, CI (.github/workflows/build.yml)=8.5"
+    ]
+  }
+  ```
+- **Lua Bridge (`lua/cumulus/util/rust.lua`)**: `rust.verify_gradle_wrapper(dir_path)` invokes `cumulus-core` and returns the decoded verification result.
+- **UI Integration**: Hooks into `:checkhealth cumulus` in `lua/cumulus/health.lua` under a dedicated "Gradle Wrapper & Build Lock" section.
+
 ---
 
 ## Goal & Intent
-
-Teams often have inconsistent Gradle wrapper versions across branches. Local dev uses `gradle-wrapper.properties` with version 7.6, but CI/CD (GitHub Actions, GitLab CI, Jenkinsfile) uses 8.0. This causes "it works on my machine" bugs and build reproducibility issues.
-
-This spec adds a health check that compares local `gradle-wrapper.properties` version against CI configuration files:
-- Read local Gradle version from `gradle-wrapper.properties`
-- Search CI config (`.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`) for Gradle version
-- If mismatch, warn: `⚠ Gradle version mismatch: local=7.6, CI=8.0`
+Eliminate "works on my machine but fails in CI" build discrepancies by detecting mismatches between local Gradle wrapper settings and CI/CD workflow configurations, while verifying wrapper binary SHA-256 checksums to guard against compromised binaries.
 
 ---
 
 ## Scope Boundaries
 
 **In scope:**
-- Parse `gradle-wrapper.properties` distributionUrl for version
-- Parse GitHub Actions, GitLab CI, Jenkins config for Gradle version
-- Show mismatch warning in `:checkhealth cumulus`
+- High-speed Rust parser (`verify-gradle-wrapper`) for `gradle-wrapper.properties` and CI YAML/Groovy workflows.
+- SHA-256 checksum validation.
+- IPC binding in `lua/cumulus/util/rust.lua`.
+- Integration into `lua/cumulus/health.lua`.
 
 **Out of scope:**
-- Auto-update versions (requires user decision)
-- Maven wrapper checks (separate spec if needed)
-- Travis CI or other CI platforms (extend later)
+- Automatically modifying CI workflows or wrapper property files.
+- Modifying frozen DevOps specs.
 
 ---
 
 ## Prerequisite Analysis
 
-- Health checks already exist in `lua/cumulus/health.lua`
-- CI config files (YAML, Groovy DSL) can be parsed with regex
+- `lua/cumulus/health.lua` provides Neovim standard healthcheck reports.
+- `crates/cumulus-core/src/gradle.rs` already handles Gradle task parsing.
+
+---
+
+## Constraints & Guardrails
+
+1. **Rust-First Directive**: All parsing of `.properties`, `.yml`, and `Jenkinsfile` MUST be in Rust (`crates/cumulus-core/src/gradle_wrapper.rs`). No Lua regex parsing in `health.lua`.
+2. **DevOps Guardrail**: Never touch frozen DevOps specs.
+3. **Zero Free Files**: All bridge logic resides in `lua/cumulus/util/rust.lua`.
+4. **Performance Budget**: Verification completes under 3ms.
 
 ---
 
 ## Execution Checklist
 
-- [ ] Extend `lua/cumulus/health.lua`:
-  - [ ] Implement `check_gradle_version_consistency()` → reads local version, searches CI configs, reports mismatch
-  - [ ] Add to health check report under "Build Tools" section
+- [ ] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
+  - Create `crates/cumulus-core/src/gradle_wrapper.rs`.
+  - Add `VerifyGradleWrapper { dir: PathBuf }` subcommand to `main.rs`.
+  - Implement `gradle-wrapper.properties` parser.
+  - Implement CI configuration scanner (`.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`).
+  - Implement SHA-256 checksum validator.
+  - Add Rust unit tests in `gradle_wrapper.rs`.
+
+- [ ] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
+  - Add `M.verify_gradle_wrapper(dir_path)` function calling `cumulus-core verify-gradle-wrapper`.
+
+- [ ] **Task 3: Healthcheck Wiring**
+  - Extend `lua/cumulus/health.lua` to call `rust.verify_gradle_wrapper()` and render warnings/OK status items.
 
 ---
 
-## Verification Commands
+## Verification Commands & Acceptance Criteria
 
 ```bash
+cargo test --manifest-path crates/cumulus-core/Cargo.toml
 bash scripts/validate.sh
-luac -p lua/cumulus/health.lua
+luac -p lua/cumulus/util/rust.lua lua/cumulus/health.lua
 nvim --headless "+checkhealth cumulus" +qa
 ```
 
 ### Acceptance Criteria
-- [ ] `:checkhealth cumulus` shows Gradle version mismatch warning if present
-- [ ] Warning shows both local and CI versions
-- [ ] No warning if versions match
-
----
-
-## Summary
-
-Prevent "works locally but not in CI" bugs by detecting Gradle version mismatches early.
+- [ ] `cargo test` passes with new `gradle_wrapper` unit tests.
+- [ ] `verify-gradle-wrapper` subcommand identifies version mismatches between local wrapper and CI workflows.
+- [ ] `:checkhealth cumulus` displays Gradle wrapper status and SHA-256 verification results.
+- [ ] Zero pure-Lua properties or YAML regex parsing.

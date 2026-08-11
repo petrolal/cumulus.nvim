@@ -1,98 +1,106 @@
-# Specification: SPEC-015 - Project `.nvimrc` Template
+# Specification: SPEC-015 - Project `.nvimrc` Template & Local Overrides
 
 ## Metadata
 - **Spec ID**: SPEC-015
-- **Title**: Project `.nvimrc` Template
+- **Title**: Project `.nvimrc` Template & Local Overrides
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
-  - `.nvimrc.lua.example` (new, template)
-  - `lua/cumulus/core/init.lua` (extends)
+  - `crates/cumulus-core/src/nvimrc_validator.rs` (new)
+  - `crates/cumulus-core/src/main.rs` (extends)
+  - `lua/cumulus/util/rust.lua` (extends)
+  - `.nvimrc.lua.example` (new)
+  - `lua/cumulus/core/options.lua` (extends)
 
-- **Implementation**: Rust (Lua bridge only — minimal Lua)
----
+- **Implementation**: Rust (Lua bridge only — zero pure-Lua file validation logic)
 
 ---
 
 ## Architecture
 
-**Lua is a bridge to the Rust backend. That is it.**
+**Lua is a bridge to the Rust backend. All `.nvimrc` schema validation, option deprecation checking, and template verification live in Rust.**
 
 ```
-Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+Neovim Startup  →  exrc (.nvimrc.lua)  →  Lua (rust.validate_nvimrc)  →  cumulus-core validate-nvimrc  →  JSON Response
 ```
 
-- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
-- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
-- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
+- **Rust Engine (`crates/cumulus-core`)**: `validate-nvimrc --file <path>` parses `.nvimrc.lua`, checks structure against `.nvimrc.lua.example` schema definitions (Maven active profiles, Gradle default tasks, JVM debug ports, formatter overrides), verifies key types, and outputs JSON payload:
+  ```json
+  {
+    "valid": true,
+    "warnings": [
+      "Deprecated key 'maven_opts' found on line 12; use 'jvm_args' instead"
+    ]
+  }
+  ```
+- **Lua Bridge (`lua/cumulus/util/rust.lua`)**: `rust.validate_nvimrc(file_path)` invokes `cumulus-core` and returns the decoded validation result.
+- **UI Integration**: Displays a warning notification on project load if `.nvimrc.lua` contains invalid or deprecated keys.
+
 ---
 
 ## Goal & Intent
-
-Teams often have project-specific settings (Maven profiles for integration tests, Gradle tasks for Docker builds, JVM args for profiling, IDE formatter rules). These live in scattered docs or team memory, not in the editor. Developers manually apply them, creating inconsistency and lost knowledge.
-
-This spec enables per-project configuration via `.nvimrc.lua` at the project root:
-- Auto-loaded by Neovim's `exrc` option when opening project
-- Contains project-specific settings: Maven profiles, Gradle tasks, test commands, formatter prefs
-- Example: `MAVEN_PROFILES="integration,docker"`, `GRADLE_TASKS="bootRun,testIntegration"`
-- Checked into git repo; shared across team
+Enable secure, standardized per-project configuration via `.nvimrc.lua` checked into project repositories, ensuring project-specific Maven profiles, Gradle tasks, and JVM settings are validated by Rust upon opening the project.
 
 ---
 
 ## Scope Boundaries
 
 **In scope:**
-- Enable Neovim's exrc for `.nvimrc.lua` auto-load
-- Create `.nvimrc.lua.example` template
-- Document configuration options in template comments
-- Show warnings if `.nvimrc.lua` exists but `.nvimrc.lua.example` is outdated
+- High-speed Rust schema validator (`validate-nvimrc`) for `.nvimrc.lua`.
+- Creating `.nvimrc.lua.example` template at repository root.
+- Enabling `vim.opt.exrc = true` in `lua/cumulus/core/options.lua`.
+- IPC binding in `lua/cumulus/util/rust.lua`.
 
 **Out of scope:**
-- Sandbox/security restrictions for `.nvimrc.lua` (use Neovim's native exrc sandboxing)
-- Complex scripting in `.nvimrc.lua`; keep it data-driven
+- Implementing un-sandboxed code execution in `.nvimrc.lua` (rely on Neovim's native `exrc` security sandbox).
+- Modifying frozen DevOps specs.
 
 ---
 
 ## Prerequisite Analysis
 
-- Neovim's `exrc` option (set in `lua/cumulus/core/options.lua` if not already)
-- `.nvimrc.lua` is auto-loaded from project root if exrc is enabled
+- Neovim native `exrc` option supports auto-loading `.nvimrc.lua` from working directory when enabled.
+
+---
+
+## Constraints & Guardrails
+
+1. **Rust-First Directive**: All parsing and schema validation of `.nvimrc.lua` MUST be in Rust (`crates/cumulus-core/src/nvimrc_validator.rs`).
+2. **DevOps Guardrail**: Never touch frozen DevOps specs.
+3. **Zero Free Files**: All bridge logic resides in `lua/cumulus/util/rust.lua`.
+4. **Performance Budget**: Validation completes under 2ms.
 
 ---
 
 ## Execution Checklist
 
-- [ ] Extend `lua/cumulus/core/options.lua`:
-  - [ ] Ensure `vim.opt.exrc = true` is set (enable per-project .nvimrc.lua)
-- [ ] Create `.nvimrc.lua.example` template at project root:
-  - [ ] Document structure with comments
-  - [ ] Example configuration for Maven (profiles, goals)
-  - [ ] Example configuration for Gradle (tasks, plugins)
-  - [ ] Example JVM args for debugging/profiling
-  - [ ] Example formatter preferences (Google style, etc.)
-- [ ] Document in README: "Copy `.nvimrc.lua.example` to `.nvimrc.lua` to customize your setup"
-- [ ] Add `.nvimrc.lua` to `.gitignore` (user-local overrides) or include in repo (team-wide settings)
+- [ ] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
+  - Create `crates/cumulus-core/src/nvimrc_validator.rs`.
+  - Add `ValidateNvimrc { file: PathBuf }` subcommand to `main.rs`.
+  - Implement AST/schema parser for `.nvimrc.lua` options.
+  - Add Rust unit tests in `nvimrc_validator.rs`.
+
+- [ ] **Task 2: Template Creation & Option Wiring**
+  - Create `.nvimrc.lua.example` template in repository root.
+  - Set `vim.opt.exrc = true` in `lua/cumulus/core/options.lua`.
+
+- [ ] **Task 3: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
+  - Add `M.validate_nvimrc(file_path)` function calling `cumulus-core validate-nvimrc`.
 
 ---
 
-## Verification Commands
+## Verification Commands & Acceptance Criteria
 
 ```bash
+cargo test --manifest-path crates/cumulus-core/Cargo.toml
 bash scripts/validate.sh
-luac -p lua/cumulus/core/options.lua
-# Manual test: create .nvimrc.lua at project root with custom settings
-# Open Neovim and verify settings are loaded
+luac -p lua/cumulus/util/rust.lua lua/cumulus/core/options.lua
+nvim --headless "+checkhealth cumulus" +qa
 ```
 
 ### Acceptance Criteria
-- [ ] `.nvimrc.lua.example` exists with clear documentation
-- [ ] `exrc` is enabled in options
-- [ ] Team can copy template to `.nvimrc.lua` and customize
-- [ ] Settings are auto-loaded when opening project
-- [ ] README documents the workflow
-
----
-
-## Summary
-
-Share project-specific configs via git; ensure consistency across developer machines and reduce onboarding friction.
+- [ ] `cargo test` passes with new `nvimrc_validator` unit tests.
+- [ ] `.nvimrc.lua.example` exists at repository root.
+- [ ] `validate-nvimrc` subcommand detects invalid keys in `.nvimrc.lua`.
+- [ ] `vim.opt.exrc` is enabled in `options.lua`.
+- [ ] Zero pure-Lua file parsing code.

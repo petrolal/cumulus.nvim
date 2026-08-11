@@ -6,88 +6,106 @@
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
-  - `lua/cumulus/plugins/lsp-deps.lua` (new)
-  - `lua/cumulus/plugins/tools-mason.lua` (extends)
+  - `crates/cumulus-core/src/dep_lens.rs` (new)
+  - `crates/cumulus-core/src/main.rs` (extends)
+  - `lua/cumulus/util/rust.lua` (extends)
+  - `lua/cumulus/core/keymaps.lua` (extends)
+  - `lua/cumulus/core/autocmds.lua` (extends)
 
-- **Implementation**: Rust (Lua bridge only — minimal Lua)
----
+- **Implementation**: Rust (Lua bridge only — zero pure-Lua dependency parsing or network version checking)
 
 ---
 
 ## Architecture
 
-**Lua is a bridge to the Rust backend. That is it.**
+**Lua is a bridge to the Rust backend. All dependency manifest parsing, version catalog resolution, and version age classification live in Rust.**
 
 ```
-Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
+Neovim Buffer  →  Lua (rust.check_dep_versions)  →  cumulus-core check-dep-versions  →  JSON Response  →  Virtual Text / CodeLens
 ```
 
-- **Rust** (`crates/cumulus-core`): all logic — parsing, file I/O, network, validation, analysis
-- **Lua**: one job only — call the Rust binary and pass results to Neovim APIs
-- No Lua fallbacks. No Lua parsing. No Lua analysis. If the binary is missing, fail explicitly.
+- **Rust Engine (`crates/cumulus-core`)**: `check-dep-versions --file <path>` parses `pom.xml`, `build.gradle`, `build.gradle.kts`, or `gradle/libs.versions.toml`, queries cached Maven Central / Gradle Plugin Portal metadata (stored in `~/.cache/nvim/dependency-versions.json`), and outputs JSON array:
+  ```json
+  [
+    {
+      "group": "org.springframework.boot",
+      "artifact": "spring-boot-starter-web",
+      "current_version": "3.1.0",
+      "latest_version": "3.2.5",
+      "line": 42,
+      "age_status": "MAJOR_OUTDATED"
+    }
+  ]
+  ```
+- **Lua Bridge (`lua/cumulus/util/rust.lua`)**: `rust.check_dep_versions(file_path)` invokes `cumulus-core` and returns the decoded list.
+- **UI Integration**: Renders virtual text on dependency lines (`Current: 3.1.0 → Latest: 3.2.5 [MAJOR_OUTDATED]`) and registers code actions to bump version inline.
+
 ---
 
 ## Goal & Intent
-
-When editing `pom.xml` / `build.gradle`, developers can't see if dependencies are outdated or if security updates are available. Many projects run weeks behind latest versions, creating accumulating security and stability risks.
-
-This spec adds inline code lens for each dependency showing:
-- `Current: 1.2.3 → Latest: 1.5.0`
-- Color-coded by age (green = current, yellow = 1-2 versions old, red = 3+ versions old)
-- Code action to auto-update version on keypress
+Expose real-time dependency freshness and outdated version warnings inline within `pom.xml` and `build.gradle` files without blocking Neovim's main UI thread.
 
 ---
 
 ## Scope Boundaries
 
 **In scope:**
-- Show available versions from Maven Central / Gradle Plugin Portal
-- Inline code lens on each dependency line
-- Code action to auto-update
-- Cache version info for offline work
+- High-speed Rust parser (`check-dep-versions`) for Maven POM XML and Gradle version catalogs.
+- Disk-cached version lookups for offline operation.
+- IPC binding in `lua/cumulus/util/rust.lua`.
+- Virtual text and CodeLens rendering.
 
 **Out of scope:**
-- Automatic version updates (require explicit user action)
-- Beta/snapshot version suggestions
-- Transitive dependency tree (defer to future spec)
+- Auto-updating dependencies without user confirmation.
+- Modifying frozen DevOps specs.
 
 ---
 
 ## Prerequisite Analysis
 
-- No existing dependency checking
-- Requires Mason package for version lookup or cached data
-- Code lens needs LSP-like provider
+- `crates/cumulus-core/src/dep_resolver.rs` (SPEC-026) already parses direct dependencies from `pom.xml` and `libs.versions.toml`. `dep_lens.rs` extends this parser with line-number mapping and version classification.
+
+---
+
+## Constraints & Guardrails
+
+1. **Rust-First Directive**: All XML/TOML parsing and HTTP version lookup cache management MUST be implemented in Rust (`crates/cumulus-core/src/dep_lens.rs`).
+2. **DevOps Guardrail**: Never touch frozen paths (`cloud-*.lua`, `lsp-devops.lua`, `tools-dap-devops.lua`).
+3. **Zero Free Files**: All bridge functions live in `lua/cumulus/util/rust.lua`.
+4. **Offline Resilience**: Must return cached results when offline.
 
 ---
 
 ## Execution Checklist
 
-- [ ] Create `lua/cumulus/plugins/lsp-deps.lua`:
-  - [ ] Implement version lookup (cache file in `~/.cache/nvim/dependency-versions.json`)
-  - [ ] Implement code lens provider for pom.xml/build.gradle
-  - [ ] Implement code action for version update
-- [ ] Add setup in keymaps or autocmds to refresh on buffer enter
-- [ ] Cache management: refresh cache periodically
+- [ ] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
+  - Create `crates/cumulus-core/src/dep_lens.rs`.
+  - Add `CheckDepVersions { file: PathBuf }` subcommand to `main.rs`.
+  - Extend POM/TOML parser to record 1-indexed line numbers for dependency declarations.
+  - Add version age classifier (`CURRENT`, `MINOR_OUTDATED`, `MAJOR_OUTDATED`).
+  - Add Rust unit tests in `dep_lens.rs`.
+
+- [ ] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
+  - Add `M.check_dep_versions(file_path)` function calling `cumulus-core check-dep-versions`.
+
+- [ ] **Task 3: Editor UI & Autocmd Wiring**
+  - Wire `BufReadPost`/`BufWritePost` autocmd in `lua/cumulus/core/autocmds.lua` for build files to display extmark virtual text.
+  - Add `<leader>cdu` (Dependency Update) keymap in `lua/cumulus/core/keymaps.lua`.
 
 ---
 
-## Verification Commands
+## Verification Commands & Acceptance Criteria
 
 ```bash
+cargo test --manifest-path crates/cumulus-core/Cargo.toml
 bash scripts/validate.sh
-luac -p lua/cumulus/plugins/lsp-deps.lua lua/cumulus/plugins/tools-mason.lua
-nvim --headless --startuptime /tmp/nvim-startuptime.log +qa && grep "NVIM STARTED" /tmp/nvim-startuptime.log
+luac -p lua/cumulus/util/rust.lua lua/cumulus/core/keymaps.lua lua/cumulus/core/autocmds.lua
+nvim --headless "+checkhealth cumulus" +qa
 ```
 
 ### Acceptance Criteria
-- [ ] Code lens appears for each dependency showing latest version
-- [ ] Color-coded by version age
-- [ ] Code action updates dependency version
-- [ ] Works offline with cached data
-
----
-
-## Summary
-
-Compliance win; improves security posture and dependency health visibility in real-time.
+- [ ] `cargo test` passes with new `dep_lens` unit tests.
+- [ ] `check-dep-versions` returns JSON containing line numbers and version statuses.
+- [ ] Dependency virtual text appears in `pom.xml` and `libs.versions.toml` buffers.
+- [ ] Works in offline mode using disk-cached metadata.
+- [ ] Zero pure-Lua XML/TOML parsing code.
