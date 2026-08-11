@@ -37,7 +37,8 @@ This spec implements **persistent build error capture** by parsing Maven/Gradle 
 - Statusline (error count badge)
 - Notification system (immediate failure alert)
 
-The implementation integrates seamlessly with JDTLS diagnostics and existing formatting/linting, providing a unified error surface equivalent to IntelliJ's "Problems" panel without requiring IDE-specific tooling.
+The implementation integrates seamlessly with JDTLS diagnostics and existing formatting/linting, providing a unified error surface equivalent to IntelliJ's "Problems" panel without requiring IDE-specific tooling. (Note: Legacy pure-Lua fallback functions in `build-diagnostics.lua` are scheduled for complete elimination under `SPEC-031` in `docs/specs/backlog/` to enforce strict Rust IPC).
+
 
 ---
 

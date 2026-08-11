@@ -37,7 +37,8 @@ Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
 
 Migrate performance-critical text parsing, POM XML analysis, Gradle task extraction, and Maven/Gradle build log diagnostic parsing from Lua string patterns to a compiled Rust helper binary (`cumulus-helper`).
 
-The helper executes asynchronously via `vim.system` or fast Lua bridge, accelerating project analysis while maintaining 100% backward compatibility and fallback to Lua routines if the Rust binary is not compiled.
+The helper executes asynchronously via `vim.system` or fast Lua bridge, accelerating project analysis while maintaining 100% backward compatibility. (Note: Fallback to Lua string routines is scheduled for complete elimination under `SPEC-031` in `docs/specs/backlog/` to enforce strict Rust IPC and zero UI thread latency).
+
 
 ---
 
