@@ -44,6 +44,24 @@ function M.is_available()
   return M.get_bin() ~= nil
 end
 
+--- Safely decode JSON from Rust output with optional error logging.
+---@param json_str string
+---@param context? string Optional context for error messages (e.g., "parse-build-log")
+---@return table|nil Decoded table, or nil if decode fails
+local function safe_json_decode(json_str, context)
+  local ok, parsed = pcall(vim.json.decode, json_str)
+  if ok and type(parsed) == "table" then
+    return parsed
+  end
+  if not ok then
+    local msg = string.format("cumulus-core JSON decode failed%s: %s",
+      context and " (" .. context .. ")" or "",
+      tostring(parsed))
+    vim.notify(msg, vim.log.levels.DEBUG)
+  end
+  return nil
+end
+
 --- Parse Maven goals using Rust helper
 ---@param pom_path string
 ---@return string[]|nil
@@ -75,10 +93,7 @@ function M.parse_gradle_tasks(content)
 
   local res = vim.system({ bin, "parse-gradle-tasks" }, { stdin = content, text = true }):wait()
   if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
+    return safe_json_decode(res.stdout, "parse-gradle-tasks")
   end
 
   return nil
@@ -96,10 +111,7 @@ function M.parse_build_log(tool, log_content)
 
   local res = vim.system({ bin, "parse-build-log", "--tool", tool }, { stdin = log_content, text = true }):wait()
   if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
+    return safe_json_decode(res.stdout, "parse-build-log")
   end
 
   return nil
@@ -137,10 +149,7 @@ function M.parse_stacktrace(log_content)
 
   local res = vim.system({ bin, "parse-stacktrace" }, { stdin = log_content, text = true }):wait()
   if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
+    return safe_json_decode(res.stdout, "parse-stacktrace")
   end
 
   return nil
@@ -177,10 +186,7 @@ function M.parse_test_output(log_content)
 
   local res = vim.system({ bin, "parse-test-output" }, { stdin = log_content, text = true }):wait()
   if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
+    return safe_json_decode(res.stdout, "parse-test-output")
   end
 
   return nil
@@ -338,10 +344,7 @@ function M.optimize_imports(code_content)
 
   local res = vim.system({ bin, "optimize-imports" }, { stdin = code_content, text = true }):wait()
   if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
+    return safe_json_decode(res.stdout, "optimize-imports")
   end
 
   return nil
@@ -395,7 +398,7 @@ end
 function M.detect_test_context(file_path, cursor_line)
   local bin = M.get_bin()
   if not bin then
-    error("cumulus-core binary not found — cannot detect test context")
+    return nil
   end
 
   local res = vim.system(
@@ -404,10 +407,7 @@ function M.detect_test_context(file_path, cursor_line)
   ):wait()
 
   if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
+    return safe_json_decode(res.stdout, "detect-test-context")
   end
 
   return nil

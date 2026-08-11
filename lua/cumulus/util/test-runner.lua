@@ -111,9 +111,21 @@ function M.run_test(mode)
         end
       end
     end,
+    on_stderr = function(_, data)
+      -- Some test runners output to stderr; capture it for complete results
+      for _, line in ipairs(data) do
+        if line ~= "" then
+          table.insert(output_lines, line)
+        end
+      end
+    end,
     on_exit = function()
-      local log = table.concat(output_lines, "\n")
-      M.process_results(log)
+      -- Add a small delay to ensure all buffered output is flushed before processing.
+      -- This mitigates potential race conditions where on_exit fires before final stdout/stderr chunks arrive.
+      vim.schedule(function()
+        local log = table.concat(output_lines, "\n")
+        M.process_results(log)
+      end)
     end,
   })
 
