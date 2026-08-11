@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-029
 - **Title**: Dependency CVE Vulnerability & Security Scanner (IntelliJ Ultimate Enterprise Parity)
-- **Status**: BACKLOG
+- **Status**: ACTIVE
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/cve_audit.rs` (new)

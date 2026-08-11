@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-009
 - **Title**: Dependency Lens & Version Checker (IntelliJ Ultimate Enterprise Parity)
-- **Status**: BACKLOG
+- **Status**: ACTIVE
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/dep_lens.rs` (new)
