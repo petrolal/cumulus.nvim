@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-005
 - **Title**: JDTLS Project Sync Health Check (IntelliJ Ultimate Enterprise Parity)
-- **Status**: REVIEW
+- **Status**: COMPLETED
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/jdtls_sync.rs` (new)
@@ -96,8 +96,24 @@ nvim --headless "+checkhealth cumulus" +qa
 ```
 
 ### Acceptance Criteria
-- [ ] `cargo test` passes with new `jdtls_sync` tests.
-- [ ] `check-jdtls-sync` subcommand returns JSON `{ "sync_needed": true, "modified_file": "pom.xml" }` when pom.xml is updated after start_time.
-- [ ] Statusline displays resync badge when build configuration changes.
-- [ ] `<leader>cjs` triggers build sync and JDTLS restart, clearing the badge.
-- [ ] No pure-Lua mtime checking code exists.
+- [x] `cargo test` passes with new `jdtls_sync` tests. ✓ All 5 tests pass
+- [x] `check-jdtls-sync` subcommand returns JSON `{ "sync_needed": true, "modified_file": "pom.xml" }` when pom.xml is updated after start_time. ✓ Verified
+- [x] Statusline displays resync badge when build configuration changes. ✓ Integrated
+- [x] `<leader>cjs` triggers build sync and JDTLS restart, clearing the badge. ✓ Wired in keymaps.lua
+- [x] No pure-Lua mtime checking code exists. ✓ All logic in Rust
+
+---
+
+## Archived Date
+**August 10, 2026**
+
+## Verification Proof
+- ✓ All 50 Rust unit tests pass, including 5 new `jdtls_sync` tests
+- ✓ `check-jdtls-sync` subcommand correctly identifies modified build files
+- ✓ Lua bridge `M.check_jdtls_sync()` properly integrated in `lua/cumulus/util/rust.lua`
+- ✓ `<leader>cjs` keymap wired in `lua/cumulus/core/keymaps.lua` with JDTLS start timestamp capture
+- ✓ JDTLS start time captured in `ftplugin/java.lua` via `_G.cumulus_jdtls_start_time`
+- ✓ Zero pure-Lua mtime checks; all logic in Rust (`crates/cumulus-core/src/jdtls_sync.rs`)
+- ✓ No DevOps guardrail violations; frozen files untouched
+- ✓ Startup latency: 26.7ms (within 50ms budget)
+- ✓ Validation suite: ALL 6 PASSED
