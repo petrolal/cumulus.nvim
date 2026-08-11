@@ -4,7 +4,7 @@
 
 This document indexes all migration-related specifications and provides the unified roadmap for migrating business logic from Lua to Rust. The migration follows a phased approach, with dependencies clearly marked.
 
-**Current Status**: Phase 1 (SPEC-031) ✓ COMPLETED. Phase 2 (SPEC-005, 012, 030) ✓ COMPLETED. Phase 3 (SPEC-006, 010) now ACTIVE.
+**Current Status**: Phase 1 (SPEC-031) ✓ COMPLETED. Phase 2 (SPEC-005, 012, 030) ✓ COMPLETED. Phase 3 (SPEC-006, 010) ✓ COMPLETED. Phase 4 (SPEC-009, 029) now ACTIVE.
 
 ---
 
@@ -41,14 +41,14 @@ File system & configuration parsing specs. These unblock daily developer workflo
 
 ### Phase 3: Backlog Specs Wave 2 — Complex Parsing (6–8 hours)
 **Depends on**: Phase 2 (SPEC-005, 012, 030) ✓ COMPLETE
-**Status**: ACTIVE — Ready for implementation
+**Status**: COMPLETED ✓ All specs archived
 
 AST/config parsing with higher algorithmic complexity.
 
 | Spec ID | Title | Status | Rust Scope | Effort |
 |---------|-------|--------|-----------|--------|
-| **SPEC-010** | Runtime Exception Stack Trace Drill-Down | **ACTIVE** | `resolve-stacktrace-symbol`: extract frames, map to source lines | 2–3 hrs |
-| **SPEC-006** | SpringBoot Debug Hotswap Engine | **ACTIVE** | `detect-springboot-app`: parse Spring annotations, generate debug JVM args | 3–4 hrs |
+| **SPEC-010** | Runtime Exception Stack Trace Drill-Down | **COMPLETED** ✓ | `resolve-stacktrace-symbol`: extract frames, map to source lines | 2–3 hrs |
+| **SPEC-006** | SpringBoot Debug Hotswap Engine | **COMPLETED** ✓ | `detect-springboot-app`: parse Spring annotations, generate debug JVM args | 3–4 hrs |
 
 **Phase 3 Unlock**: One-keypress debug setup, inline exception navigation.
 
@@ -56,13 +56,14 @@ AST/config parsing with higher algorithmic complexity.
 
 ### Phase 4: Backlog Specs Wave 3 — Network/Database (9–12 hours)
 **Depends on**: Phase 1 (SPEC-031) for error handling
+**Status**: ACTIVE — Ready for implementation
 
 Network-dependent specs with external API/database lookups.
 
 | Spec ID | Title | Status | Rust Scope | Effort |
 |---------|-------|--------|-----------|--------|
-| **SPEC-009** | Dependency Lens & Version Checker | BACKLOG | `check-dependency-versions`: query Maven Central/Gradle Portal APIs | 3–5 hrs |
-| **SPEC-029** | Dependency CVE Vulnerability Scanner | BACKLOG | `audit-deps`: match coordinates to offline CVE database | 4–6 hrs |
+| **SPEC-009** | Dependency Lens & Version Checker | **ACTIVE** | `check-dependency-versions`: query Maven Central/Gradle Portal APIs | 3–5 hrs |
+| **SPEC-029** | Dependency CVE Vulnerability Scanner | **ACTIVE** | `audit-deps`: match coordinates to offline CVE database | 4–6 hrs |
 
 **Phase 4 Unlock**: Automated dependency auditing, outdated-dependency warnings.
 
