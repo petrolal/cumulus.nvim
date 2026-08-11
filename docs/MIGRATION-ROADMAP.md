@@ -4,7 +4,7 @@
 
 This document indexes all migration-related specifications and provides the unified roadmap for migrating business logic from Lua to Rust. The migration follows a phased approach, with dependencies clearly marked.
 
-**Current Status**: Phase 1 (SPEC-031) ✓ COMPLETED. Phase 2 (SPEC-005, 012, 030) ✓ COMPLETED. Phase 3 (SPEC-006, 010) ✓ COMPLETED. Phase 4 (SPEC-009, 029) now ACTIVE.
+**Current Status**: Phase 1 (SPEC-031) ✓ COMPLETED. Phase 2 (SPEC-005, 012, 030) ✓ COMPLETED. Phase 3 (SPEC-006, 010) ✓ COMPLETED. Phase 4 (SPEC-009, 029) ACTIVE. Phase 5 (SPEC-036, 037, 038) now ACTIVE (parallel).
 
 ---
 
@@ -71,14 +71,15 @@ Network-dependent specs with external API/database lookups.
 
 ### Phase 5: Lua Bridge Optimization (6–8 hours, Optional)
 **Depends on**: Phase 1 + Phase 2
+**Status**: ACTIVE — Ready for parallel implementation
 
 Migrate compute-heavy Lua helpers; consolidate overlapping functionality.
 
 | Spec ID | Title | Status | Lua→Rust Migration | Effort |
 |---------|-------|--------|-------------------|--------|
-| **SPEC-036** | Maven & Gradle Build Command Consolidation | BACKLOG | Migrate gradle.lua + maven.lua wrapper discovery/offline detection to Rust | 2–3 hrs |
-| **SPEC-037** | Session State Window Cleanup Integration | BACKLOG | Integrate SPEC-030's `session-sanitize` with session.lua; remove buffer loops | 1–2 hrs |
-| **SPEC-038** | Test Runner & Sync Orchestration Integration | BACKLOG | Refactor test-runner.lua + sync-runner.lua to pure Lua orchestration; move parsing to Rust | 3–4 hrs |
+| **SPEC-036** | Maven & Gradle Build Command Consolidation | **ACTIVE** | Migrate gradle.lua + maven.lua wrapper discovery/offline detection to Rust | 2–3 hrs |
+| **SPEC-037** | Session State Window Cleanup Integration | **ACTIVE** | Integrate SPEC-030's `session-sanitize` with session.lua; remove buffer loops | 1–2 hrs |
+| **SPEC-038** | Test Runner & Sync Orchestration Integration | **ACTIVE** | Refactor test-runner.lua + sync-runner.lua to pure Lua orchestration; move parsing to Rust | 3–4 hrs |
 
 **Phase 5 Unlock**: Reduced Lua boilerplate (~250 lines removed), faster execution, improved reliability.
 

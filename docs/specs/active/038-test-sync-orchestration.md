@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-038
 - **Title**: Test Runner & JDTLS Sync Orchestration (Lua Orchestration, Rust Backends)
-- **Status**: BACKLOG
+- **Status**: ACTIVE
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/test_runner.rs` (extends)

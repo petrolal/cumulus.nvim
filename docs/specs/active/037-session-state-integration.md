@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-037
 - **Title**: Session State Window Cleanup Integration (Lua Loop → Rust)
-- **Status**: BACKLOG
+- **Status**: ACTIVE
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/session_cleaner.rs` (reuse from SPEC-030)

@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-036
 - **Title**: Maven & Gradle Build Command Consolidation (Business Logic → Rust)
-- **Status**: BACKLOG
+- **Status**: ACTIVE
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/build_cmd.rs` (new)
