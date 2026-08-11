@@ -3,6 +3,7 @@ mod codelens;
 mod conflicts;
 mod coverage;
 mod dag;
+mod dep_lens;
 mod dep_resolver;
 mod endpoints;
 mod gradle;
@@ -212,6 +213,11 @@ enum Commands {
         #[arg(short, long)]
         dir: PathBuf,
     },
+    /// Check dependency versions and render virtual text hints
+    CheckDepVersions {
+        #[arg(short, long)]
+        file: PathBuf,
+    },
     /// Simple ping response to confirm binary readiness
     Ping,
 }
@@ -377,6 +383,10 @@ fn run(cli: Cli) -> Result<(), CumulusError> {
                 let err = CumulusError::ParseError("Unable to parse stacktrace line or resolve source file".to_string());
                 output_error(err);
             }
+        }
+        Commands::CheckDepVersions { file } => {
+            let lenses = dep_lens::check_dep_versions(&file);
+            output_success(lenses, "check-dep-versions");
         }
     }
 

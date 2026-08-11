@@ -241,3 +241,35 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
     end
   end,
 })
+
+-- Dependency version hints in build files (SPEC-009)
+local dep_lens_ns = vim.api.nvim_create_namespace("cumulus_dep_lens")
+vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
+  group = augroup("dep_lens"),
+  pattern = { "pom.xml", "build.gradle", "build.gradle.kts", "libs.versions.toml" },
+  callback = function(event)
+    local rust = require("cumulus.util.rust")
+    if not rust.is_available() then
+      return
+    end
+
+    local filepath = vim.api.nvim_buf_get_name(event.buf)
+    if filepath == "" or vim.fn.filereadable(filepath) == 0 then
+      return
+    end
+
+    local lenses = rust.check_dep_versions(filepath)
+    vim.api.nvim_buf_clear_namespace(event.buf, dep_lens_ns, 0, -1)
+
+    if lenses and #lenses > 0 then
+      for _, lens in ipairs(lenses) do
+        local lnum = math.max(0, lens.line - 1)
+        local text = string.format("Current: %s → Latest: %s [%s]", lens.current_version, lens.latest_version, lens.age_status)
+        vim.api.nvim_buf_set_extmark(event.buf, dep_lens_ns, lnum, 0, {
+          virt_text = { { text, "Comment" } },
+          virt_text_pos = "eol",
+        })
+      end
+    end
+  end,
+})

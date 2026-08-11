@@ -314,4 +314,11 @@ function M.resolve_stacktrace_symbol(line_text, dir_path)
   return call_rust_command({ "resolve-stacktrace-symbol", "--line", line_text, "--dir", dir_path }, nil, "resolve-stacktrace-symbol")
 end
 
+--- Check dependency versions and render virtual text hints (SPEC-009)
+---@param file_path string Path to pom.xml, build.gradle, or libs.versions.toml
+---@return { group: string, artifact: string, current_version: string, latest_version: string, line: number, age_status: string }[]
+function M.check_dep_versions(file_path)
+  return call_rust_command({ "check-dep-versions", "--file", file_path }, nil, "check-dep-versions") or {}
+end
+
 return M

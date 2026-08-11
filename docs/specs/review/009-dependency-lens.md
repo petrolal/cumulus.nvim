@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-009
 - **Title**: Dependency Lens & Version Checker (IntelliJ Ultimate Enterprise Parity)
-- **Status**: ACTIVE
+- **Status**: REVIEW
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/dep_lens.rs` (new)
@@ -79,17 +79,17 @@ Expose real-time dependency freshness and outdated version warnings inline withi
 
 ## Execution Checklist
 
-- [ ] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
+- [x] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
   - Create `crates/cumulus-core/src/dep_lens.rs`.
   - Add `CheckDepVersions { file: PathBuf }` subcommand to `main.rs`.
   - Extend POM/TOML parser to record 1-indexed line numbers for dependency declarations.
   - Add version age classifier (`CURRENT`, `MINOR_OUTDATED`, `MAJOR_OUTDATED`).
   - Add Rust unit tests in `dep_lens.rs`.
 
-- [ ] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
+- [x] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
   - Add `M.check_dep_versions(file_path)` function calling `cumulus-core check-dep-versions`.
 
-- [ ] **Task 3: Editor UI & Autocmd Wiring**
+- [x] **Task 3: Editor UI & Autocmd Wiring**
   - Wire `BufReadPost`/`BufWritePost` autocmd in `lua/cumulus/core/autocmds.lua` for build files to display extmark virtual text.
   - Add `<leader>cdu` (Dependency Update) keymap in `lua/cumulus/core/keymaps.lua`.
 
@@ -105,8 +105,8 @@ nvim --headless "+checkhealth cumulus" +qa
 ```
 
 ### Acceptance Criteria
-- [ ] `cargo test` passes with new `dep_lens` unit tests.
-- [ ] `check-dep-versions` returns JSON containing line numbers and version statuses.
-- [ ] Dependency virtual text appears in `pom.xml` and `libs.versions.toml` buffers.
-- [ ] Works in offline mode using disk-cached metadata.
-- [ ] Zero pure-Lua XML/TOML parsing code.
+- [x] `cargo test` passes with new `dep_lens` unit tests.
+- [x] `check-dep-versions` returns JSON containing line numbers and version statuses.
+- [x] Dependency virtual text appears in `pom.xml` and `libs.versions.toml` buffers.
+- [x] Works in offline mode using disk-cached metadata.
+- [x] Zero pure-Lua XML/TOML parsing code.

@@ -273,6 +273,31 @@ lang_keymaps.register({
 })
 
 lang_keymaps.register({
+  filetypes = { "xml", "toml", "gradle" },
+  group = "<leader>cd",
+  label = "dependency",
+  icon = "📦 ",
+  keys = {
+    {
+      "<leader>cdu",
+      function()
+        local filepath = vim.api.nvim_buf_get_name(0)
+        local rust = require("cumulus.util.rust")
+        if rust.is_available() then
+          local lenses = rust.check_dep_versions(filepath)
+          if lenses and #lenses > 0 then
+            vim.notify(string.format("Found %d dependencies to check", #lenses), vim.log.levels.INFO)
+          else
+            vim.notify("No dependencies found or already up-to-date", vim.log.levels.INFO)
+          end
+        end
+      end,
+      "Check Dependency Versions",
+    },
+  },
+})
+
+lang_keymaps.register({
   filetypes = { "java", "kotlin", "groovy" },
   ready_gate = true,
   condition = function()
