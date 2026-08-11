@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-010
-- **Title**: Runtime Exception Drill-Down
+- **Title**: Runtime Exception Drill-Down (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -23,6 +23,7 @@
 DAP Console / Log  →  Lua (rust.resolve_stacktrace_symbol)  →  cumulus-core resolve-stacktrace-symbol  →  JSON Response  →  Jump to File:Line
 ```
 
+- **Enterprise Parity Target**: Replicate IntelliJ IDEA Ultimate's `Analyze Stacktrace` and clickable stack frame links in debug console tool windows for enterprise JVM application troubleshooting.
 - **Rust Engine (`crates/cumulus-core`)**: `resolve-stacktrace-symbol --line <line_text> --dir <project_root>` receives a stack trace line (e.g. `at com.example.service.UserServiceImpl.findUser(UserServiceImpl.java:142)`), parses the fully qualified class name, method, source file, and line number, resolves the relative package path against the workspace directory tree, and outputs JSON payload:
   ```json
   {
@@ -38,7 +39,7 @@ DAP Console / Log  →  Lua (rust.resolve_stacktrace_symbol)  →  cumulus-core 
 ---
 
 ## Goal & Intent
-Make runtime exception stack traces in DAP console output and build terminals instantly clickable, navigating developers directly to the offending Java/Kotlin file and line without manual path searching.
+Make runtime exception stack traces in DAP console output and build terminals instantly clickable, navigating developers directly to the offending Java/Kotlin file and line without manual path searching, matching IntelliJ Ultimate's stack trace analyzer.
 
 ---
 

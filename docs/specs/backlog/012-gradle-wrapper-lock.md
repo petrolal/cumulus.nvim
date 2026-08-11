@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-012
-- **Title**: Gradle Wrapper Version Lock & SHA-256 Verification
+- **Title**: Gradle Wrapper Version Lock & SHA-256 Verification (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -23,6 +23,7 @@
 :checkhealth cumulus  →  Lua (rust.verify_gradle_wrapper)  →  cumulus-core verify-gradle-wrapper  →  JSON Response  →  Health Report
 ```
 
+- **Enterprise Parity Target**: Match IntelliJ IDEA Ultimate's Gradle build consistency checks and security verification for enterprise CI/CD pipelines.
 - **Rust Engine (`crates/cumulus-core`)**: `verify-gradle-wrapper --dir <path>` parses `gradle/wrapper/gradle-wrapper.properties`, extracts `distributionUrl` and `distributionSha256Sum`, compares local Gradle version against CI configuration files (`.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`), verifies wrapper binary SHA-256 integrity if present, and outputs JSON payload:
   ```json
   {
@@ -41,7 +42,7 @@
 ---
 
 ## Goal & Intent
-Eliminate "works on my machine but fails in CI" build discrepancies by detecting mismatches between local Gradle wrapper settings and CI/CD workflow configurations, while verifying wrapper binary SHA-256 checksums to guard against compromised binaries.
+Eliminate "works on my machine but fails in CI" build discrepancies by detecting mismatches between local Gradle wrapper settings and CI/CD workflow configurations, while verifying wrapper binary SHA-256 checksums to guard against compromised binaries in production enterprise projects.
 
 ---
 

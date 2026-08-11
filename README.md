@@ -1,8 +1,9 @@
 # 🌩️ Cumulus Neovim (`cumulus.nvim`)
 
-High-performance, from-scratch Neovim distribution that replicates IntelliJ IDEA Ultimate's developer experience for **JVM/Polyglot** development (Java, Kotlin, Groovy), **Web/Markup** (HTML, XML, JSON), and **Cloud DevOps** (Terraform, Kubernetes, Docker, Helm, Ansible, CloudFormation).
+Production-grade, from-scratch Neovim distribution engineered for **production enterprise software engineering** with **full 1:1 feature parity to JetBrains IntelliJ IDEA Ultimate** across **JVM/Polyglot** development (Java, Kotlin, Groovy), **Web/Markup & Database** (HTML, XML, JSON, DataGrip SQL), and **Cloud DevOps** (Terraform, Kubernetes, Docker, Helm, Ansible, CloudFormation).
 
-Powered by a high-speed compiled **Rust Native Helper Engine (`cumulus-core`)** and connected via an asynchronous **Lua IPC Bridge**, `cumulus.nvim` delivers sub-50ms cold startup times without compromising on features.
+Powered by a high-speed compiled **Rust Native Helper Engine (`cumulus-core`)** and connected via an asynchronous **Lua IPC Bridge**, `cumulus.nvim` delivers sub-50ms cold startup times without compromising on enterprise IDE capabilities.
+
 
 ---
 

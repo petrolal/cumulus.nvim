@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-009
-- **Title**: Dependency Lens & Version Checker
+- **Title**: Dependency Lens & Version Checker (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -24,6 +24,7 @@
 Neovim Buffer  →  Lua (rust.check_dep_versions)  →  cumulus-core check-dep-versions  →  JSON Response  →  Virtual Text / CodeLens
 ```
 
+- **Enterprise Parity Target**: Replicate IntelliJ IDEA Ultimate's Package Search and Dependency Analyzer inline version hints and upgrade quick-fixes for enterprise Maven and Gradle builds.
 - **Rust Engine (`crates/cumulus-core`)**: `check-dep-versions --file <path>` parses `pom.xml`, `build.gradle`, `build.gradle.kts`, or `gradle/libs.versions.toml`, queries cached Maven Central / Gradle Plugin Portal metadata (stored in `~/.cache/nvim/dependency-versions.json`), and outputs JSON array:
   ```json
   [
@@ -43,7 +44,7 @@ Neovim Buffer  →  Lua (rust.check_dep_versions)  →  cumulus-core check-dep-v
 ---
 
 ## Goal & Intent
-Expose real-time dependency freshness and outdated version warnings inline within `pom.xml` and `build.gradle` files without blocking Neovim's main UI thread.
+Expose real-time dependency freshness and outdated version warnings inline within `pom.xml` and `build.gradle` files without blocking Neovim's main UI thread, delivering IntelliJ Ultimate's Package Search developer experience.
 
 ---
 

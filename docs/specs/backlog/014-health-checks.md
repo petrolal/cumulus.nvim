@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-014
-- **Title**: Standardized Setup & Health Check Automation
+- **Title**: Standardized Setup & Health Check Automation (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -24,6 +24,7 @@
 :checkhealth cumulus  →  Lua (rust.check_system_health)  →  cumulus-core check-system-health  →  JSON Response  →  Formatted Report
 ```
 
+- **Enterprise Parity Target**: Match IntelliJ IDEA Ultimate's Environment & SDK Health Inspection for production enterprise SDKs (JDK 17+, Maven, Gradle, Rust, Node, Python, Mason binaries).
 - **Rust Engine (`crates/cumulus-core`)**: `check-system-health` inspects system PATH binaries (`rg`, `fd`, `git`, `cargo`, `npm`, `node`, `python3`, `java`, `mvn`, `gradle`), verifies `JAVA_HOME` environment directory validity, parses Java JDK version (`>= 17`), verifies Mason tool installation directories (`~/.local/share/nvim/mason/bin/`), and returns JSON payload:
   ```json
   {
@@ -45,7 +46,7 @@
 ---
 
 ## Goal & Intent
-Automate platform verification and developer environment diagnostics, ensuring missing binaries, invalid `JAVA_HOME` paths, or uninstalled Mason tools are caught immediately upon editor startup.
+Automate platform verification and developer environment diagnostics, ensuring missing binaries, invalid `JAVA_HOME` paths, or uninstalled Mason tools are caught immediately upon editor startup in enterprise development environments.
 
 ---
 

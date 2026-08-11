@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-006
-- **Title**: SpringBoot Debug Configuration & Hotswap Engine
+- **Title**: SpringBoot Debug Configuration & Hotswap Engine (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -24,6 +24,7 @@
 Neovim (<leader>ds)  →  Lua (rust.detect_springboot_app)  →  cumulus-core detect-springboot-app  →  JSON Payload  →  DAP Launch
 ```
 
+- **Enterprise Parity Target**: Replicate IntelliJ IDEA Ultimate's Spring Boot Run/Debug Configuration runner (`Spring Boot` Run Configuration) with automatic JPDA debugging and Spring Loaded / DevTools hot swap for enterprise microservices.
 - **Rust Engine (`crates/cumulus-core`)**: `detect-springboot-app --dir <path>` scans Java/Kotlin source trees for `@SpringBootApplication` or `@EnableAutoConfiguration`, extracts package and main class names, detects active build system (Maven vs Gradle), parses active profiles from `application.yml`/`application.properties`, and returns JSON payload:
   ```json
   {
@@ -40,7 +41,7 @@ Neovim (<leader>ds)  →  Lua (rust.detect_springboot_app)  →  cumulus-core de
 ---
 
 ## Goal & Intent
-Provide one-keypress Spring Boot debugging (`<leader>ds`) with automatic JPDA (Java Debug Wire Protocol) socket configuration on port 5005 and hotcode reload enabled, eliminating manual `MAVEN_OPTS` / JVM argument setup across teams.
+Provide one-keypress Spring Boot debugging (`<leader>ds`) matching IntelliJ IDEA Ultimate's Spring Boot run configuration, with automatic JPDA (Java Debug Wire Protocol) socket configuration on port 5005 and hotcode reload enabled.
 
 ---
 

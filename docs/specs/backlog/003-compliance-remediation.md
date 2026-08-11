@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-003
-- **Title**: Compliance Remediation (Lazy-Loading, DB Client Parity, SPEC-001 Drift)
+- **Title**: Compliance Remediation (Lazy-Loading, DataGrip DB Parity, SPEC-001 Drift)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -26,19 +26,20 @@
 
 ## Architecture
 
-**Lua is a bridge to the Rust backend and editor UI.**
+**Lua is a bridge to the Rust backend and editor UI for IntelliJ Ultimate & DataGrip enterprise parity.**
 
 ```
-Neovim UI  →  Lua Spec/Keymap Glue  →  tpope/vim-dadbod / vim-dadbod-ui (DB Client)
+Neovim UI  →  Lua Spec/Keymap Glue  →  tpope/vim-dadbod / vim-dadbod-ui (DataGrip Parity)
 ```
 
+- **Enterprise Parity Target**: Match IntelliJ IDEA Ultimate's database tooling (DataGrip) and startup performance standards for enterprise software engineering.
 - **Rust-First Rule**: All data analysis, SQL AST parsing, and heavy migration validation must be executed in `crates/cumulus-core` (e.g. `validate-migrations`).
 - **Lua Layer**: Minimal plugin triggers, buffer conventions, and global keymap bindings.
 
 ---
 
 ## Goal & Intent
-Remediate three compliance audit findings:
+Remediate three compliance audit findings to uphold enterprise production quality:
 1. **Lazy-Loading Triggers**: Ensure all plugin specs have real lazy-loading triggers or documented eager-load exceptions.
 2. **DataGrip Parity**: Install `vim-dadbod` and `vim-dadbod-ui` with buffer-local SQL conventions and `<leader>D` keymaps.
 3. **SPEC-001 SDD Alignment**: Reconcile status and dadbod claims in SPEC-001.
@@ -91,7 +92,7 @@ git status --short lua/cumulus/plugins/cloud-* lua/cumulus/plugins/lsp-devops.lu
 
 ### Acceptance Criteria
 - [ ] All target plugins carry proper lazy-loading triggers or rationale comments.
-- [ ] `vim-dadbod` and `vim-dadbod-ui` are registered and functional.
+- [ ] `vim-dadbod` and `vim-dadbod-ui` are registered and functional for DataGrip parity.
 - [ ] `<leader>D` database keymaps operate correctly.
 - [ ] DevOps guardrail assertion returns zero modified files.
 - [ ] Startup latency remains under 50ms.

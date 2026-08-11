@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-029
-- **Title**: Dependency CVE Vulnerability & Security Scanner
+- **Title**: Dependency CVE Vulnerability & Security Scanner (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -23,6 +23,7 @@
 Neovim Linting  →  Lua (rust.audit_deps)  →  cumulus-core audit-deps  →  JSON Diagnostics  →  vim.diagnostic / Trouble.nvim
 ```
 
+- **Enterprise Parity Target**: Replicate IntelliJ IDEA Ultimate's Security Inspection and Vulnerability Checker for enterprise dependency auditing and SOC 2 / ISO 27001 compliance.
 - **Rust Engine (`crates/cumulus-core`)**: `audit-deps --file <path>` parses `pom.xml`, `build.gradle`, `build.gradle.kts`, or `gradle/libs.versions.toml`, matches dependency coordinates (`groupId:artifactId:version`) against an embedded/offline vulnerability database, and outputs JSON array:
   ```json
   [
@@ -43,7 +44,7 @@ Neovim Linting  →  Lua (rust.audit_deps)  →  cumulus-core audit-deps  →  J
 ---
 
 ## Goal & Intent
-Expose known CVE security vulnerabilities (such as Log4Shell or Spring4Shell) inline in project dependency files immediately upon opening `pom.xml` or `build.gradle`.
+Expose known CVE security vulnerabilities (such as Log4Shell or Spring4Shell) inline in project dependency files immediately upon opening `pom.xml` or `build.gradle`, delivering IntelliJ Ultimate's enterprise security auditing.
 
 ---
 

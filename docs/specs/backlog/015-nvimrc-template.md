@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-015
-- **Title**: Project `.nvimrc` Template & Local Overrides
+- **Title**: Project `.nvimrc` Template & Local Overrides (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -24,6 +24,7 @@
 Neovim Startup  →  exrc (.nvimrc.lua)  →  Lua (rust.validate_nvimrc)  →  cumulus-core validate-nvimrc  →  JSON Response
 ```
 
+- **Enterprise Parity Target**: Replicate IntelliJ IDEA Ultimate's `.idea/` project settings sharing (profiles, build parameters, workspace overrides) for enterprise software teams via Git-managed `.nvimrc.lua`.
 - **Rust Engine (`crates/cumulus-core`)**: `validate-nvimrc --file <path>` parses `.nvimrc.lua`, checks structure against `.nvimrc.lua.example` schema definitions (Maven active profiles, Gradle default tasks, JVM debug ports, formatter overrides), verifies key types, and outputs JSON payload:
   ```json
   {
@@ -39,7 +40,7 @@ Neovim Startup  →  exrc (.nvimrc.lua)  →  Lua (rust.validate_nvimrc)  →  c
 ---
 
 ## Goal & Intent
-Enable secure, standardized per-project configuration via `.nvimrc.lua` checked into project repositories, ensuring project-specific Maven profiles, Gradle tasks, and JVM settings are validated by Rust upon opening the project.
+Enable secure, standardized per-project configuration via `.nvimrc.lua` checked into enterprise project repositories, ensuring project-specific Maven profiles, Gradle tasks, and JVM settings are validated by Rust upon opening the project.
 
 ---
 

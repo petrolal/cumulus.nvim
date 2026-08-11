@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-030
-- **Title**: Session State & Layout Sanitizer
+- **Title**: Session State & Layout Sanitizer (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -23,6 +23,7 @@
 PersistenceSavePre Autocmd  →  Lua (rust.sanitize_session)  →  cumulus-core session-sanitize  →  Cleaned .vim Session File
 ```
 
+- **Enterprise Parity Target**: Replicate IntelliJ IDEA Ultimate's Workspace State & Frame Preservation engine for multi-tab enterprise workspace persistence.
 - **Rust Engine (`crates/cumulus-core`)**: `session-sanitize --file <path>` opens Neovim `persistence.nvim` generated `.vim` session files, identifies un-named scratch buffers (`badd +0 [No Name]`), Snacks dashboard/explorer floating windows (`snacks_dashboard`, `snacks_picker`), and empty buffer references, strips invalid window creation commands, and writes back a sanitized `.vim` session file atomically.
 - **Lua Bridge (`lua/cumulus/util/rust.lua`)**: `rust.sanitize_session(session_file_path)` invokes `cumulus-core` and returns boolean success.
 - **UI Integration**: `lua/cumulus/util/session.lua` invokes `rust.sanitize_session()` during `PersistenceSavePre` autocmd hooks.

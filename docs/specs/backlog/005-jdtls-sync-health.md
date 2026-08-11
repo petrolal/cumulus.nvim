@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-005
-- **Title**: JDTLS Project Sync Health Check
+- **Title**: JDTLS Project Sync Health Check (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -25,6 +25,7 @@
 Neovim Autocmd  →  Lua (rust.check_jdtls_sync)  →  cumulus-core check-jdtls-sync  →  JSON Response  →  Statusline / Keymap Sync
 ```
 
+- **Enterprise Parity Target**: Replicate IntelliJ IDEA Ultimate's automatic Maven/Gradle project model sync status detection (`Load Maven Changes` / `Reload All Gradle Projects`) for enterprise multi-module projects.
 - **Rust Engine (`crates/cumulus-core`)**: `check-jdtls-sync --dir <path> --start-time <epoch>` scans `pom.xml`, `build.gradle`, `settings.gradle`, and `gradle/libs.versions.toml` `mtime` against JDTLS session start timestamp. Returns JSON payload: `{ "sync_needed": bool, "modified_file": string|null }`.
 - **Lua Bridge (`lua/cumulus/util/rust.lua`)**: `rust.check_jdtls_sync(dir_path, start_time)` calls `cumulus-core` and returns the decoded status table. Zero Lua mtime parsing.
 - **UI Integration**: Displays statusline badge `🔄 Resync needed` when `sync_needed` is true, and binds `<leader>cjs` to execute Maven/Gradle dependency resolve + JDTLS restart.
@@ -32,7 +33,7 @@ Neovim Autocmd  →  Lua (rust.check_jdtls_sync)  →  cumulus-core check-jdtls-
 ---
 
 ## Goal & Intent
-Eliminate the "invisible classpath staleness" bug in Java/Kotlin development. When a developer updates `pom.xml` or `build.gradle`, JDTLS retains stale dependencies in its classpath cache until restarted. This spec automatically detects configuration changes using Rust native filesystem checks and provides a single keypress resync (`<leader>cjs`).
+Eliminate the "invisible classpath staleness" bug in enterprise Java/Kotlin development. When a developer updates `pom.xml` or `build.gradle`, JDTLS retains stale dependencies in its classpath cache until restarted. This spec automatically detects configuration changes using Rust native filesystem checks and provides a single keypress resync (`<leader>cjs`) matching IntelliJ Ultimate's classpath sync indicator.
 
 ---
 

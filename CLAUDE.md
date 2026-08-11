@@ -1,12 +1,13 @@
 # CLAUDE.md — Cumulus Neovim Distribution
 
 ## Project Overview
-Cumulus is a from-scratch Neovim configuration (`init.lua` → `lua/cumulus/core` → `lua/cumulus/core/lazy`) that replicates IntelliJ IDEA Ultimate's developer experience for three domains, entirely through lazy.nvim plugin specs under `lua/cumulus/plugins/` backed by a high-performance compiled Rust native engine (`crates/cumulus-core`):
+Cumulus is a from-scratch, production-grade Neovim distribution (`init.lua` → `lua/cumulus/core` → `lua/cumulus/core/lazy`) engineered for **production enterprise software development with full 1:1 feature parity to JetBrains IntelliJ IDEA Ultimate**. It replicates IntelliJ's enterprise developer experience across four core domains, entirely through lazy.nvim plugin specs under `lua/cumulus/plugins/` backed by a high-performance compiled Rust native engine (`crates/cumulus-core`):
 
-1. **JVM & Polyglot stack** — Java (`jdtls`), Kotlin (`kotlin-language-server`), Groovy (`groovyls`), plus TOML (`taplo`) and HTML (`superhtml`).
-2. **Web/Markup (HTML/XML)** — HTML via `superhtml` (`lsp-html.lua`), XML/JSON/Bash via `lemminx`/`jsonls`/`bashls` (`lsp-devops.lua`, frozen — see below).
-3. **Frozen DevOps/Cloud** — Terraform, Kubernetes/Helm/Docker, CloudFormation/Ansible (`cloud-*.lua`), remote debugging (`tools-dap-devops.lua`).
-4. **Rust Native Engine (`cumulus-core`)** — High-performance Rust CLI binary (`crates/cumulus-core`) providing JSON IPC for POM/Gradle parsing, log diagnostic parsing, test runner result extraction, multi-module resolution, Java boilerplate generation, Checkstyle XML parsing, and non-blocking TCP network checks.
+1. **JVM & Enterprise Polyglot stack** — Java (`jdtls`), Kotlin (`kotlin-language-server`), Groovy (`groovyls`), plus TOML (`taplo`) and HTML (`superhtml`).
+2. **Web/Markup & Database (DataGrip Parity)** — HTML via `superhtml` (`lsp-html.lua`), XML/JSON/Bash via `lemminx`/`jsonls`/`bashls` (`lsp-devops.lua`, frozen — see below), SQL database management via `vim-dadbod` (`tools-dadbod.lua`).
+3. **Frozen DevOps & Enterprise Cloud** — Terraform, Kubernetes/Helm/Docker, CloudFormation/Ansible (`cloud-*.lua`), remote debugging (`tools-dap-devops.lua`).
+4. **Rust Native Enterprise Engine (`cumulus-core`)** — High-performance Rust CLI binary (`crates/cumulus-core`) providing JSON IPC for POM/Gradle parsing, log diagnostic parsing, test runner result extraction, multi-module resolution, Java boilerplate generation, Checkstyle XML parsing, CVE dependency auditing, session layout sanitization, and non-blocking TCP network checks.
+
 
 Every server registered anywhere attaches automatically through a single generic loop in `lua/cumulus/plugins/lsp-core.lua`; there is no per-language attach wiring to duplicate. Global code keymaps (`<leader>cf` format, `<leader>ca` code action, `<leader>cr` rename, `[d`/`]d`/`<leader>cd` diagnostics) live once in `lua/cumulus/core/keymaps.lua` and apply to every buffer with an attached LSP client — do not re-add them per filetype. Extra per-language build/lint/test commands (Maven, Gradle, Terraform, Ansible, Docker, Helm, JUnit 5) are registered as buffer-local `lang_keymaps` stacks in that same file, gated by filetype and/or a project-file condition (see `lua/cumulus/core/lang-keymaps.lua`).
 

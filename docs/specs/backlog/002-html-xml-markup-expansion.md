@@ -2,7 +2,7 @@
 
 ## Metadata
 - **Spec ID**: SPEC-002
-- **Title**: HTML & XML Markup Language Expansion
+- **Title**: HTML & XML Markup Language Expansion (IntelliJ Ultimate Enterprise Parity)
 - **Status**: BACKLOG
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
@@ -21,14 +21,15 @@
 Neovim Buffer  →  ftplugin/{html,xml}.lua (buffer-local options)  →  Native LSP (superhtml / lemminx)
 ```
 
-- **Rust** (`crates/cumulus-core`): owns all heavy AST parsing, markup validation, and structural extraction where needed.
-- **Lua**: buffer-local editor options only (`shiftwidth`, `tabstop`, `commentstring`).
+- **Enterprise Parity Target**: Replicate IntelliJ IDEA Ultimate's HTML/XML editing and formatting capabilities for production enterprise web/markup development.
+- **Rust Engine (`crates/cumulus-core`)**: Owns heavy AST parsing, markup validation, and structural extraction where needed.
+- **Lua Layer**: Buffer-local editor options only (`shiftwidth`, `tabstop`, `commentstring`).
 - **No Duplicate Wiring**: LSP servers (`superhtml`, `lemminx`) and Treesitter parsers are already registered in existing plugin specs.
 
 ---
 
 ## Goal & Intent
-Close the remaining IDE-parity gap for HTML and XML editing by establishing explicit repository-owned buffer-local formatting conventions matching `ftplugin/java.lua`, without creating duplicate LSP server registrations, duplicate Treesitter parser specs, or redundant keymaps.
+Achieve full 1:1 parity with IntelliJ IDEA Ultimate's HTML and XML editing environment by establishing explicit repository-owned buffer-local formatting conventions matching `ftplugin/java.lua`, without creating duplicate LSP server registrations, duplicate Treesitter parser specs, or redundant keymaps.
 
 ---
 
@@ -69,7 +70,7 @@ Close the remaining IDE-parity gap for HTML and XML editing by establishing expl
 
 - [ ] **Task 2: Create `ftplugin/html.lua`**
   ```lua
-  -- Cumulus HTML Buffer Conventions
+  -- Cumulus HTML Buffer Conventions (IntelliJ Ultimate Parity)
 
   vim.bo.shiftwidth = 2
   vim.bo.tabstop = 2
@@ -80,7 +81,7 @@ Close the remaining IDE-parity gap for HTML and XML editing by establishing expl
 
 - [ ] **Task 3: Create `ftplugin/xml.lua`**
   ```lua
-  -- Cumulus XML Buffer Conventions (LSP/formatting owned by lsp-devops.lua)
+  -- Cumulus XML Buffer Conventions (IntelliJ Ultimate Parity; LSP/formatting owned by lsp-devops.lua)
 
   vim.bo.shiftwidth = 2
   vim.bo.tabstop = 2

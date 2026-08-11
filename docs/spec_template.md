@@ -21,7 +21,8 @@ Specifications transition sequentially through four stages:
 ---
 
 ## Goal & Intent
-[State the primary objective of this specification. Describe the specific Developer Experience (DX) gap or IDE feature being introduced into Neovim (e.g., polyglot LSP support, automated debugging, schema validation). Detail how the implementation integrates cleanly with existing lazy.nvim plugin specs, Treesitter parsers, and Mason toolchains while preserving the IntelliJ-like developer workflow.]
+[State the primary objective of this specification. Describe the specific Developer Experience (DX) gap or enterprise IDE feature being introduced into Neovim to achieve full 1:1 feature parity with JetBrains IntelliJ IDEA Ultimate for production enterprise software engineering (e.g., enterprise polyglot LSP support, automated debugging, DataGrip DB client parity, schema validation, CVE security auditing). Detail how the implementation integrates cleanly with existing lazy.nvim plugin specs, Treesitter parsers, and Mason toolchains backed by the Rust native engine (`cumulus-core`) while preserving sub-50ms startup latency.]
+
 
 ---
 
