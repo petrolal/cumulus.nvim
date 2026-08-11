@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-031
 - **Title**: Strict IPC Cleanup & Standardized Error Handling (Phase 1 Critical)
-- **Status**: BACKLOG
+- **Status**: ACTIVE
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/main.rs` (extends)

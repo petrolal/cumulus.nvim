@@ -11,11 +11,11 @@ This document indexes all migration-related specifications and provides the unif
 ## Migration Phases & Dependencies
 
 ### Phase 1: High-Impact Lua Consolidation & Error Standardization (Critical)
-**Status**: ~94% complete (commits f9378d8–41ebf9e). Only SPEC-031 remains.
+**Status**: In Progress (SPEC-031 moved to ACTIVE)
 
 | Spec ID | Title | Status | Purpose |
 |---------|-------|--------|---------|
-| **SPEC-031** | Strict IPC Cleanup & Error Standardization | **BACKLOG** (NEXT) | ⚠️ **GATES PHASE 2** — Standardize all 18+ Rust commands to emit structured JSON envelopes (success/data/error). Enable robust Lua error handling + debug visibility. |
+| **SPEC-031** | Strict IPC Cleanup & Error Standardization | **ACTIVE** | ⚠️ **GATES PHASE 2** — Standardize all 18+ Rust commands to emit structured JSON envelopes (success/data/error). Enable robust Lua error handling + debug visibility. |
 
 **Phase 1 Completion Criteria**: All Rust subcommands return `{ success: bool, data: T?, error?: string }` envelope. Lua `call_rust()` checks success flag and logs errors via `vim.notify()`.
 
@@ -84,7 +84,7 @@ Migrate compute-heavy Lua helpers; consolidate overlapping functionality.
 ## Spec Dependency Graph
 
 ```
-Phase 1: SPEC-031 (Error Standardization)
+Phase 1: SPEC-031 (Error Standardization) — ACTIVE
   ↓
   ├─ Phase 2a: SPEC-005 (JDTLS Sync Health)
   │              ↓
@@ -109,14 +109,14 @@ Phase 1: SPEC-031 (Error Standardization)
 ## Quick Reference: Spec Summaries
 
 ### SPEC-031 — Strict IPC Cleanup & Error Standardization ⚠️ CRITICAL
-**File**: `docs/specs/backlog/031-strict-ipc-cleanup.md`
+**File**: `docs/specs/active/031-strict-ipc-cleanup.md`
 
 Standardizes all 18+ Rust commands to emit JSON envelopes with `success` flag. Replaces `.unwrap()` with proper error handling. Lua `call_rust()` checks success flag and logs errors.
 
 **Why Critical**: SPEC-005–029 all depend on robust error handling. Skipping this risks silent failures.
 
 **Effort**: ~2–3 hours  
-**Next Action**: Implement `CumulusError` enum + wrapper logic in main.rs + Lua bridge.
+**Current Status**: ACTIVE — Ready for implementation
 
 ---
 
@@ -228,11 +228,12 @@ Refactors test-runner.lua (140 LOC) + sync-runner.lua (152 LOC) to pure Lua orch
 ## Implementation Checklist (For You)
 
 **Immediate (This Week)**:
-- [ ] Read through SPEC-031 in detail
+- [ ] Read through SPEC-031 in detail (`docs/specs/active/031-strict-ipc-cleanup.md`)
 - [ ] Implement `CumulusError` enum + JSON envelope in Rust
 - [ ] Update all 18+ subcommand handlers to use error envelope
 - [ ] Update Lua `call_rust()` to check success flag + log errors
 - [ ] Run `cargo test` + headless verification
+- [ ] Move SPEC-031 to review/ when implementation complete
 - [ ] Git commit: "SPEC-031: implement strict IPC cleanup"
 
 **Next Sprint (Phase 2 — Backlog Specs)**:
@@ -260,6 +261,15 @@ Refactors test-runner.lua (140 LOC) + sync-runner.lua (152 LOC) to pure Lua orch
 
 ---
 
+## Additional Resources
+
+- **Artifact**: Comprehensive Rust migration analysis → https://claude.ai/code/artifact/9643697d-c47f-44a4-a100-bcefd1250cf2
+- **CLAUDE.md**: Rust-First Directive + Lua Bridge Pattern
+- **RUST_ARCHITECTURE_ROADMAP.md**: Broader Rust engine design
+- **LSP_PERFORMANCE_PROFILING.md**: Performance baselines
+
+---
+
 ## Notes
 
 - All specs follow the established **Rust-First, Lua-Bridge** pattern (see CLAUDE.md).
@@ -271,4 +281,5 @@ Refactors test-runner.lua (140 LOC) + sync-runner.lua (152 LOC) to pure Lua orch
 ---
 
 **Last Updated**: 2026-08-10  
-**Maintainer**: AI Systems Architect
+**Maintainer**: AI Systems Architect  
+**Specs Location**: `docs/specs/backlog/`, `docs/specs/active/`, `docs/specs/review/`, `docs/specs/completed/`
