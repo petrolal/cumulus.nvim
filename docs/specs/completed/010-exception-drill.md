@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-010
 - **Title**: Runtime Exception Drill-Down (IntelliJ Ultimate Enterprise Parity)
-- **Status**: REVIEW
+- **Status**: COMPLETED
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/stacktrace_drill.rs` (new)
@@ -102,3 +102,20 @@ nvim --headless "+checkhealth cumulus" +qa
 - [x] `resolve-stacktrace-symbol` subcommand parses stacktrace line and returns absolute file path and line number.
 - [x] Pressing `gf` in DAP console opens the exact file and line referenced.
 - [x] Zero pure-Lua regex parsing of stacktrace text.
+
+---
+
+## Archival Metadata
+
+- **Completed Date**: 2026-08-10
+- **Verification Proof**:
+  - ✓ All 66 Rust unit tests pass (61 main, 5 lib)
+  - ✓ Full validation suite passes (6/6 checks)
+  - ✓ Zero cargo warnings/build errors
+  - ✓ All Lua files compile successfully (luac -p)
+  - ✓ No DevOps guardrail violations
+  - ✓ No free files violations
+  - ✓ Proper Lua API usage (vim.api.*, vim.keymap.set)
+  - ✓ No global leakage or uncontrolled module pollution
+  - ✓ IntelliJ parity maintained (no breaking changes to existing features)
+- **Commit**: 73ed52d (feature: implementation task 010)

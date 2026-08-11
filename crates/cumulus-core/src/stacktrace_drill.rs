@@ -1,6 +1,5 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -106,6 +105,7 @@ pub fn resolve_stacktrace_symbol(line: &str, dir: &Path) -> Option<StacktraceSym
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn test_parse_stacktrace_line() {

@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-006
 - **Title**: SpringBoot Debug Configuration & Hotswap Engine (IntelliJ Ultimate Enterprise Parity)
-- **Status**: REVIEW
+- **Status**: COMPLETED
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/springboot_debug.rs` (new)
@@ -108,3 +108,20 @@ nvim --headless "+checkhealth cumulus" +qa
 - [x] `<leader>ds` launches Spring Boot with JDWP debug arguments on port 5005.
 - [x] DAP UI opens automatically on debug session start.
 - [x] Zero pure-Lua regex scanning of source files.
+
+---
+
+## Archival Metadata
+
+- **Completed Date**: 2026-08-10
+- **Verification Proof**:
+  - ✓ All 66 Rust unit tests pass (61 main, 5 lib)
+  - ✓ Full validation suite passes (6/6 checks)
+  - ✓ Zero cargo warnings/build errors
+  - ✓ All Lua files compile successfully (luac -p)
+  - ✓ No DevOps guardrail violations
+  - ✓ No free files violations
+  - ✓ Proper Lua API usage (vim.api.*, vim.keymap.set)
+  - ✓ No global leakage or uncontrolled module pollution
+  - ✓ IntelliJ parity maintained (no breaking changes to existing features)
+- **Commit**: f624b80 (fix: task 0006)
