@@ -7,6 +7,9 @@
 local M = {}
 
 --- Detect current Java/Kotlin test class and nearest test method using Rust backend.
+--- NOTE: SPEC-007 (JUnit 5 Test Runner Integration) & SPEC-028 (Build Order DAG Solver)
+--- moved test context detection from Lua regex to Rust binary (cumulus-core detect-test-context).
+--- This function delegates to the Rust implementation. Consider removing if Rust backend becomes required.
 ---@param bufnr? number
 ---@return { class_name: string|nil, method_name: string|nil }
 function M.detect_test_info(bufnr)

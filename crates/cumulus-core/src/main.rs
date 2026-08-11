@@ -36,6 +36,17 @@ fn read_input(file: Option<PathBuf>) -> io::Result<String> {
     }
 }
 
+/// Output JSON to stdout, or emit error to stderr if serialization fails
+fn output_json<T: serde::Serialize>(value: &T, context: &str) {
+    match serde_json::to_string(value) {
+        Ok(json) => println!("{}", json),
+        Err(e) => {
+            eprintln!("cumulus-core: JSON serialization failed in {}: {}", context, e);
+            eprintln!("cumulus-core: This likely indicates a bug in the {} handler", context);
+        }
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "cumulus-core")]
 #[command(about = "High-performance Rust helper for Cumulus Neovim Distribution", long_about = None)]
@@ -169,22 +180,19 @@ fn main() -> io::Result<()> {
     match cli.command {
         Commands::DetectTestContext { file, line } => {
             let ctx = test_context::detect_test_context(&file, line);
-            let json = serde_json::to_string(&ctx).unwrap();
-            println!("{}", json);
+            output_json(&ctx, "detect-test-context");
         }
         Commands::Ping => {
             println!(r#"{{"status":"ok","version":"0.1.0"}}"#);
         }
         Commands::ParsePom { file } => {
             let goals = maven::get_maven_goals(&file);
-            let json = serde_json::to_string(&goals).unwrap();
-            println!("{}", json);
+            output_json(&goals, "parse-pom");
         }
         Commands::ParseGradleTasks { file } => {
             let content = read_input(file)?;
             let tasks = gradle::parse_gradle_tasks(&content);
-            let json = serde_json::to_string(&tasks).unwrap();
-            println!("{}", json);
+            output_json(&tasks, "parse-gradle-tasks");
         }
         Commands::ParseBuildLog { tool, file } => {
             let content = read_input(file)?;
@@ -193,8 +201,7 @@ fn main() -> io::Result<()> {
                 "gradle" => log_parser::parse_gradle_log(&content),
                 _ => Vec::new(),
             };
-            let json = serde_json::to_string(&diags).unwrap();
-            println!("{}", json);
+            output_json(&diags, "parse-build-log");
         }
         Commands::ParseModules { tool, file } => {
             let modules = match tool.to_lowercase().as_str() {
@@ -202,25 +209,21 @@ fn main() -> io::Result<()> {
                 "gradle" => multimodule::parse_gradle_modules(&file),
                 _ => Vec::new(),
             };
-            let json = serde_json::to_string(&modules).unwrap();
-            println!("{}", json);
+            output_json(&modules, "parse-modules");
         }
         Commands::ParseStacktrace { file } => {
             let content = read_input(file)?;
             let entries = log_parser::parse_stacktrace(&content);
-            let json = serde_json::to_string(&entries).unwrap();
-            println!("{}", json);
+            output_json(&entries, "parse-stacktrace");
         }
         Commands::GenerateJavaHeader { file } => {
             let lines = java_gen::generate_java_header(&file);
-            let json = serde_json::to_string(&lines).unwrap();
-            println!("{}", json);
+            output_json(&lines, "generate-java-header");
         }
         Commands::ParseTestOutput { file } => {
             let content = read_input(file)?;
             let results = test_parser::parse_test_output(&content);
-            let json = serde_json::to_string(&results).unwrap();
-            println!("{}", json);
+            output_json(&results, "parse-test-output");
         }
         Commands::CheckNetwork { host, timeout } => {
             let online = network::check_connectivity(&host, timeout);
@@ -229,67 +232,55 @@ fn main() -> io::Result<()> {
         Commands::ParseCheckstyle { file } => {
             let content = read_input(file)?;
             let diags = inspection_parser::parse_checkstyle_xml(&content);
-            let json = serde_json::to_string(&diags).unwrap();
-            println!("{}", json);
+            output_json(&diags, "parse-checkstyle");
         }
         Commands::ExtractEndpoints { dir } => {
             let eps = endpoints::extract_endpoints_from_dir(&dir);
-            let json = serde_json::to_string(&eps).unwrap();
-            println!("{}", json);
+            output_json(&eps, "extract-endpoints");
         }
         Commands::ParseCoverage { file } => {
             let cov = coverage::parse_coverage_file(&file);
-            let json = serde_json::to_string(&cov).unwrap();
-            println!("{}", json);
+            output_json(&cov, "parse-coverage");
         }
         Commands::ValidateMigrations { dir } => {
             let issues = migrations::validate_migrations_dir(&dir);
-            let json = serde_json::to_string(&issues).unwrap();
-            println!("{}", json);
+            output_json(&issues, "validate-migrations");
         }
         Commands::ParseSpringBeans { dir } => {
             let beans = beans::extract_beans_from_dir(&dir);
-            let json = serde_json::to_string(&beans).unwrap();
-            println!("{}", json);
+            output_json(&beans, "parse-spring-beans");
         }
         Commands::IndexLog { file } => {
             let content = read_input(file)?;
             let entries = log_indexer::index_log_content(&content);
-            let json = serde_json::to_string(&entries).unwrap();
-            println!("{}", json);
+            output_json(&entries, "index-log");
         }
         Commands::OptimizeImports { file } => {
             let content = read_input(file)?;
             let lines = imports::optimize_imports(&content);
-            let json = serde_json::to_string(&lines).unwrap();
-            println!("{}", json);
+            output_json(&lines, "optimize-imports");
         }
         Commands::ValidateK8sManifest { file } => {
             let content = read_input(file)?;
             let issues = k8s_validator::validate_k8s_manifest_content(&content);
-            let json = serde_json::to_string(&issues).unwrap();
-            println!("{}", json);
+            output_json(&issues, "validate-k8s-manifest");
         }
         Commands::ParseGitConflicts { file } => {
             let content = read_input(file)?;
             let blocks = conflicts::parse_git_conflicts_content(&content);
-            let json = serde_json::to_string(&blocks).unwrap();
-            println!("{}", json);
+            output_json(&blocks, "parse-git-conflicts");
         }
         Commands::ResolveDeps { file } => {
             let deps = dep_resolver::resolve_dependencies(&file);
-            let json = serde_json::to_string(&deps).unwrap();
-            println!("{}", json);
+            output_json(&deps, "resolve-deps");
         }
         Commands::ExtractCodelens { file } => {
             let items = codelens::extract_codelens(&file);
-            let json = serde_json::to_string(&items).unwrap();
-            println!("{}", json);
+            output_json(&items, "extract-codelens");
         }
         Commands::ComputeBuildOrder { dir } => {
             let steps = dag::compute_build_order(&dir);
-            let json = serde_json::to_string(&steps).unwrap();
-            println!("{}", json);
+            output_json(&steps, "compute-build-order");
         }
     }
 

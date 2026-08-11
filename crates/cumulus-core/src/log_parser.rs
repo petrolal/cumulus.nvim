@@ -187,4 +187,69 @@ java.lang.NullPointerException: Cannot invoke method
         assert_eq!(trace[0].file, "UserService.java");
         assert_eq!(trace[0].line, 88);
     }
+
+    #[test]
+    fn test_maven_log_with_ansi_escapes() {
+        // Test that ANSI escape sequences are stripped correctly
+        let log = "[ERROR] \x1B[31m/src/main/java/App.java:[1,2]\x1B[0m compile error";
+        let diags = parse_maven_log(log);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].file, "/src/main/java/App.java");
+        assert_eq!(diags[0].line, 1);
+        assert_eq!(diags[0].col, Some(2));
+    }
+
+    #[test]
+    fn test_maven_log_both_patterns() {
+        // Test both Maven regex patterns in one log
+        let log = r#"
+[ERROR] /path/to/File.java:[12,34] Pattern 1 error
+/path/to/Other.java:99:Column format error
+"#;
+        let diags = parse_maven_log(log);
+        assert_eq!(diags.len(), 2);
+        assert_eq!(diags[0].line, 12);
+        assert_eq!(diags[0].col, Some(34));
+        assert_eq!(diags[1].line, 99);
+    }
+
+    #[test]
+    fn test_gradle_log_kotlin_and_java() {
+        // Test both Kotlin and Java patterns
+        let log = r#"
+e: /src/main/kotlin/App.kt: (10, 15): Kotlin error
+/src/main/java/Main.java:20: error: Java error
+"#;
+        let diags = parse_gradle_log(log);
+        assert_eq!(diags.len(), 2);
+        assert_eq!(diags[0].file, "/src/main/kotlin/App.kt");
+        assert_eq!(diags[0].col, Some(15));
+        assert_eq!(diags[1].file, "/src/main/java/Main.java");
+        assert_eq!(diags[1].col, None); // Java pattern doesn't extract column
+    }
+
+    #[test]
+    fn test_empty_logs() {
+        assert_eq!(parse_maven_log("").len(), 0);
+        assert_eq!(parse_gradle_log("").len(), 0);
+        assert_eq!(parse_stacktrace("").len(), 0);
+    }
+
+    #[test]
+    fn test_non_matching_lines() {
+        // Lines that don't match any pattern should be ignored
+        let log = r#"
+[INFO] Some info message
+Some random text
+More info without errors
+"#;
+        assert_eq!(parse_maven_log(log).len(), 0);
+        assert_eq!(parse_gradle_log(log).len(), 0);
+    }
+
+    #[test]
+    fn test_strip_ansi_escapes() {
+        let text = "Hello \x1B[31mRed\x1B[0m World";
+        assert_eq!(strip_ansi_escapes(text), "Hello Red World");
+    }
 }
