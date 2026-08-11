@@ -15,78 +15,21 @@ local ns = vim.api.nvim_create_namespace("cumulus_build")
 ---@field message string
 ---@field severity string
 
---- Fallback Lua parser for Maven log output
----@param log_content string
----@return CumulusDiagnosticEntry[]
-local function parse_maven_lua(log_content)
-  local entries = {}
-  for line in log_content:gmatch("[^\r\n]+") do
-    local file, line_num, col_num, msg = line:match("%[ERROR%]%s+([^%s:]+):%[(%d+),(%d+)%]%s+(.+)")
-    if not file then
-      file, line_num, msg = line:match("%[ERROR%]%s+([^%s:]+):%[(%d+)%]%s+(.+)")
-    end
-    if not file then
-      file, line_num, col_num, msg = line:match("([^%s:]+%.java):(%d+):(%d+):%s*(.+)")
-    end
-    if not file then
-      file, line_num, msg = line:match("([^%s:]+%.java):(%d+):%s*(.+)")
-    end
-
-    if file then
-      table.insert(entries, {
-        file = file,
-        line = tonumber(line_num) or 1,
-        col = tonumber(col_num),
-        message = msg,
-        severity = "ERROR",
-      })
-    end
-  end
-  return entries
-end
-
---- Fallback Lua parser for Gradle log output
----@param log_content string
----@return CumulusDiagnosticEntry[]
-local function parse_gradle_lua(log_content)
-  local entries = {}
-  for line in log_content:gmatch("[^\r\n]+") do
-    local file, line_num, col_num, msg = line:match("e:%s+([^%s:]+%.kt):%s*%(%(%d+%),%s*%(%d+%)%):%s*(.+)")
-    if not file then
-      file, line_num, msg = line:match("([^%s:]+%.java):(%d+):%s*error:%s*(.+)")
-    end
-
-    if file then
-      table.insert(entries, {
-        file = file,
-        line = tonumber(line_num) or 1,
-        col = tonumber(col_num),
-        message = msg,
-        severity = "ERROR",
-      })
-    end
-  end
-  return entries
-end
-
 --- Parse build log content and populate diagnostics across project buffers
 ---@param tool "maven"|"gradle"
 ---@param log_content string
 function M.populate_from_log(tool, log_content)
   local rust = require("cumulus.util.rust")
-  local entries = nil
-
-  if rust.is_available() then
-    entries = rust.parse_build_log(tool, log_content)
+  if not rust.is_available() then
+    vim.notify(
+      "cumulus-core binary missing: cannot parse build diagnostics. Run 'cargo build --release' in crates/cumulus-core",
+      vim.log.levels.WARN
+    )
+    return
   end
 
-  if not entries then
-    if tool == "maven" or tool == "mvn" then
-      entries = parse_maven_lua(log_content)
-    else
-      entries = parse_gradle_lua(log_content)
-    end
-  end
+  local entries = rust.parse_build_log(tool, log_content)
+
 
   if not entries or #entries == 0 then
     return

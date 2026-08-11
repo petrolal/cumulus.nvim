@@ -45,8 +45,9 @@ function M.check()
   if rust.is_available() then
     vim.health.ok(string.format("Cumulus Rust native helper ('cumulus-core'): active (%s)", rust.get_bin()))
   else
-    vim.health.info("Cumulus Rust native helper ('cumulus-core'): not compiled (using Lua fallback routines)")
+    vim.health.warn("Cumulus Rust native helper ('cumulus-core'): not compiled. Run 'cargo build --release' inside crates/cumulus-core")
   end
+
 
   vim.health.start("Cumulus Signature Cloud Themes")
 
