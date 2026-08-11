@@ -30,7 +30,8 @@ Neovim  →  Lua (bridge)  →  cumulus-core (Rust binary)
 ---
 
 ## Goal & Intent
-Extract Spring Boot (`@RestController`, `@GetMapping`, `@PostMapping`, etc.) and Jakarta/JAX-RS endpoints across Java/Kotlin source trees into a structured JSON schema to populate Neovim Telescope/Snacks pickers for instant endpoint navigation.
+Extract Spring Boot (`@RestController`, `@GetMapping`, `@PostMapping`, etc.) and Jakarta/JAX-RS endpoints across Java/Kotlin source trees into a structured JSON schema to populate Neovim Telescope/Snacks pickers for instant endpoint navigation. (Note: Extension to generate RFC 7230 interactive `.http` request buffers for live REST client testing is scheduled under `SPEC-034` in `docs/specs/backlog/` for IntelliJ Ultimate HTTP Client parity).
+
 
 ---
 

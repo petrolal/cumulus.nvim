@@ -37,7 +37,8 @@ This spec adds test execution directly from the editor:
 - `<leader>cjtt` → run nearest test method
 - `<leader>cjtc` → run test class
 - `<leader>cjta` → run all tests
-- Show PASS/FAIL inline and in Trouble diagnostics
+- Show PASS/FAIL inline and in Trouble diagnostics. (Note: Enterprise test tree navigation, millisecond duration benchmarks, and expected-vs-actual assertion diff viewing are scheduled under `SPEC-032` in `docs/specs/backlog/` for IntelliJ Ultimate test runner parity).
+
 
 ---
 

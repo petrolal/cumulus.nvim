@@ -38,7 +38,8 @@ This spec integrates **Checkstyle** (code style) and **SpotBugs** (potential bug
 - `checkstyle`: Google style (or configurable)
 - `spotbugs`: Scan for likely bugs (null dereferences, redundant comparisons, etc.)
 - Show inline as diagnostic markers (same as LSP errors)
-- Integrate with Trouble.nvim for full error list
+- Integrate with Trouble.nvim for full error list. (Note: Extension to unified PMD and SpotBugs / FindBugs XML report parsing is scheduled under `SPEC-033` in `docs/specs/backlog/` for IntelliJ Ultimate Code Inspection parity).
+
 
 ---
 
