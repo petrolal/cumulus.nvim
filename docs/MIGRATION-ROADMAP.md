@@ -4,18 +4,18 @@
 
 This document indexes all migration-related specifications and provides the unified roadmap for migrating business logic from Lua to Rust. The migration follows a phased approach, with dependencies clearly marked.
 
-**Current Status**: Phase 1 (SPEC-031) in REVIEW. Phase 2 (Backlog Specs Wave 1) complete in REVIEW — ready for final approval.
+**Current Status**: Phase 1 (SPEC-031) ✓ COMPLETED. Phase 2 (SPEC-005, 012, 030) ✓ COMPLETED. Phase 3 (SPEC-006, 010) now ACTIVE.
 
 ---
 
 ## Migration Phases & Dependencies
 
 ### Phase 1: High-Impact Lua Consolidation & Error Standardization (Critical)
-**Status**: In Progress (SPEC-031 moved to ACTIVE)
+**Status**: COMPLETED ✓
 
 | Spec ID | Title | Status | Purpose |
 |---------|-------|--------|---------|
-| **SPEC-031** | Strict IPC Cleanup & Error Standardization | **ACTIVE** | ⚠️ **GATES PHASE 2** — Standardize all 18+ Rust commands to emit structured JSON envelopes (success/data/error). Enable robust Lua error handling + debug visibility. |
+| **SPEC-031** | Strict IPC Cleanup & Error Standardization | **COMPLETED** ✓ | ✓ **UNLOCKED PHASE 2** — All 18+ Rust commands emit structured JSON envelopes (success/data/error). Lua error handling + debug visibility fully integrated. |
 
 **Phase 1 Completion Criteria**: All Rust subcommands return `{ success: bool, data: T?, error?: string }` envelope. Lua `call_rust()` checks success flag and logs errors via `vim.notify()`.
 
@@ -24,29 +24,31 @@ This document indexes all migration-related specifications and provides the unif
 ---
 
 ### Phase 2: Backlog Specs Wave 1 — File Parsers (8–10 hours)
-**Depends on**: Phase 1 (SPEC-031) ✓
+**Depends on**: Phase 1 (SPEC-031) ✓ COMPLETE
+**Status**: COMPLETED ✓ All specs archived
 
 File system & configuration parsing specs. These unblock daily developer workflows.
 
 | Spec ID | Title | Status | Rust Scope | Effort |
 |---------|-------|--------|-----------|--------|
-| **SPEC-005** | JDTLS Project Sync Health Check | **REVIEW** | `check-jdtls-sync`: mtime scan for pom.xml/build.gradle changes | 2–3 hrs |
-| **SPEC-012** | Gradle Wrapper Version Lock & SHA-256 Verify | **REVIEW** | `verify-gradle-wrapper`: parse gradle-wrapper.properties + CI YAML | 2–3 hrs |
-| **SPEC-030** | Session State & Layout Sanitizer | **REVIEW** | `session-sanitize`: parse .vim scripts; strip ephemeral buffers | 2–3 hrs |
+| **SPEC-005** | JDTLS Project Sync Health Check | **COMPLETED** ✓ | `check-jdtls-sync`: mtime scan for pom.xml/build.gradle changes | 2–3 hrs |
+| **SPEC-012** | Gradle Wrapper Version Lock & SHA-256 Verify | **COMPLETED** ✓ | `verify-gradle-wrapper`: parse gradle-wrapper.properties + CI YAML | 2–3 hrs |
+| **SPEC-030** | Session State & Layout Sanitizer | **COMPLETED** ✓ | `session-sanitize`: parse .vim scripts; strip ephemeral buffers | 2–3 hrs |
 
 **Phase 2 Unlock**: Real-time JDTLS sync detection, build consistency checks, session integrity.
 
 ---
 
 ### Phase 3: Backlog Specs Wave 2 — Complex Parsing (6–8 hours)
-**Depends on**: Phase 2 (SPEC-005, 012, 030)
+**Depends on**: Phase 2 (SPEC-005, 012, 030) ✓ COMPLETE
+**Status**: ACTIVE — Ready for implementation
 
 AST/config parsing with higher algorithmic complexity.
 
 | Spec ID | Title | Status | Rust Scope | Effort |
 |---------|-------|--------|-----------|--------|
-| **SPEC-010** | Runtime Exception Stack Trace Drill-Down | BACKLOG | `parse-stacktrace`: extract frames, map to source lines | 2–3 hrs |
-| **SPEC-006** | SpringBoot Debug Hotswap Engine | BACKLOG | `spring-debug-config`: parse application.yml, generate debug JVM args | 3–4 hrs |
+| **SPEC-010** | Runtime Exception Stack Trace Drill-Down | **ACTIVE** | `resolve-stacktrace-symbol`: extract frames, map to source lines | 2–3 hrs |
+| **SPEC-006** | SpringBoot Debug Hotswap Engine | **ACTIVE** | `detect-springboot-app`: parse Spring annotations, generate debug JVM args | 3–4 hrs |
 
 **Phase 3 Unlock**: One-keypress debug setup, inline exception navigation.
 

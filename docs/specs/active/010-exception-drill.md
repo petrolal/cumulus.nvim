@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-010
 - **Title**: Runtime Exception Drill-Down (IntelliJ Ultimate Enterprise Parity)
-- **Status**: BACKLOG
+- **Status**: ACTIVE
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/stacktrace_drill.rs` (new)

@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-006
 - **Title**: SpringBoot Debug Configuration & Hotswap Engine (IntelliJ Ultimate Enterprise Parity)
-- **Status**: BACKLOG
+- **Status**: ACTIVE
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/springboot_debug.rs` (new)
