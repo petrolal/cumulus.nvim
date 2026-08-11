@@ -257,6 +257,22 @@ lang_keymaps.register({
 })
 
 lang_keymaps.register({
+  filetypes = { "java", "kotlin" },
+  group = "<leader>d",
+  label = "debug",
+  icon = "🐛 ",
+  keys = {
+    {
+      "<leader>ds",
+      function()
+        require("cumulus.util.springboot-debug").launch_debug()
+      end,
+      "Debug Spring Boot Application",
+    },
+  },
+})
+
+lang_keymaps.register({
   filetypes = { "java", "kotlin", "groovy" },
   ready_gate = true,
   condition = function()

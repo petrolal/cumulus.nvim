@@ -299,4 +299,11 @@ function M.sanitize_session(file_path)
   return call_rust_command({ "session-sanitize", "--file", file_path }, nil, "session-sanitize")
 end
 
+--- Detect Spring Boot application and generate debug configuration (SPEC-006)
+---@param dir_path string Root project directory
+---@return { main_class: string, project_name: string, build_tool: string, jvm_args: string, profiles: string[] }|nil
+function M.detect_springboot_app(dir_path)
+  return call_rust_command({ "detect-springboot-app", "--dir", dir_path }, nil, "detect-springboot-app")
+end
+
 return M

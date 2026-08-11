@@ -47,6 +47,11 @@ local config = {
     if ok_dap and jdtls_dap.setup_dap_main_class_configs then
       jdtls_dap.setup_dap_main_class_configs()
     end
+    -- Setup Spring Boot DAP configurations (SPEC-006)
+    local ok_sb, springboot_debug = pcall(require, "cumulus.util.springboot-debug")
+    if ok_sb and springboot_debug.setup_springboot_dap then
+      springboot_debug.setup_springboot_dap(root_dir)
+    end
     if opts.on_attach then
       opts.on_attach(client, bufnr)
     end

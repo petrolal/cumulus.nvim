@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-006
 - **Title**: SpringBoot Debug Configuration & Hotswap Engine (IntelliJ Ultimate Enterprise Parity)
-- **Status**: ACTIVE
+- **Status**: REVIEW
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/springboot_debug.rs` (new)
@@ -77,17 +77,17 @@ Provide one-keypress Spring Boot debugging (`<leader>ds`) matching IntelliJ IDEA
 
 ## Execution Checklist
 
-- [ ] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
+- [x] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
   - Create `crates/cumulus-core/src/springboot_debug.rs`.
   - Add `DetectSpringbootApp { dir: PathBuf }` subcommand to `main.rs`.
   - Scan `src/main/java` and `src/main/kotlin` for `@SpringBootApplication`.
   - Parse build tool (`pom.xml` vs `build.gradle`) and construct JDWP arguments.
   - Add Rust unit tests in `springboot_debug.rs`.
 
-- [ ] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
+- [x] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
   - Add `M.detect_springboot_app(dir_path)` function calling `cumulus-core detect-springboot-app`.
 
-- [ ] **Task 3: DAP Integration & Keymap Wiring**
+- [x] **Task 3: DAP Integration & Keymap Wiring**
   - Extend `ftplugin/java.lua` to dynamically populate `dap.configurations.java` using `rust.detect_springboot_app()`.
   - Add `<leader>ds` (Debug SpringBoot) keymap in `lua/cumulus/core/keymaps.lua`.
 
@@ -103,8 +103,8 @@ nvim --headless "+checkhealth cumulus" +qa
 ```
 
 ### Acceptance Criteria
-- [ ] `cargo test` passes with new `springboot_debug` tests.
-- [ ] `detect-springboot-app` subcommand detects `@SpringBootApplication` and outputs valid JSON configuration.
-- [ ] `<leader>ds` launches Spring Boot with JDWP debug arguments on port 5005.
-- [ ] DAP UI opens automatically on debug session start.
-- [ ] Zero pure-Lua regex scanning of source files.
+- [x] `cargo test` passes with new `springboot_debug` tests.
+- [x] `detect-springboot-app` subcommand detects `@SpringBootApplication` and outputs valid JSON configuration.
+- [x] `<leader>ds` launches Spring Boot with JDWP debug arguments on port 5005.
+- [x] DAP UI opens automatically on debug session start.
+- [x] Zero pure-Lua regex scanning of source files.

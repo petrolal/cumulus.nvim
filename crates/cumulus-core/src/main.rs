@@ -19,6 +19,7 @@ mod migrations;
 mod multimodule;
 mod network;
 mod session_cleaner;
+mod springboot_debug;
 mod test_context;
 mod test_parser;
 
@@ -198,6 +199,11 @@ enum Commands {
         #[arg(short, long)]
         file: PathBuf,
     },
+    /// Detect Spring Boot application and generate debug configuration
+    DetectSpringbootApp {
+        #[arg(short, long)]
+        dir: PathBuf,
+    },
     /// Simple ping response to confirm binary readiness
     Ping,
 }
@@ -351,6 +357,10 @@ fn run(cli: Cli) -> Result<(), CumulusError> {
         Commands::SessionSanitize { file } => {
             let result = session_cleaner::sanitize_session(&file);
             output_success(result, "session-sanitize");
+        }
+        Commands::DetectSpringbootApp { dir } => {
+            let config = springboot_debug::detect_springboot_app(&dir);
+            output_success(config, "detect-springboot-app");
         }
     }
 
