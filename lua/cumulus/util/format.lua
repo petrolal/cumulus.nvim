@@ -13,20 +13,19 @@ local M = {}
 ---@return boolean
 function M.enabled(buf)
   buf = (buf == nil or buf == 0) and vim.api.nvim_get_current_buf() or buf
-  local gaf = vim.g.autoformat
   local baf = vim.b[buf].autoformat
 
   if baf ~= nil then
     return baf
   end
 
-  return gaf == nil or gaf
+  return (vim.g.autoformat ~= false)
 end
 
 ---@param buf? number
 function M.info(buf)
   buf = buf or vim.api.nvim_get_current_buf()
-  local gaf = vim.g.autoformat == nil or vim.g.autoformat
+  local gaf = (vim.g.autoformat ~= false)
   local baf = vim.b[buf].autoformat
   local enabled = M.enabled(buf)
   local lines = {

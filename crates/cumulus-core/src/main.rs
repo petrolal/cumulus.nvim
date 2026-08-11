@@ -24,6 +24,18 @@ use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
 
+/// Read input from file or stdin
+fn read_input(file: Option<PathBuf>) -> io::Result<String> {
+    match file {
+        Some(f) => fs::read_to_string(f),
+        None => {
+            let mut stdin = String::new();
+            io::stdin().read_to_string(&mut stdin)?;
+            Ok(stdin)
+        }
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "cumulus-core")]
 #[command(about = "High-performance Rust helper for Cumulus Neovim Distribution", long_about = None)]
@@ -169,27 +181,13 @@ fn main() -> io::Result<()> {
             println!("{}", json);
         }
         Commands::ParseGradleTasks { file } => {
-            let content = match file {
-                Some(f) => fs::read_to_string(f)?,
-                None => {
-                    let mut stdin = String::new();
-                    io::stdin().read_to_string(&mut stdin)?;
-                    stdin
-                }
-            };
+            let content = read_input(file)?;
             let tasks = gradle::parse_gradle_tasks(&content);
             let json = serde_json::to_string(&tasks).unwrap();
             println!("{}", json);
         }
         Commands::ParseBuildLog { tool, file } => {
-            let content = match file {
-                Some(f) => fs::read_to_string(f)?,
-                None => {
-                    let mut stdin = String::new();
-                    io::stdin().read_to_string(&mut stdin)?;
-                    stdin
-                }
-            };
+            let content = read_input(file)?;
             let diags = match tool.to_lowercase().as_str() {
                 "maven" | "mvn" => log_parser::parse_maven_log(&content),
                 "gradle" => log_parser::parse_gradle_log(&content),
@@ -208,14 +206,7 @@ fn main() -> io::Result<()> {
             println!("{}", json);
         }
         Commands::ParseStacktrace { file } => {
-            let content = match file {
-                Some(f) => fs::read_to_string(f)?,
-                None => {
-                    let mut stdin = String::new();
-                    io::stdin().read_to_string(&mut stdin)?;
-                    stdin
-                }
-            };
+            let content = read_input(file)?;
             let entries = log_parser::parse_stacktrace(&content);
             let json = serde_json::to_string(&entries).unwrap();
             println!("{}", json);
@@ -226,14 +217,7 @@ fn main() -> io::Result<()> {
             println!("{}", json);
         }
         Commands::ParseTestOutput { file } => {
-            let content = match file {
-                Some(f) => fs::read_to_string(f)?,
-                None => {
-                    let mut stdin = String::new();
-                    io::stdin().read_to_string(&mut stdin)?;
-                    stdin
-                }
-            };
+            let content = read_input(file)?;
             let results = test_parser::parse_test_output(&content);
             let json = serde_json::to_string(&results).unwrap();
             println!("{}", json);
@@ -243,14 +227,7 @@ fn main() -> io::Result<()> {
             println!(r#"{{"online":{}}}"#, online);
         }
         Commands::ParseCheckstyle { file } => {
-            let content = match file {
-                Some(f) => fs::read_to_string(f)?,
-                None => {
-                    let mut stdin = String::new();
-                    io::stdin().read_to_string(&mut stdin)?;
-                    stdin
-                }
-            };
+            let content = read_input(file)?;
             let diags = inspection_parser::parse_checkstyle_xml(&content);
             let json = serde_json::to_string(&diags).unwrap();
             println!("{}", json);
@@ -276,53 +253,25 @@ fn main() -> io::Result<()> {
             println!("{}", json);
         }
         Commands::IndexLog { file } => {
-            let content = match file {
-                Some(f) => fs::read_to_string(f)?,
-                None => {
-                    let mut stdin = String::new();
-                    io::stdin().read_to_string(&mut stdin)?;
-                    stdin
-                }
-            };
+            let content = read_input(file)?;
             let entries = log_indexer::index_log_content(&content);
             let json = serde_json::to_string(&entries).unwrap();
             println!("{}", json);
         }
         Commands::OptimizeImports { file } => {
-            let content = match file {
-                Some(f) => fs::read_to_string(f)?,
-                None => {
-                    let mut stdin = String::new();
-                    io::stdin().read_to_string(&mut stdin)?;
-                    stdin
-                }
-            };
+            let content = read_input(file)?;
             let lines = imports::optimize_imports(&content);
             let json = serde_json::to_string(&lines).unwrap();
             println!("{}", json);
         }
         Commands::ValidateK8sManifest { file } => {
-            let content = match file {
-                Some(f) => fs::read_to_string(f)?,
-                None => {
-                    let mut stdin = String::new();
-                    io::stdin().read_to_string(&mut stdin)?;
-                    stdin
-                }
-            };
+            let content = read_input(file)?;
             let issues = k8s_validator::validate_k8s_manifest_content(&content);
             let json = serde_json::to_string(&issues).unwrap();
             println!("{}", json);
         }
         Commands::ParseGitConflicts { file } => {
-            let content = match file {
-                Some(f) => fs::read_to_string(f)?,
-                None => {
-                    let mut stdin = String::new();
-                    io::stdin().read_to_string(&mut stdin)?;
-                    stdin
-                }
-            };
+            let content = read_input(file)?;
             let blocks = conflicts::parse_git_conflicts_content(&content);
             let json = serde_json::to_string(&blocks).unwrap();
             println!("{}", json);

@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -10,18 +11,25 @@ pub struct DiagnosticEntry {
     pub severity: String,
 }
 
+// Lazy-compiled regex patterns for Maven log parsing
+static MAVEN_ERROR_FILE_LINE_COL: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\[ERROR\]\s+([^\s:]+):\[(\d+)(?:,(\d+))?\]\s+(.+)").unwrap());
+static MAVEN_ERROR_FILE_COLON: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"([^\s:]+\.java):(\d+):(?:\s*(\d+):)?\s*(.+)").unwrap());
+
+// Lazy-compiled regex patterns for Gradle log parsing
+static GRADLE_ERROR_KOTLIN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"e:\s+([^\s:]+\.kt):\s*\((\d+),\s*(\d+)\):\s*(.+)").unwrap());
+static GRADLE_ERROR_JAVA: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"([^\s:]+\.java):(\d+):\s*error:\s*(.+)").unwrap());
+
 pub fn parse_maven_log(log_content: &str) -> Vec<DiagnosticEntry> {
     let mut diagnostics = Vec::new();
-
-    // Pattern 1: [ERROR] /path/to/File.java:[12,34] message or [ERROR] /path/to/File.java:[12] message
-    let re_file_line_col = Regex::new(r"\[ERROR\]\s+([^\s:]+):\[(\d+)(?:,(\d+))?\]\s+(.+)").unwrap();
-    // Pattern 2: /path/to/File.java:[12,34] error: message
-    let re_file_colon = Regex::new(r"([^\s:]+\.java):(\d+):(?:\s*(\d+):)?\s*(.+)").unwrap();
 
     for line in log_content.lines() {
         let line_clean = strip_ansi_escapes(line);
 
-        if let Some(caps) = re_file_line_col.captures(&line_clean) {
+        if let Some(caps) = MAVEN_ERROR_FILE_LINE_COL.captures(&line_clean) {
             let file = caps.get(1).unwrap().as_str().to_string();
             let line_num: usize = caps.get(2).unwrap().as_str().parse().unwrap_or(1);
             let col_num: Option<usize> = caps.get(3).and_then(|m| m.as_str().parse().ok());
@@ -34,7 +42,7 @@ pub fn parse_maven_log(log_content: &str) -> Vec<DiagnosticEntry> {
                 message,
                 severity: "ERROR".to_string(),
             });
-        } else if let Some(caps) = re_file_colon.captures(&line_clean) {
+        } else if let Some(caps) = MAVEN_ERROR_FILE_COLON.captures(&line_clean) {
             let file = caps.get(1).unwrap().as_str().to_string();
             let line_num: usize = caps.get(2).unwrap().as_str().parse().unwrap_or(1);
             let col_num: Option<usize> = caps.get(3).and_then(|m| m.as_str().parse().ok());
@@ -56,15 +64,10 @@ pub fn parse_maven_log(log_content: &str) -> Vec<DiagnosticEntry> {
 pub fn parse_gradle_log(log_content: &str) -> Vec<DiagnosticEntry> {
     let mut diagnostics = Vec::new();
 
-    // e: /path/to/File.kt:12:34 message
-    let re_kotlin = Regex::new(r"e:\s+([^\s:]+\.kt):\s*\((\d+),\s*(\d+)\):\s*(.+)").unwrap();
-    // /path/to/File.java:12: error: message
-    let re_java = Regex::new(r"([^\s:]+\.java):(\d+):\s*error:\s*(.+)").unwrap();
-
     for line in log_content.lines() {
         let line_clean = strip_ansi_escapes(line);
 
-        if let Some(caps) = re_kotlin.captures(&line_clean) {
+        if let Some(caps) = GRADLE_ERROR_KOTLIN.captures(&line_clean) {
             let file = caps.get(1).unwrap().as_str().to_string();
             let line_num: usize = caps.get(2).unwrap().as_str().parse().unwrap_or(1);
             let col_num: Option<usize> = caps.get(3).and_then(|m| m.as_str().parse().ok());
@@ -77,7 +80,7 @@ pub fn parse_gradle_log(log_content: &str) -> Vec<DiagnosticEntry> {
                 message,
                 severity: "ERROR".to_string(),
             });
-        } else if let Some(caps) = re_java.captures(&line_clean) {
+        } else if let Some(caps) = GRADLE_ERROR_JAVA.captures(&line_clean) {
             let file = caps.get(1).unwrap().as_str().to_string();
             let line_num: usize = caps.get(2).unwrap().as_str().parse().unwrap_or(1);
             let message = caps.get(3).unwrap().as_str().to_string();
@@ -95,9 +98,12 @@ pub fn parse_gradle_log(log_content: &str) -> Vec<DiagnosticEntry> {
     diagnostics
 }
 
+// Lazy-compiled regex for ANSI escape sequence removal
+static ANSI_ESCAPE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\x1B\[[0-?]*[ -/]*[@-~]").unwrap());
+
 fn strip_ansi_escapes(input: &str) -> String {
-    let re = Regex::new(r"\x1B\[[0-?]*[ -/]*[@-~]").unwrap();
-    re.replace_all(input, "").to_string()
+    ANSI_ESCAPE.replace_all(input, "").to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]

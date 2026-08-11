@@ -8,16 +8,20 @@
 local M = {}
 
 local cached_bin = nil
+local cache_expires_at = nil
+local CACHE_TTL_MS = 300000  -- 5 minutes: refresh cache on rebuild/reinstall during dev
 
 --- Locates the `cumulus-core` binary on $PATH or within the workspace target directory.
 ---@return string|nil
 function M.get_bin()
-  if cached_bin ~= nil then
+  local now = vim.loop.now()
+  if cached_bin ~= nil and cache_expires_at and now < cache_expires_at then
     return cached_bin ~= false and cached_bin or nil
   end
 
   if vim.fn.executable("cumulus-core") == 1 then
     cached_bin = "cumulus-core"
+    cache_expires_at = now + CACHE_TTL_MS
     return cached_bin
   end
 
@@ -28,13 +32,16 @@ function M.get_bin()
 
   if vim.fn.executable(release_bin) == 1 then
     cached_bin = release_bin
+    cache_expires_at = now + CACHE_TTL_MS
     return cached_bin
   elseif vim.fn.executable(debug_bin) == 1 then
     cached_bin = debug_bin
+    cache_expires_at = now + CACHE_TTL_MS
     return cached_bin
   end
 
   cached_bin = false
+  cache_expires_at = now + CACHE_TTL_MS
   return nil
 end
 
@@ -42,6 +49,12 @@ end
 ---@return boolean
 function M.is_available()
   return M.get_bin() ~= nil
+end
+
+--- Invalidate the binary cache (useful for tests or forcing a refresh after rebuild).
+function M.invalidate_cache()
+  cached_bin = nil
+  cache_expires_at = nil
 end
 
 --- Safely decode JSON from Rust output with optional error logging.
@@ -62,41 +75,42 @@ local function safe_json_decode(json_str, context)
   return nil
 end
 
---- Parse Maven goals using Rust helper
----@param pom_path string
----@return string[]|nil
-function M.parse_pom_goals(pom_path)
+--- Internal helper: call Rust command and decode JSON output.
+---@param args string[] Command and arguments (e.g., { "parse-build-log", "--tool", "maven" })
+---@param stdin? string Optional stdin content
+---@param context? string Optional context for error logging
+---@return table|nil Decoded JSON output or nil
+local function call_rust_command(args, stdin, context)
   local bin = M.get_bin()
   if not bin then
     return nil
   end
 
-  local res = vim.system({ bin, "parse-pom", "--file", pom_path }, { text = true }):wait()
+  local cmd_args = { bin }
+  for _, arg in ipairs(args) do
+    table.insert(cmd_args, arg)
+  end
+
+  local res = vim.system(cmd_args, { stdin = stdin, text = true }):wait()
   if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
+    return safe_json_decode(res.stdout, context or args[1])
   end
 
   return nil
+end
+
+--- Parse Maven goals using Rust helper
+---@param pom_path string
+---@return string[]|nil
+function M.parse_pom_goals(pom_path)
+  return call_rust_command({ "parse-pom", "--file", pom_path }, nil, "parse-pom")
 end
 
 --- Parse Gradle task list from stdout using Rust helper
 ---@param content string
 ---@return string[]|nil
 function M.parse_gradle_tasks(content)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "parse-gradle-tasks" }, { stdin = content, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    return safe_json_decode(res.stdout, "parse-gradle-tasks")
-  end
-
-  return nil
+  return call_rust_command({ "parse-gradle-tasks" }, content, "parse-gradle-tasks")
 end
 
 --- Parse build log content using Rust helper
@@ -104,17 +118,7 @@ end
 ---@param log_content string
 ---@return table[]|nil Array of { file = string, line = number, col = number|nil, message = string, severity = string }
 function M.parse_build_log(tool, log_content)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "parse-build-log", "--tool", tool }, { stdin = log_content, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    return safe_json_decode(res.stdout, "parse-build-log")
-  end
-
-  return nil
+  return call_rust_command({ "parse-build-log", "--tool", tool }, log_content, "parse-build-log")
 end
 
 --- Parse Maven/Gradle sub-modules from pom.xml or settings.gradle using Rust helper
@@ -122,272 +126,100 @@ end
 ---@param file_path string
 ---@return table[]|nil Array of { name = string, path = string }
 function M.parse_modules(tool, file_path)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "parse-modules", "--tool", tool, "--file", file_path }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "parse-modules", "--tool", tool, "--file", file_path }, nil, "parse-modules")
 end
 
 --- Parse stacktrace log content using Rust helper
 ---@param log_content string
 ---@return table[]|nil Array of { class_name = string, method_name = string, file = string, line = number }
 function M.parse_stacktrace(log_content)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "parse-stacktrace" }, { stdin = log_content, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    return safe_json_decode(res.stdout, "parse-stacktrace")
-  end
-
-  return nil
+  return call_rust_command({ "parse-stacktrace" }, log_content, "parse-stacktrace")
 end
 
 --- Generate Java package and class header using Rust helper
 ---@param file_path string
 ---@return string[]|nil Array of lines
 function M.generate_java_header(file_path)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "generate-java-header", "--file", file_path }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "generate-java-header", "--file", file_path }, nil, "generate-java-header")
 end
 
 --- Parse test log output using Rust helper
 ---@param log_content string
 ---@return table[]|nil Array of { test_name = string, class_name = string, status = string, failure_message = string|nil, file = string|nil, line = number|nil }
 function M.parse_test_output(log_content)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "parse-test-output" }, { stdin = log_content, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    return safe_json_decode(res.stdout, "parse-test-output")
-  end
-
-  return nil
+  return call_rust_command({ "parse-test-output" }, log_content, "parse-test-output")
 end
 
 --- Check network connectivity using Rust helper
 ---@param host? string host:port format (default "repo.maven.apache.org:443")
 ---@return boolean|nil returns boolean or nil if Rust helper unavailable
 function M.check_network(host)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
   host = host or "repo.maven.apache.org:443"
-  local res = vim.system({ bin, "check-network", "--host", host }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" and parsed.online ~= nil then
-      return parsed.online
-    end
-  end
-
-  return nil
+  local result = call_rust_command({ "check-network", "--host", host }, nil, "check-network")
+  return result and result.online or nil
 end
 
 --- Parse Checkstyle XML report using Rust helper
 ---@param xml_content string
 ---@return table[]|nil Array of { file = string, line = number, col = number|nil, message = string, severity = string }
 function M.parse_checkstyle(xml_content)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "parse-checkstyle" }, { stdin = xml_content, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "parse-checkstyle" }, xml_content, "parse-checkstyle")
 end
 
 --- Extract REST endpoints from directory using Rust helper
 ---@param dir_path string
 ---@return table[]|nil Array of { file = string, line = number, http_method = string, path = string, class_name = string, handler_name = string }
 function M.extract_endpoints(dir_path)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "extract-endpoints", "--dir", dir_path }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "extract-endpoints", "--dir", dir_path }, nil, "extract-endpoints")
 end
 
 --- Parse JaCoCo coverage XML file using Rust helper
 ---@param file_path string
 ---@return table[]|nil Array of { file = string, covered_lines = number[], missed_lines = number[] }
 function M.parse_coverage(file_path)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "parse-coverage", "--file", file_path }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "parse-coverage", "--file", file_path }, nil, "parse-coverage")
 end
 
 --- Validate Flyway migration scripts in directory using Rust helper
 ---@param dir_path string
 ---@return table[]|nil Array of { file = string, line = number|nil, severity = string, message = string }
 function M.validate_migrations(dir_path)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "validate-migrations", "--dir", dir_path }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "validate-migrations", "--dir", dir_path }, nil, "validate-migrations")
 end
 
 --- Extract Spring Bean dependencies from directory using Rust helper
 ---@param dir_path string
 ---@return table[]|nil Array of { class_name = string, bean_name = string, file = string, line = number, injected_deps = string[] }
 function M.parse_spring_beans(dir_path)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "parse-spring-beans", "--dir", dir_path }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "parse-spring-beans", "--dir", dir_path }, nil, "parse-spring-beans")
 end
 
 --- Index log content using Rust helper
 ---@param log_content string
 ---@return table[]|nil Array of { line = number, level = string, timestamp = string|nil, message = string }
 function M.index_log(log_content)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "index-log" }, { stdin = log_content, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "index-log" }, log_content, "index-log")
 end
 
 --- Optimize Java/Kotlin imports using Rust helper
 ---@param code_content string
 ---@return string[]|nil Array of formatted lines
 function M.optimize_imports(code_content)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "optimize-imports" }, { stdin = code_content, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    return safe_json_decode(res.stdout, "optimize-imports")
-  end
-
-  return nil
+  return call_rust_command({ "optimize-imports" }, code_content, "optimize-imports")
 end
 
 --- Validate K8s manifest content using Rust helper
 ---@param yaml_content string
 ---@return table[]|nil Array of { line = number, col = number|nil, message = string, severity = string }
 function M.validate_k8s_manifest(yaml_content)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "validate-k8s-manifest" }, { stdin = yaml_content, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "validate-k8s-manifest" }, yaml_content, "validate-k8s-manifest")
 end
 
 --- Parse Git conflict markers using Rust helper
 ---@param content string
 ---@return table[]|nil Array of { start_line = number, sep_line = number, end_line = number, current_header = string, incoming_header = string }
 function M.parse_git_conflicts(content)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "parse-git-conflicts" }, { stdin = content, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "parse-git-conflicts" }, content, "parse-git-conflicts")
 end
 
 --- Detect nearest test class and method at a given cursor line in a Java/Kotlin file.
@@ -396,81 +228,28 @@ end
 ---@param cursor_line number 1-indexed line number of the cursor
 ---@return { class_name: string|nil, method_name: string|nil }|nil
 function M.detect_test_context(file_path, cursor_line)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system(
-    { bin, "detect-test-context", "--file", file_path, "--line", tostring(cursor_line) },
-    { text = true }
-  ):wait()
-
-  if res.code == 0 and res.stdout ~= "" then
-    return safe_json_decode(res.stdout, "detect-test-context")
-  end
-
-  return nil
+  return call_rust_command({ "detect-test-context", "--file", file_path, "--line", tostring(cursor_line) }, nil, "detect-test-context")
 end
 
 --- Resolve direct project dependencies using Rust helper (SPEC-026)
 ---@param file_path string Path to pom.xml or libs.versions.toml
 ---@return table[]|nil Array of { group = string, artifact = string, version = string, scope = string }
 function M.resolve_deps(file_path)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "resolve-deps", "--file", file_path }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "resolve-deps", "--file", file_path }, nil, "resolve-deps")
 end
 
 --- Extract instant Java & Kotlin CodeLens items using Rust helper (SPEC-027)
 ---@param file_path string Path to Java or Kotlin source file
 ---@return table[]|nil Array of { line = number, title = string, command = string, args = string[] }
 function M.extract_codelens(file_path)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "extract-codelens", "--file", file_path }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "extract-codelens", "--file", file_path }, nil, "extract-codelens")
 end
 
 --- Solve multi-module topological build order & DAG using Rust helper (SPEC-028)
 ---@param dir_path string Root project directory
 ---@return table[]|nil Array of { step = number, module_name = string, path = string, build_command = string }
 function M.compute_build_order(dir_path)
-  local bin = M.get_bin()
-  if not bin then
-    return nil
-  end
-
-  local res = vim.system({ bin, "compute-build-order", "--dir", dir_path }, { text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    local ok, parsed = pcall(vim.json.decode, res.stdout)
-    if ok and type(parsed) == "table" then
-      return parsed
-    end
-  end
-
-  return nil
+  return call_rust_command({ "compute-build-order", "--dir", dir_path }, nil, "compute-build-order")
 end
 
 return M

@@ -89,8 +89,18 @@ function M.setup()
 
         if visible then
           for _, k in ipairs(stack.keys) do
+            if not vim.api.nvim_buf_is_valid(buf) then
+              break
+            end
             local mode = k.mode or "n"
-            vim.keymap.set(mode, k[1], k[2], { buffer = buf, desc = k[3] })
+            local ok, err = pcall(vim.keymap.set, mode, k[1], k[2], { buffer = buf, desc = k[3] })
+            if not ok then
+              vim.notify(
+                "Cumulus: failed to set keymap " .. k[1] .. " for buffer " .. tostring(buf) .. ": " .. tostring(err),
+                vim.log.levels.WARN,
+                { id = "cumulus_lang_keymaps_set_" .. tostring(buf) .. "_" .. k[1] }
+              )
+            end
           end
         end
       end
