@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-002
 - **Title**: HTML & XML Markup Language Expansion (IntelliJ Ultimate Enterprise Parity)
-- **Status**: BACKLOG
+- **Status**: REVIEW
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `ftplugin/html.lua` (new)
@@ -65,10 +65,10 @@ Achieve full 1:1 parity with IntelliJ IDEA Ultimate's HTML and XML editing envir
 
 ## Execution Checklist
 
-- [ ] **Task 1: Verify Prerequisite Assumptions**
+- [x] **Task 1: Verify Prerequisite Assumptions**
   - Confirm `lemminx` and `superhtml` are registered in existing specs.
 
-- [ ] **Task 2: Create `ftplugin/html.lua`**
+- [x] **Task 2: Create `ftplugin/html.lua`**
   ```lua
   -- Cumulus HTML Buffer Conventions (IntelliJ Ultimate Parity)
 
@@ -79,7 +79,7 @@ Achieve full 1:1 parity with IntelliJ IDEA Ultimate's HTML and XML editing envir
   vim.bo.commentstring = "<!-- %s -->"
   ```
 
-- [ ] **Task 3: Create `ftplugin/xml.lua`**
+- [x] **Task 3: Create `ftplugin/xml.lua`**
   ```lua
   -- Cumulus XML Buffer Conventions (IntelliJ Ultimate Parity; LSP/formatting owned by lsp-devops.lua)
 
@@ -90,7 +90,7 @@ Achieve full 1:1 parity with IntelliJ IDEA Ultimate's HTML and XML editing envir
   vim.bo.commentstring = "<!-- %s -->"
   ```
 
-- [ ] **Task 4: Post-Execution Verification**
+- [x] **Task 4: Post-Execution Verification**
   - Run verification suite and assert zero DevOps diffs.
 
 ---
@@ -107,7 +107,7 @@ git status --short lua/cumulus/plugins/cloud-* lua/cumulus/plugins/lsp-devops.lu
 ```
 
 ### Acceptance Criteria
-- [ ] `ftplugin/html.lua` and `ftplugin/xml.lua` exist with buffer options only.
-- [ ] `luac` syntax validation succeeds for both files.
-- [ ] `scripts/validate.sh` passes completely.
-- [ ] DevOps guardrail assertion returns zero modified files.
+- [x] `ftplugin/html.lua` and `ftplugin/xml.lua` exist with buffer options only.
+- [x] `luac` syntax validation succeeds for both files.
+- [x] `scripts/validate.sh` passes completely.
+- [x] DevOps guardrail assertion returns zero modified files.
