@@ -306,4 +306,12 @@ function M.detect_springboot_app(dir_path)
   return call_rust_command({ "detect-springboot-app", "--dir", dir_path }, nil, "detect-springboot-app")
 end
 
+--- Resolve stacktrace symbol to absolute file path (SPEC-010)
+---@param line_text string Stacktrace line (e.g., "at com.example.Service.method(Service.java:42)")
+---@param dir_path string Root project directory
+---@return { file_path: string, line: number, class_name: string, method_name: string }|nil
+function M.resolve_stacktrace_symbol(line_text, dir_path)
+  return call_rust_command({ "resolve-stacktrace-symbol", "--line", line_text, "--dir", dir_path }, nil, "resolve-stacktrace-symbol")
+end
+
 return M

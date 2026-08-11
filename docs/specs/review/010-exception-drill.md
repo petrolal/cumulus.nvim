@@ -3,7 +3,7 @@
 ## Metadata
 - **Spec ID**: SPEC-010
 - **Title**: Runtime Exception Drill-Down (IntelliJ Ultimate Enterprise Parity)
-- **Status**: ACTIVE
+- **Status**: REVIEW
 - **Author**: AI Systems Architect
 - **Target Files/Paths**:
   - `crates/cumulus-core/src/stacktrace_drill.rs` (new)
@@ -73,17 +73,17 @@ Make runtime exception stack traces in DAP console output and build terminals in
 
 ## Execution Checklist
 
-- [ ] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
+- [x] **Task 1: Rust Engine Implementation (`crates/cumulus-core`)**
   - Create `crates/cumulus-core/src/stacktrace_drill.rs`.
   - Add `ResolveStacktraceSymbol { line: String, dir: PathBuf }` subcommand to `main.rs`.
   - Implement JVM stacktrace regex parser (`at package.Class.method(File.java:123)`).
   - Implement recursive directory resolver matching package structure to absolute source file paths.
   - Add Rust unit tests in `stacktrace_drill.rs`.
 
-- [ ] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
+- [x] **Task 2: Lua Bridge Binding (`lua/cumulus/util/rust.lua`)**
   - Add `M.resolve_stacktrace_symbol(line_text, dir_path)` function calling `cumulus-core resolve-stacktrace-symbol`.
 
-- [ ] **Task 3: DAP Console Wiring**
+- [x] **Task 3: DAP Console Wiring**
   - Extend `lua/cumulus/plugins/tools-dap-ui.lua` to bind `gf` and `<CR>` in DAP REPL buffers to call `rust.resolve_stacktrace_symbol()` and open target buffer at specified line.
 
 ---
@@ -98,7 +98,7 @@ nvim --headless "+checkhealth cumulus" +qa
 ```
 
 ### Acceptance Criteria
-- [ ] `cargo test` passes with new `stacktrace_drill` unit tests.
-- [ ] `resolve-stacktrace-symbol` subcommand parses stacktrace line and returns absolute file path and line number.
-- [ ] Pressing `gf` in DAP console opens the exact file and line referenced.
-- [ ] Zero pure-Lua regex parsing of stacktrace text.
+- [x] `cargo test` passes with new `stacktrace_drill` unit tests.
+- [x] `resolve-stacktrace-symbol` subcommand parses stacktrace line and returns absolute file path and line number.
+- [x] Pressing `gf` in DAP console opens the exact file and line referenced.
+- [x] Zero pure-Lua regex parsing of stacktrace text.

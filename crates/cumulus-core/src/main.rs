@@ -20,6 +20,7 @@ mod multimodule;
 mod network;
 mod session_cleaner;
 mod springboot_debug;
+mod stacktrace_drill;
 mod test_context;
 mod test_parser;
 
@@ -204,6 +205,13 @@ enum Commands {
         #[arg(short, long)]
         dir: PathBuf,
     },
+    /// Resolve stacktrace symbol to absolute file path
+    ResolveStacktraceSymbol {
+        #[arg(short, long)]
+        line: String,
+        #[arg(short, long)]
+        dir: PathBuf,
+    },
     /// Simple ping response to confirm binary readiness
     Ping,
 }
@@ -361,6 +369,14 @@ fn run(cli: Cli) -> Result<(), CumulusError> {
         Commands::DetectSpringbootApp { dir } => {
             let config = springboot_debug::detect_springboot_app(&dir);
             output_success(config, "detect-springboot-app");
+        }
+        Commands::ResolveStacktraceSymbol { line, dir } => {
+            if let Some(symbol) = stacktrace_drill::resolve_stacktrace_symbol(&line, &dir) {
+                output_success(symbol, "resolve-stacktrace-symbol");
+            } else {
+                let err = CumulusError::ParseError("Unable to parse stacktrace line or resolve source file".to_string());
+                output_error(err);
+            }
         }
     }
 
