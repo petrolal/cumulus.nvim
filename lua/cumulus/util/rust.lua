@@ -57,30 +57,49 @@ function M.invalidate_cache()
   cache_expires_at = nil
 end
 
---- Safely decode JSON from Rust output with optional error logging.
+--- Safely decode JSON from Rust output and check success flag.
 ---@param json_str string
 ---@param context? string Optional context for error messages (e.g., "parse-build-log")
----@return table|nil Decoded table, or nil if decode fails
-local function safe_json_decode(json_str, context)
+---@param opts? { debug: boolean } Optional options (debug=true logs success responses)
+---@return table|nil Decoded data field, or nil if decode fails or success is false
+local function safe_json_decode(json_str, context, opts)
+  opts = opts or {}
   local ok, parsed = pcall(vim.json.decode, json_str)
-  if ok and type(parsed) == "table" then
-    return parsed
-  end
-  if not ok then
-    local msg = string.format("cumulus-core JSON decode failed%s: %s",
+  if not ok or type(parsed) ~= "table" then
+    local msg = string.format("[cumulus] JSON decode failed%s: %s",
       context and " (" .. context .. ")" or "",
       tostring(parsed))
-    vim.notify(msg, vim.log.levels.DEBUG)
+    vim.notify(msg, vim.log.levels.WARN)
+    return nil
   end
-  return nil
+
+  -- Check success flag in envelope
+  if parsed.success == false then
+    local error_msg = parsed.error or "Unknown error"
+    local msg = string.format("[cumulus] %s%s", error_msg,
+      parsed.error_code and (" (" .. parsed.error_code .. ")") or "")
+    vim.notify(msg, vim.log.levels.WARN)
+    return nil
+  end
+
+  -- Log success if debug enabled
+  if opts.debug and parsed.success then
+    vim.notify(
+      string.format("[cumulus] %s succeeded", context or "command"),
+      vim.log.levels.DEBUG
+    )
+  end
+
+  return parsed.data
 end
 
 --- Internal helper: call Rust command and decode JSON output.
 ---@param args string[] Command and arguments (e.g., { "parse-build-log", "--tool", "maven" })
 ---@param stdin? string Optional stdin content
 ---@param context? string Optional context for error logging
+---@param opts? { debug: boolean } Optional options (debug=true logs success responses)
 ---@return table|nil Decoded JSON output or nil
-local function call_rust_command(args, stdin, context)
+local function call_rust_command(args, stdin, context, opts)
   local bin = M.get_bin()
   if not bin then
     return nil
@@ -92,11 +111,17 @@ local function call_rust_command(args, stdin, context)
   end
 
   local res = vim.system(cmd_args, { stdin = stdin, text = true }):wait()
-  if res.code == 0 and res.stdout ~= "" then
-    return safe_json_decode(res.stdout, context or args[1])
+  if res.code ~= 0 or res.stdout == "" then
+    if res.code ~= 0 then
+      vim.notify(
+        string.format("[cumulus] command failed with exit code %d", res.code),
+        vim.log.levels.WARN
+      )
+    end
+    return nil
   end
 
-  return nil
+  return safe_json_decode(res.stdout, context or args[1], opts)
 end
 
 --- Parse Maven goals using Rust helper
