@@ -55,4 +55,7 @@ local config = {
   end,
 }
 
+-- Capture JDTLS start time for sync health check (SPEC-005)
+_G.cumulus_jdtls_start_time = os.time()
+
 jdtls.start_or_attach(config)

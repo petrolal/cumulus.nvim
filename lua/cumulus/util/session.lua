@@ -67,6 +67,13 @@ local function marker_path()
   return vim.fn.stdpath("state") .. "/cumulus_explorer_open_" .. key
 end
 
+local function get_session_file_path()
+  -- Determine the session file path (following persistence.nvim convention)
+  local session_dir = vim.fn.stdpath("state") .. "/sessions"
+  local cwd_key = vim.fn.getcwd():gsub("[\\/:]", "%%")
+  return session_dir .. "/" .. cwd_key .. ".vim"
+end
+
 local function remember_explorer_state()
   local ok, picker_mod = pcall(require, "snacks.picker")
   local explorer = ok and picker_mod.get({ source = "explorer" })[1] or nil
@@ -102,6 +109,18 @@ local function remember_explorer_state()
   end
 end
 
+local function sanitize_session_file()
+  local rust = require("cumulus.util.rust")
+  if not rust.is_available() then
+    return
+  end
+
+  local session_file = get_session_file_path()
+  if vim.fn.filereadable(session_file) == 1 then
+    rust.sanitize_session(session_file)
+  end
+end
+
 local function reopen_explorer_if_needed()
   local path = marker_path()
   if vim.fn.filereadable(path) == 1 then
@@ -117,6 +136,7 @@ end
 --- session (mksession can't serialize the first two -- neither is a real
 --- file buffer -- and the last just pollutes every future restore with
 --- `[No Name]` pages), then reopen the explorer after a session is loaded.
+--- Also sanitizes the session file after save to remove ephemeral buffers (SPEC-030).
 function M.setup()
   local group = vim.api.nvim_create_augroup("cumulus_session_explorer", { clear = true })
   vim.api.nvim_create_autocmd("User", {
@@ -127,6 +147,11 @@ function M.setup()
       close_dashboard_windows()
       close_blank_windows()
     end,
+  })
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = "PersistenceSavePost",
+    callback = sanitize_session_file,
   })
   vim.api.nvim_create_autocmd("User", {
     group = group,

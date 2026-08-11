@@ -6,9 +6,11 @@ mod dag;
 mod dep_resolver;
 mod endpoints;
 mod gradle;
+mod gradle_wrapper;
 mod imports;
 mod inspection_parser;
 mod java_gen;
+mod jdtls_sync;
 mod k8s_validator;
 mod log_indexer;
 mod log_parser;
@@ -16,6 +18,7 @@ mod maven;
 mod migrations;
 mod multimodule;
 mod network;
+mod session_cleaner;
 mod test_context;
 mod test_parser;
 
@@ -156,6 +159,13 @@ enum Commands {
         #[arg(short, long)]
         file: Option<PathBuf>,
     },
+    /// Check JDTLS classpath sync status by scanning build config mtime
+    CheckJdtlsSync {
+        #[arg(short, long)]
+        dir: PathBuf,
+        #[arg(short, long)]
+        start_time: u64,
+    },
     /// Detect nearest test class and method at a given cursor line in a Java/Kotlin file
     DetectTestContext {
         #[arg(short, long)]
@@ -178,6 +188,16 @@ enum Commands {
         #[arg(short, long)]
         dir: PathBuf,
     },
+    /// Verify Gradle wrapper configuration against CI workflows and SHA-256
+    VerifyGradleWrapper {
+        #[arg(short, long)]
+        dir: PathBuf,
+    },
+    /// Sanitize a Neovim session file by removing ephemeral buffers and floating windows
+    SessionSanitize {
+        #[arg(short, long)]
+        file: PathBuf,
+    },
     /// Simple ping response to confirm binary readiness
     Ping,
 }
@@ -193,6 +213,10 @@ fn main() {
 
 fn run(cli: Cli) -> Result<(), CumulusError> {
     match cli.command {
+        Commands::CheckJdtlsSync { dir, start_time } => {
+            let status = jdtls_sync::check_jdtls_sync(&dir, start_time);
+            output_success(status, "check-jdtls-sync");
+        }
         Commands::DetectTestContext { file, line } => {
             let ctx = test_context::detect_test_context(&file, line);
             output_success(ctx, "detect-test-context");
@@ -319,6 +343,14 @@ fn run(cli: Cli) -> Result<(), CumulusError> {
         Commands::ComputeBuildOrder { dir } => {
             let steps = dag::compute_build_order(&dir);
             output_success(steps, "compute-build-order");
+        }
+        Commands::VerifyGradleWrapper { dir } => {
+            let status = gradle_wrapper::verify_gradle_wrapper(&dir);
+            output_success(status, "verify-gradle-wrapper");
+        }
+        Commands::SessionSanitize { file } => {
+            let result = session_cleaner::sanitize_session(&file);
+            output_success(result, "session-sanitize");
         }
     }
 

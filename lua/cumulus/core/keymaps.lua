@@ -232,6 +232,27 @@ lang_keymaps.register({
       end,
       "Maven/Gradle: Resync Dependencies",
     },
+    {
+      "<leader>cjH",
+      function()
+        local rust = require("cumulus.util.rust")
+        if not _G.cumulus_jdtls_start_time then
+          vim.notify("JDTLS not started yet", vim.log.levels.WARN)
+          return
+        end
+        local cwd = vim.fn.getcwd()
+        local status = rust.check_jdtls_sync(cwd, _G.cumulus_jdtls_start_time)
+        if status and status.sync_needed then
+          vim.notify(
+            "JDTLS classpath is stale (modified: " .. (status.modified_file or "unknown") .. "). Run dependency sync and JdtRestart.",
+            vim.log.levels.WARN
+          )
+        else
+          vim.notify("JDTLS classpath is in sync", vim.log.levels.INFO)
+        end
+      end,
+      "JDTLS: Check Sync Status",
+    },
   },
 })
 

@@ -277,4 +277,26 @@ function M.compute_build_order(dir_path)
   return call_rust_command({ "compute-build-order", "--dir", dir_path }, nil, "compute-build-order")
 end
 
+--- Check JDTLS classpath sync status by scanning build config mtime (SPEC-005)
+---@param dir_path string Root project directory
+---@param start_time number JDTLS start time (epoch seconds)
+---@return { sync_needed: boolean, modified_file: string|nil }|nil
+function M.check_jdtls_sync(dir_path, start_time)
+  return call_rust_command({ "check-jdtls-sync", "--dir", dir_path, "--start-time", tostring(start_time) }, nil, "check-jdtls-sync")
+end
+
+--- Verify Gradle wrapper configuration against CI workflows and SHA-256 (SPEC-012)
+---@param dir_path string Root project directory
+---@return { local_version: string|nil, ci_version: string|nil, sha256_configured: boolean, sha256_valid: boolean, issues: string[] }|nil
+function M.verify_gradle_wrapper(dir_path)
+  return call_rust_command({ "verify-gradle-wrapper", "--dir", dir_path }, nil, "verify-gradle-wrapper")
+end
+
+--- Sanitize a Neovim session file by removing ephemeral buffers and floating windows (SPEC-030)
+---@param file_path string Path to .vim session file
+---@return { success: boolean, cleaned_lines: number, total_lines: number }|nil
+function M.sanitize_session(file_path)
+  return call_rust_command({ "session-sanitize", "--file", file_path }, nil, "session-sanitize")
+end
+
 return M

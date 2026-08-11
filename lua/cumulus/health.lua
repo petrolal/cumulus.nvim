@@ -48,6 +48,44 @@ function M.check()
     vim.health.warn("Cumulus Rust native helper ('cumulus-core'): not compiled. Run 'cargo build --release' inside crates/cumulus-core")
   end
 
+  vim.health.start("Gradle Wrapper & Build Lock (SPEC-012)")
+
+  local gradle = require("cumulus.util.gradle")
+  if gradle.find_gradle() then
+    local cwd = vim.fn.getcwd()
+    local status = rust.verify_gradle_wrapper(cwd)
+    if status then
+      if status.local_version then
+        vim.health.ok(string.format("Local Gradle version: %s", status.local_version))
+      else
+        vim.health.warn("Local Gradle version: not found in gradle-wrapper.properties")
+      end
+
+      if status.ci_version then
+        vim.health.ok(string.format("CI Gradle version: %s", status.ci_version))
+      else
+        vim.health.info("CI Gradle version: not configured in CI workflows")
+      end
+
+      if status.sha256_configured then
+        vim.health.ok("SHA-256 checksum: configured")
+      else
+        vim.health.warn("SHA-256 checksum: NOT configured (security risk for supply chain)")
+      end
+
+      if #status.issues > 0 then
+        for _, issue in ipairs(status.issues) do
+          vim.health.warn("Gradle Wrapper: " .. issue)
+        end
+      else
+        vim.health.ok("Gradle wrapper: no issues detected")
+      end
+    else
+      vim.health.warn("Failed to verify Gradle wrapper")
+    end
+  else
+    vim.health.info("Gradle project not detected (gradle-wrapper.properties not found)")
+  end
 
   vim.health.start("Cumulus Signature Cloud Themes")
 

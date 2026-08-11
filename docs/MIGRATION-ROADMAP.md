@@ -4,7 +4,7 @@
 
 This document indexes all migration-related specifications and provides the unified roadmap for migrating business logic from Lua to Rust. The migration follows a phased approach, with dependencies clearly marked.
 
-**Current Status**: Phase 1 (SPEC-031) in REVIEW. Phase 2 (Backlog Specs Wave 1) now ACTIVE.
+**Current Status**: Phase 1 (SPEC-031) in REVIEW. Phase 2 (Backlog Specs Wave 1) complete in REVIEW — ready for final approval.
 
 ---
 
@@ -30,9 +30,9 @@ File system & configuration parsing specs. These unblock daily developer workflo
 
 | Spec ID | Title | Status | Rust Scope | Effort |
 |---------|-------|--------|-----------|--------|
-| **SPEC-005** | JDTLS Project Sync Health Check | **ACTIVE** | `check-jdtls-sync`: mtime scan for pom.xml/build.gradle changes | 2–3 hrs |
-| **SPEC-012** | Gradle Wrapper Version Lock & SHA-256 Verify | **ACTIVE** | `verify-gradle-wrapper`: parse gradle-wrapper.properties + CI YAML | 2–3 hrs |
-| **SPEC-030** | Session State & Layout Sanitizer | **ACTIVE** | `session-sanitize`: parse .vim scripts; strip ephemeral buffers | 2–3 hrs |
+| **SPEC-005** | JDTLS Project Sync Health Check | **REVIEW** | `check-jdtls-sync`: mtime scan for pom.xml/build.gradle changes | 2–3 hrs |
+| **SPEC-012** | Gradle Wrapper Version Lock & SHA-256 Verify | **REVIEW** | `verify-gradle-wrapper`: parse gradle-wrapper.properties + CI YAML | 2–3 hrs |
+| **SPEC-030** | Session State & Layout Sanitizer | **REVIEW** | `session-sanitize`: parse .vim scripts; strip ephemeral buffers | 2–3 hrs |
 
 **Phase 2 Unlock**: Real-time JDTLS sync detection, build consistency checks, session integrity.
 
