@@ -2,18 +2,15 @@ ThisBuild / scalaVersion := "3.4.2"
 ThisBuild / organization := "dev.cumulus"
 
 lazy val root = (project in file("."))
-  .enablePlugins(BuildInfoPlugin)
+  .enablePlugins(BuildInfoPlugin, NativeImagePlugin)
   .settings(
     name := "cumulus-engine",
     version := "0.1.0",
     Compile / mainClass := Some("cumulus.Main"),
-    // GraalVM native-image plugin configuration
-    // Commented out until sbt-native-packager availability is resolved
-    // .enablePlugins(GraalVMNativeImagePlugin)
-    // graalVMNativeImageOptions ++= Seq(
-    //   "--no-fallback",
-    //   "--initialize-at-build-time=cumulus"
-    // ),
+    nativeImageOptions ++= Seq(
+      "--no-fallback",
+      "--initialize-at-build-time=cumulus"
+    ),
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "upickle" % "3.1.0",
       "com.lihaoyi" %% "os-lib" % "0.9.3",
