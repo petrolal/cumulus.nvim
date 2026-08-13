@@ -3,6 +3,8 @@ package cumulus
 import munit.FunSuite
 import java.nio.file.{Files, Paths}
 import scala.sys.process._
+import cumulus.build.MavenParser
+import cumulus.protocol.CumulusResponse
 
 class MainTest extends FunSuite:
 
@@ -104,7 +106,7 @@ class MainTest extends FunSuite:
       val result = MavenParser.parseGoals(pomPath)
       // Verify CumulusResponse structure
       assert(result.success.isInstanceOf[Boolean])
-      assert(result.data.isInstanceOf[Option[_]])
+      assert(result.data.isInstanceOf[Option[?]])
       assert(result.error.isInstanceOf[Option[String]])
       assert(result.error_code.isInstanceOf[Option[String]])
     finally
