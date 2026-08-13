@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "3.4.2"
+ThisBuild / scalaVersion := "3.5.2"
 ThisBuild / organization := "dev.cumulus"
 
 lazy val root = (project in file("."))
@@ -9,7 +9,8 @@ lazy val root = (project in file("."))
     Compile / mainClass := Some("cumulus.Main"),
     nativeImageOptions ++= Seq(
       "--no-fallback",
-      "--initialize-at-build-time=cumulus"
+      "--initialize-at-build-time=cumulus",
+      "--initialize-at-build-time=cumulus.protocol.CumulusError$$anon$1"
     ),
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "upickle" % "3.1.0",
