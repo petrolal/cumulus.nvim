@@ -22,3 +22,43 @@
 - source_spec: `spec-1-1-sbt-scala3-engine-init.md`
   summary: Add sbt-wartremover for static analysis and anti-pattern detection
   evidence: Linting coverage missing
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Implement extensible plugin goal registry for Maven parser
+  evidence: Blind hunter review identified hardcoded Spring Boot/Quarkus/Surefire/Exec plugin list; future stories may need additional plugins
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Implement Maven property and variable resolution in POM parsing
+  evidence: POM files contain property references (${project.version}, etc.) that are not resolved; affects consistency of extracted goals
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Implement parent POM inheritance for goals and modules
+  evidence: Maven's <parent> inheritance pattern not handled; multi-module projects with parent POMs may have incomplete goal extraction
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Implement Maven profiles support in goal and module extraction
+  evidence: POM <profiles> elements that activate conditionally are not scanned; profile-specific goals/modules missed
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Implement circular dependency detection in multi-module build ordering
+  evidence: Edge case not handled; circular module dependencies could cause infinite loops in build order computation (story 2.3)
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Add comprehensive POM structure validation
+  evidence: Only file existence checked; no validation that file is well-formed POM with expected root elements
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Add XML encoding declaration handling for robustness
+  evidence: <?xml encoding="..."> declarations may vary; parser assumes UTF-8 implicitly
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Add timeout and resource limits for Maven POM parsing
+  evidence: Malformed or extremely large POMs could cause hangs or excessive memory consumption
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Enhance error response messages with parsing context and line numbers
+  evidence: Error codes (FILE_NOT_FOUND, PARSE_ERROR) lack detailed context for debugging user errors
+
+- source_spec: `spec-2-1-maven-pom-parser.md`
+  summary: Add integration tests for Main.main() CLI routing of parse-pom and parse-modules
+  evidence: Verification gap reviewer found acceptance criteria define CLI behavior but no tests verify end-to-end routing through Main.main(); MavenParser unit tests pass but CLI integration untested
