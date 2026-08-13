@@ -23,7 +23,8 @@ function M.check()
     { name = "rg", desc = "ripgrep (required for Telescope live_grep & Snacks picker)", level = "warn" },
     { name = "fd", desc = "fd (optional high-speed file finder)", level = "info" },
     { name = "git", desc = "git (required for version control & git_files picker)", level = "warn" },
-    { name = "cargo", desc = "cargo (required for building Rust native helper)", level = "info" },
+    { name = "sbt", desc = "sbt / GraalVM native-image (optional for building Scala native engine)", level = "info" },
+    { name = "cargo", desc = "cargo (optional for building Rust native engine)", level = "info" },
     { name = "npm", desc = "npm (required for markdown-preview.nvim build)", level = "info" },
     { name = "node", desc = "node (required for markdown-preview & npm-based DevOps LSP servers)", level = "info" },
     { name = "python3", desc = "python3 (required for pynvim, ansible-lint, cfn-lint & BMad scripts)", level = "info" },
@@ -43,9 +44,9 @@ function M.check()
 
   local rust = require("cumulus.util.rust")
   if rust.is_available() then
-    vim.health.ok(string.format("Cumulus Rust native helper ('cumulus-core'): active (%s)", rust.get_bin()))
+    vim.health.ok(string.format("Cumulus native helper ('cumulus-core'): active (%s)", rust.get_bin()))
   else
-    vim.health.warn("Cumulus Rust native helper ('cumulus-core'): not compiled. Run 'cargo build --release' inside crates/cumulus-core")
+    vim.health.warn("Cumulus native helper ('cumulus-core'): not compiled. Build via 'sbt nativeImage' or 'cargo build --release'")
   end
 
   vim.health.start("Gradle Wrapper & Build Lock (SPEC-012)")

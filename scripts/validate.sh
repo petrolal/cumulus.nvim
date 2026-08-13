@@ -45,8 +45,15 @@ else
   exit 1
 fi
 
-echo "[6/6] Verifying Rust Native Helper (cumulus-core)..."
-if command -v cargo >/dev/null 2>&1 && [ -f crates/cumulus-core/Cargo.toml ]; then
+echo "[6/6] Verifying Native Helper Engine (cumulus-core)..."
+if command -v sbt >/dev/null 2>&1 && [ -f build.sbt ]; then
+  if sbt test; then
+    echo "✔ Scala native helper build & unit tests PASSED."
+  else
+    echo "✖ Scala native helper build or tests FAILED."
+    exit 1
+  fi
+elif command -v cargo >/dev/null 2>&1 && [ -f crates/cumulus-core/Cargo.toml ]; then
   if cargo test --manifest-path crates/cumulus-core/Cargo.toml; then
     echo "✔ Rust native helper build & unit tests PASSED."
   else
@@ -54,7 +61,7 @@ if command -v cargo >/dev/null 2>&1 && [ -f crates/cumulus-core/Cargo.toml ]; th
     exit 1
   fi
 else
-  echo "ℹ Cargo not found or Rust helper missing -- skipping Rust test suite."
+  echo "ℹ Native toolchain (sbt/cargo) not found or native helper missing -- skipping native engine test suite."
 fi
 
 echo "=========================================="
