@@ -2,7 +2,8 @@
 title: 'Epic 2 Story 2.4: JDK Discovery, Build Tool Detection & Workspace Discovery'
 type: 'feature'
 created: '2026-08-12'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'd0cdc348602b840172ec7b31978af503ba62f521'
 review_loop_iteration: 0
 context: ['_bmad-output/implementation-artifacts/epic-2-context.md']
 ---
@@ -57,12 +58,12 @@ context: ['_bmad-output/implementation-artifacts/epic-2-context.md']
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `engine/src/main/scala/cumulus/workspace/JdkDiscoverer.scala` -- CREATE: Scan `/usr/lib/jvm/java-<version>*`, `~/.sdkman/candidates/java/<version>*`, `$JAVA_HOME` for matching JDK version; return path and parsed version string.
-- [ ] `engine/src/main/scala/cumulus/workspace/BuildToolDetector.scala` -- CREATE: Detect Maven/Gradle/SBT by presence of build files in directory; check wrapper executables; return tool name, wrapper path, executable status.
-- [ ] `engine/src/main/scala/cumulus/workspace/WorkspaceScanner.scala` -- CREATE: Scan upward from directory for presence of build files (pom.xml, build.gradle, build.sbt, .mvn, .gradle); return project root and multi-module indicator.
-- [ ] `engine/src/main/scala/cumulus/workspace/WorkspaceModels.scala` -- CREATE: Define response case classes with uPickle derivation.
-- [ ] `engine/src/main/scala/cumulus/Main.scala` -- EDIT: Add three subcommands to router.
-- [ ] `engine/src/test/scala/cumulus/workspace/DiscoveryTest.scala` -- CREATE: Unit tests for all three discovery functions covering success and error cases.
+- [x] `engine/src/main/scala/cumulus/workspace/JdkDiscoverer.scala` -- CREATE: Scan `/usr/lib/jvm/java-<version>*`, `~/.sdkman/candidates/java/<version>*`, `$JAVA_HOME` for matching JDK version; return path and parsed version string.
+- [x] `engine/src/main/scala/cumulus/workspace/BuildToolDetector.scala` -- CREATE: Detect Maven/Gradle/SBT by presence of build files in directory; check wrapper executables; return tool name, wrapper path, executable status.
+- [x] `engine/src/main/scala/cumulus/workspace/WorkspaceScanner.scala` -- CREATE: Scan upward from directory for presence of build files (pom.xml, build.gradle, build.sbt, .mvn, .gradle); return project root and multi-module indicator.
+- [x] `engine/src/main/scala/cumulus/workspace/WorkspaceModels.scala` -- CREATE: Define response case classes with uPickle derivation.
+- [x] `engine/src/main/scala/cumulus/Main.scala` -- EDIT: Add three subcommands to router.
+- [x] `engine/src/test/scala/cumulus/workspace/DiscoveryTest.scala` -- CREATE: Unit tests for all three discovery functions covering success and error cases.
 
 **Acceptance Criteria:**
 - Given a system with JDK 21 installed in `/usr/lib/jvm/java-21-openjdk`, when `discover-jdk --version 21` is executed, then stdout returns `{"success":true,"data":{"java_home":"/usr/lib/jvm/java-21-openjdk","version":"21.x.x"},"error":null,"error_code":null}`.
@@ -86,3 +87,31 @@ context: ['_bmad-output/implementation-artifacts/epic-2-context.md']
 - `./engine/target/native-image/cumulus-engine discover-jdk --version 21` -- expected: returns JDK path if installed.
 - `./engine/target/native-image/cumulus-engine discover-build-tool --dir .` -- expected: returns detected build tool.
 - `./engine/target/native-image/cumulus-engine discover-workspace --dir .` -- expected: returns workspace root.
+
+## Suggested Review Order
+
+**CLI Integration & Entry Points**
+
+- Three new subcommand dispatches for JDK, build tool, and workspace discovery.
+  [`Main.scala:331`](../../../engine/src/main/scala/cumulus/Main.scala#L331)
+
+**Core Discovery Implementations**
+
+- JDK discovery with version matching using word boundary regex; scans standard locations.
+  [`JdkDiscoverer.scala:19`](../../../engine/src/main/scala/cumulus/workspace/JdkDiscoverer.scala#L19)
+
+- Build tool detection with wrapper identification and executable status checking.
+  [`BuildToolDetector.scala:14`](../../../engine/src/main/scala/cumulus/workspace/BuildToolDetector.scala#L14)
+
+- Workspace scanner that finds project root by scanning upward; detects multi-module projects.
+  [`WorkspaceScanner.scala:17`](../../../engine/src/main/scala/cumulus/workspace/WorkspaceScanner.scala#L17)
+
+**Data Models & Serialization**
+
+- Response envelope case classes with uPickle derivation for JDK, build tool, and workspace info.
+  [`WorkspaceModels.scala:280`](../../../engine/src/main/scala/cumulus/workspace/WorkspaceModels.scala#L280)
+
+**Test Coverage**
+
+- 17 comprehensive tests covering discovery across Maven, Gradle, SBT, multi-module detection, and error cases.
+  [`DiscoveryTest.scala:453`](../../../engine/src/test/scala/cumulus/workspace/DiscoveryTest.scala#L453)
