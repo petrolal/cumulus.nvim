@@ -10,7 +10,8 @@ lazy val root = (project in file("."))
     nativeImageOptions ++= Seq(
       "--no-fallback",
       "--initialize-at-build-time=cumulus",
-      "--initialize-at-build-time=cumulus.protocol.CumulusError$$anon$1"
+      "--initialize-at-build-time=cumulus.protocol.CumulusError$$anon$1",
+      "--initialize-at-run-time=os"
     ),
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "upickle" % "3.1.0",

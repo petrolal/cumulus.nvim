@@ -2,6 +2,7 @@ package cumulus
 
 import cumulus.protocol.{CumulusResponse, CumulusError}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor}
+import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo}
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -322,6 +323,48 @@ object Main:
               errorEnvelope[ComputeBuildOrderResponse]("Missing --dir argument")
             case Some(dirPath) =>
               computeBuildOrderForDirectory(dirPath)
+          serializeResponse(result)
+
+        case "discover-jdk" =>
+          given ReadWriter[JdkInfo] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("version") match
+            case None =>
+              errorEnvelope[JdkInfo]("Missing --version argument")
+            case Some(version) =>
+              JdkDiscoverer.discoverJdk(version) match
+                case Right(jdkInfo) =>
+                  successEnvelope[JdkInfo](Some(jdkInfo))
+                case Left(error) =>
+                  errorEnvelope[JdkInfo](error)
+          serializeResponse(result)
+
+        case "discover-build-tool" =>
+          given ReadWriter[BuildToolInfo] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("dir") match
+            case None =>
+              errorEnvelope[BuildToolInfo]("Missing --dir argument")
+            case Some(dirPath) =>
+              BuildToolDetector.detectBuildTool(dirPath) match
+                case Right(toolInfo) =>
+                  successEnvelope[BuildToolInfo](Some(toolInfo))
+                case Left(error) =>
+                  errorEnvelope[BuildToolInfo](error)
+          serializeResponse(result)
+
+        case "discover-workspace" =>
+          given ReadWriter[WorkspaceInfo] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("dir") match
+            case None =>
+              errorEnvelope[WorkspaceInfo]("Missing --dir argument")
+            case Some(dirPath) =>
+              WorkspaceScanner.discoverWorkspace(dirPath) match
+                case Right(wsInfo) =>
+                  successEnvelope[WorkspaceInfo](Some(wsInfo))
+                case Left(error) =>
+                  errorEnvelope[WorkspaceInfo](error)
           serializeResponse(result)
 
         case _ =>
