@@ -89,26 +89,31 @@ object WorkspaceScanner:
    */
   private def detectMultiModule(root: File, buildFiles: Seq[String]): Boolean =
     try
-      // Simple heuristic: check for Maven modules
+      // Check for Maven modules: look for <modules> tag with at least one <module>
       if buildFiles.contains("pom.xml") then
         val pomPath = new File(root, "pom.xml")
         if pomPath.exists() then
           val content = new String(Files.readAllBytes(pomPath.toPath()))
-          if content.contains("<modules>") && content.contains("</modules>") then
+          // More robust: check for <modules> pattern with nested <module> tags (allow whitespace)
+          val modulesPattern = """(?s)<modules>.*?<module>.*?</module>.*?</modules>""".r
+          if modulesPattern.findFirstIn(content).isDefined then
             return true
 
       // Check for Gradle settings.gradle with includes
-      if buildFiles.contains("build.gradle") || buildFiles.contains("build.gradle.kts") || buildFiles.contains("settings.gradle") then
+      if buildFiles.contains("settings.gradle") then
         val settingsPath = new File(root, "settings.gradle")
         if settingsPath.exists() then
           val content = new String(Files.readAllBytes(settingsPath.toPath()))
-          if content.contains("include") then
+          // Look for include directives with module references
+          if content.matches("""(?s).*\binclude\s+['"]?[\w:/-]+['"]?.*""") then
             return true
 
+      // Check settings.gradle.kts as well
+      if buildFiles.contains("build.gradle.kts") then
         val settingsKtsPath = new File(root, "settings.gradle.kts")
         if settingsKtsPath.exists() then
           val content = new String(Files.readAllBytes(settingsKtsPath.toPath()))
-          if content.contains("include") then
+          if content.matches("""(?s).*\binclude\s+\(?\s*['"]?[\w:/-]+['"]?.*""") then
             return true
 
       false

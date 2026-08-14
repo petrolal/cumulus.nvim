@@ -20,9 +20,10 @@ object BuildToolDetector:
 
       // Check for Maven
       val pomExists = new File(dir, "pom.xml").exists()
-      val mvnwExists = new File(dir, "mvnw").exists()
+      val mvnwFile = new File(dir, "mvnw")
+      val mvnwExists = mvnwFile.exists()
       if pomExists || mvnwExists then
-        val wrapperPath = if mvnwExists then Some(s"$dirPath/mvnw") else None
+        val wrapperPath = if mvnwExists then Some(mvnwFile.getAbsolutePath) else None
         val executableFlag = wrapperPath.map(isExecutable)
         val recommendation = wrapperPath.flatMap { wp =>
           if !executableFlag.getOrElse(true) then
@@ -41,9 +42,10 @@ object BuildToolDetector:
       // Check for Gradle
       val buildGradleExists = new File(dir, "build.gradle").exists()
       val buildGradleKtsExists = new File(dir, "build.gradle.kts").exists()
-      val gradlewExists = new File(dir, "gradlew").exists()
+      val gradlewFile = new File(dir, "gradlew")
+      val gradlewExists = gradlewFile.exists()
       if buildGradleExists || buildGradleKtsExists || gradlewExists then
-        val wrapperPath = if gradlewExists then Some(s"$dirPath/gradlew") else None
+        val wrapperPath = if gradlewExists then Some(gradlewFile.getAbsolutePath) else None
         val executableFlag = wrapperPath.map(isExecutable)
         val recommendation = wrapperPath.flatMap { wp =>
           if !executableFlag.getOrElse(true) then

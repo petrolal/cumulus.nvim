@@ -21,12 +21,15 @@ object JdkDiscoverer:
       // Try standard Unix locations first
       val candidates = scala.collection.mutable.ListBuffer[String]()
 
+      // Regex pattern to match version string with word boundaries: java-21, java-21-openjdk, etc.
+      val versionPattern = s"""java-?$version(?:[.-]|$$)""".r
+
       // Check /usr/lib/jvm/
       val jvmFile = new File("/usr/lib/jvm")
       if jvmFile.exists() && jvmFile.isDirectory() then
         try
           for item <- jvmFile.listFiles() if item != null do
-            if item.isDirectory() && item.getName.contains(s"java-$version") then
+            if item.isDirectory() && versionPattern.findFirstIn(item.getName).isDefined then
               candidates += item.getAbsolutePath
         catch
           case _: Exception => // Ignore if we can't read the directory
@@ -37,7 +40,7 @@ object JdkDiscoverer:
       if sdkmanPath.exists() && sdkmanPath.isDirectory() then
         try
           for item <- sdkmanPath.listFiles() if item != null do
-            if item.isDirectory() && item.getName.contains(version) then
+            if item.isDirectory() && versionPattern.findFirstIn(item.getName).isDefined then
               candidates += item.getAbsolutePath
         catch
           case _: Exception => // Ignore if we can't read the directory
@@ -47,7 +50,7 @@ object JdkDiscoverer:
         val javaFile = new File(javaHome)
         if javaFile.exists() && javaFile.isDirectory() then
           // Extract version from path or environment
-          if javaFile.getAbsolutePath.contains(version) then
+          if versionPattern.findFirstIn(javaFile.getAbsolutePath).isDefined then
             candidates += javaFile.getAbsolutePath
       }
 
