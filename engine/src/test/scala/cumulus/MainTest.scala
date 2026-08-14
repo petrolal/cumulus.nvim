@@ -135,3 +135,69 @@ class MainTest extends FunSuite:
     finally
       Files.delete(Paths.get(pomPath))
   }
+
+  test("CLI: parse-gradle-tasks with valid gradle output returns success response") {
+    val gradleOutput = """
+      |Build tasks
+      |----------
+      |assemble - Assemble main and test classes
+      |build - Assemble and test this project
+      |clean - Delete all built files
+      |compileJava - Compile main Java sources
+      |test - Run the unit tests
+      |help - Display this help message
+      |run - Run the application
+      |""".stripMargin
+
+    val result = cumulus.build.GradleParser.parseTasks(gradleOutput)
+
+    assert(result.success == true)
+    assert(result.data.isDefined)
+    assert(result.error.isEmpty)
+    assert(result.error_code.isEmpty)
+
+    val tasks = result.data.get.tasks
+    // Should have at least 5 tasks
+    assert(tasks.length >= 5)
+    // Verify key tasks are present
+    val taskNames = tasks.map(_.name).toSet
+    assert(taskNames.contains("assemble"))
+    assert(taskNames.contains("build"))
+    assert(taskNames.contains("test"))
+  }
+
+  test("CLI: parse-modules with gradle tool and valid settings returns modules") {
+    val settingsContent = """
+      |include 'core'
+      |include 'web:api'
+      |include 'services:auth'
+      |""".stripMargin
+
+    val settingsPath = createTempFile(settingsContent)
+    try
+      val result = cumulus.build.GradleParser.parseModules(settingsPath)
+
+      assert(result.success == true)
+      assert(result.data.isDefined)
+      assert(result.error.isEmpty)
+      assert(result.error_code.isEmpty)
+
+      val modules = result.data.get.modules
+      assert(modules.length == 3)
+      assert(modules.map(_.name).toSet == Set("core", "web:api", "services:auth"))
+
+      // Verify nested module path conversion
+      val webApiModule = modules.find(_.name == "web:api").get
+      assert(webApiModule.path == "web/api")
+    finally
+      Files.delete(Paths.get(settingsPath))
+  }
+
+  test("CLI: parse-modules with gradle tool and missing file returns FILE_NOT_FOUND") {
+    val result = cumulus.build.GradleParser.parseModules("/nonexistent/path/settings.gradle")
+
+    assert(result.success == false)
+    assert(result.data.isEmpty)
+    assert(result.error.isDefined)
+    assert(result.error_code.contains("FILE_NOT_FOUND"))
+  }

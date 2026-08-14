@@ -1,8 +1,9 @@
 package cumulus
 
 import cumulus.protocol.{CumulusResponse, CumulusError}
-import cumulus.build.{MavenParser, ParsePomResponse, ParseModulesResponse}
+import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse}
 import upickle.default.ReadWriter
+import scala.io.Source
 
 object Main:
   // Helper functions to construct response envelopes
@@ -75,19 +76,41 @@ object Main:
               MavenParser.parseGoals(filePath)
           serializeResponse(result)
 
+        case "parse-gradle-tasks" =>
+          given ReadWriter[ParseGradleTasksResponse] = upickle.default.macroRW
+          try
+            val stdinInput = Source.fromInputStream(System.in).mkString
+            val result = GradleParser.parseTasks(stdinInput)
+            serializeResponse(result)
+          catch
+            case e: java.io.IOException =>
+              serializeResponse(CumulusResponse(
+                success = false,
+                data = None,
+                error = Some(s"IO error reading stdin: ${e.getMessage}"),
+                error_code = Some("IO_ERROR")
+              ))
+
         case "parse-modules" =>
           val argMap = parseArgs(args.slice(1, args.length))
-          given ReadWriter[ParseModulesResponse] = upickle.default.macroRW
-          val result = (argMap.get("tool"), argMap.get("file")) match
+          (argMap.get("tool"), argMap.get("file")) match
             case (None, _) =>
-              errorEnvelope[ParseModulesResponse]("Missing --tool argument")
+              given ReadWriter[ParseModulesResponse] = upickle.default.macroRW
+              serializeResponse(errorEnvelope[ParseModulesResponse]("Missing --tool argument"))
             case (_, None) =>
-              errorEnvelope[ParseModulesResponse]("Missing --file argument")
+              given ReadWriter[ParseModulesResponse] = upickle.default.macroRW
+              serializeResponse(errorEnvelope[ParseModulesResponse]("Missing --file argument"))
             case (Some("maven"), Some(filePath)) =>
-              MavenParser.parseModules(filePath)
+              given ReadWriter[ParseModulesResponse] = upickle.default.macroRW
+              val result = MavenParser.parseModules(filePath)
+              serializeResponse(result)
+            case (Some("gradle"), Some(filePath)) =>
+              given ReadWriter[ParseGradleModulesResponse] = upickle.default.macroRW
+              val result = GradleParser.parseModules(filePath)
+              serializeResponse(result)
             case (Some(tool), _) =>
-              errorEnvelope[ParseModulesResponse](s"Unsupported tool: $tool")
-          serializeResponse(result)
+              given ReadWriter[ParseModulesResponse] = upickle.default.macroRW
+              serializeResponse(errorEnvelope[ParseModulesResponse](s"Unsupported tool: $tool"))
 
         case _ =>
           given ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
