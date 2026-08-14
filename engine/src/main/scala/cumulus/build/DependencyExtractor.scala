@@ -85,7 +85,8 @@ object DependencyExtractor:
         val content = source.mkString
 
         // Parse project(':moduleName') references from dependencies block
-        val projectPattern = """project\(['"]([^'"]+)['"]\)""".r
+        // Handles both single and double quotes, with optional whitespace
+        val projectPattern = """project\s*\(\s*['"]([^'"]+)['"]\s*\)""".r
 
         for matchResult <- projectPattern.findAllMatchIn(content) do
           val moduleName = matchResult.group(1)
@@ -150,7 +151,7 @@ object DependencyExtractor:
         if buildGradleFile.exists() then
           Using(Source.fromFile(buildGradleFile, "UTF-8")) { source =>
             val content = source.mkString
-            val projectPattern = """project\(['"]([^'"]+)['"]\)""".r
+            val projectPattern = """project\s*\(\s*['"]([^'"]+)['"]\s*\)""".r
 
             for matchResult <- projectPattern.findAllMatchIn(content) do
               var refModule = matchResult.group(1)

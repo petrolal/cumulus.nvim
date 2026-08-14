@@ -81,6 +81,14 @@ object Main:
             error_code = modulesResult.error_code
           )
 
+        if modulesResult.data.isEmpty then
+          return CumulusResponse(
+            success = false,
+            data = None,
+            error = Some("Maven parser succeeded but returned no data"),
+            error_code = Some("PARSE_ERROR")
+          )
+
         val modules = modulesResult.data.get.modules
         if modules.isEmpty then
           // Single module project
@@ -98,7 +106,7 @@ object Main:
         // For now, we'll assume modules are listed in declaration order and build accordingly
         val moduleNames = modules.map(_.name)
         val modulePaths = modules.map(_.path).map { p =>
-          if p.startsWith("./") then p.substring(2) else p
+          if p.startsWith("./") && p.length > 2 then p.substring(2) else p
         }
 
         // Build steps with sequential ordering (safe fallback)
@@ -125,9 +133,15 @@ object Main:
         // Gradle project
         val settingsPath = if settingsFile.exists() then
           settingsFile.getAbsolutePath()
+        else if buildFile.exists() then
+          buildFile.getAbsolutePath()
         else
-          // Try to find settings.gradle in parent directories
-          new File(dir, "settings.gradle").getAbsolutePath()
+          return CumulusResponse(
+            success = false,
+            data = None,
+            error = Some("Gradle project detected but neither settings.gradle nor build.gradle found"),
+            error_code = Some("FILE_NOT_FOUND")
+          )
 
         val modulesResult = GradleParser.parseModules(settingsPath)
         if !modulesResult.success then
@@ -136,6 +150,14 @@ object Main:
             data = None,
             error = modulesResult.error,
             error_code = modulesResult.error_code
+          )
+
+        if modulesResult.data.isEmpty then
+          return CumulusResponse(
+            success = false,
+            data = None,
+            error = Some("Gradle parser succeeded but returned no data"),
+            error_code = Some("PARSE_ERROR")
           )
 
         val modules = modulesResult.data.get.modules
@@ -170,10 +192,27 @@ object Main:
         // Compute build order using topological sort
         val (orderedNames, cycleWarnings) = DagSolver.computeBuildOrder(moduleNames, dependencies)
 
+        // Validate that all modules are present in ordered output
+        if orderedNames.length != moduleNames.length || !orderedNames.toSet.equals(moduleNames.toSet) then
+          return CumulusResponse(
+            success = false,
+            data = None,
+            error = Some(s"Build order computation returned inconsistent module set; expected ${moduleNames.length} modules, got ${orderedNames.length}"),
+            error_code = Some("INTERNAL_ERROR")
+          )
+
         // Map ordered names back to paths
         val nameToPath = modules.map(m => m.name -> m.path).toMap
         val steps = orderedNames.zipWithIndex.map { case (name, idx) =>
-          val path = nameToPath.getOrElse(name, name)
+          val path = nameToPath.get(name) match
+            case Some(p) => p
+            case None =>
+              return CumulusResponse(
+                success = false,
+                data = None,
+                error = Some(s"Module $name from build order not found in module list"),
+                error_code = Some("INTERNAL_ERROR")
+              )
           ModuleBuildStep(
             step = idx + 1,
             name = name,
@@ -183,10 +222,9 @@ object Main:
         }
 
         // Combine warnings
-        val warningsList = scala.collection.mutable.ListBuffer[String]()
-        warnings.foreach(w => warningsList ++= w)
-        cycleWarnings.foreach(w => warningsList ++= w)
-        val finalWarnings = if warningsList.isEmpty then None else Some(warningsList.toList)
+        val finalWarnings = (warnings.toList.flatten ++ cycleWarnings.toList.flatten) match
+          case ws if ws.nonEmpty => Some(ws)
+          case _ => None
 
         CumulusResponse(
           success = true,

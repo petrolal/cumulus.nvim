@@ -2,7 +2,7 @@
 title: 'Epic 2 Story 2.3: Multi-Module Topological Build Order Solver (Kahn''s DAG)'
 type: 'feature'
 created: '2026-08-12'
-status: 'in-review'
+status: 'done'
 baseline_commit: '56e1a37b62a31fbee19205d691f2b551802342d5'
 review_loop_iteration: 0
 context: ['_bmad-output/implementation-artifacts/epic-2-context.md']
