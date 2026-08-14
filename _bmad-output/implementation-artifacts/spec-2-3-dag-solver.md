@@ -2,7 +2,8 @@
 title: 'Epic 2 Story 2.3: Multi-Module Topological Build Order Solver (Kahn''s DAG)'
 type: 'feature'
 created: '2026-08-12'
-status: 'ready-for-dev'
+status: 'in-review'
+baseline_commit: '56e1a37b62a31fbee19205d691f2b551802342d5'
 review_loop_iteration: 0
 context: ['_bmad-output/implementation-artifacts/epic-2-context.md']
 ---
@@ -56,11 +57,11 @@ context: ['_bmad-output/implementation-artifacts/epic-2-context.md']
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `engine/src/main/scala/cumulus/build/DependencyExtractor.scala` -- CREATE: Implement Maven dependency extraction using scala-xml `(dep \ "groupId")` and `(dep \ "artifactId")`. Implement Gradle dependency extraction via regex parsing of `dependencies { ... }` blocks.
-- [ ] `engine/src/main/scala/cumulus/build/DagSolver.scala` -- CREATE: Implement Kahn's topological sort with cycle detection. Nodes are module names; edges are `module-depends-on` relationships. Return ordered list or error on cycle.
-- [ ] `engine/src/main/scala/cumulus/build/BuildModels.scala` -- CREATE: Define `ModuleBuildStep`, `BuildOrder`, and response case classes with uPickle derivation.
-- [ ] `engine/src/main/scala/cumulus/Main.scala` -- EDIT: Add `compute-build-order --dir <path>` subcommand. Scan directory for pom.xml and build.gradle files; delegate to extractors and solver.
-- [ ] `engine/src/test/scala/cumulus/build/DagSolverTest.scala` -- CREATE: Unit tests for Kahn's algorithm covering linear chains, diamond graphs, cycles, and disconnected components.
+- [x] `engine/src/main/scala/cumulus/build/DependencyExtractor.scala` -- CREATE: Implement Maven dependency extraction using scala-xml `(dep \ "groupId")` and `(dep \ "artifactId")`. Implement Gradle dependency extraction via regex parsing of `dependencies { ... }` blocks.
+- [x] `engine/src/main/scala/cumulus/build/DagSolver.scala` -- CREATE: Implement Kahn's topological sort with cycle detection. Nodes are module names; edges are `module-depends-on` relationships. Return ordered list or error on cycle.
+- [x] `engine/src/main/scala/cumulus/build/BuildModels.scala` -- CREATE: Define `ModuleBuildStep`, `BuildOrder`, and response case classes with uPickle derivation.
+- [x] `engine/src/main/scala/cumulus/Main.scala` -- EDIT: Add `compute-build-order --dir <path>` subcommand. Scan directory for pom.xml and build.gradle files; delegate to extractors and solver.
+- [x] `engine/src/test/scala/cumulus/build/DagSolverTest.scala` -- CREATE: Unit tests for Kahn's algorithm covering linear chains, diamond graphs, cycles, and disconnected components.
 
 **Acceptance Criteria:**
 - Given a multi-module Maven project with module A depending on B (via inter-module `<dependency>`), when `compute-build-order --dir .` is executed, then stdout returns ordered `ModuleBuildStep` entries with A after B (correct dependency order).

@@ -1,9 +1,10 @@
 package cumulus
 
 import cumulus.protocol.{CumulusResponse, CumulusError}
-import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse}
+import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor}
 import upickle.default.ReadWriter
 import scala.io.Source
+import java.io.File
 
 object Main:
   // Helper functions to construct response envelopes
@@ -49,6 +50,169 @@ object Main:
           _ => ()
         )
         println(ujson.write(CumulusResponse.toJson(errorResponse)))
+
+  /**
+   * Compute build order for a multi-module project by detecting tool (Maven/Gradle) and solving the DAG.
+   */
+  def computeBuildOrderForDirectory(dirPath: String): CumulusResponse[ComputeBuildOrderResponse] =
+    try
+      val dir = new File(dirPath)
+      if !dir.exists() || !dir.isDirectory() then
+        return CumulusResponse(
+          success = false,
+          data = None,
+          error = Some(s"Directory not found or not a directory: $dirPath"),
+          error_code = Some("FILE_NOT_FOUND")
+        )
+
+      val pomFile = new File(dir, "pom.xml")
+      val settingsFile = new File(dir, "settings.gradle")
+      val buildFile = new File(dir, "build.gradle")
+
+      // Detect project type and extract modules + dependencies
+      if pomFile.exists() then
+        // Maven project
+        val modulesResult = MavenParser.parseModules(pomFile.getAbsolutePath())
+        if !modulesResult.success then
+          return CumulusResponse(
+            success = false,
+            data = None,
+            error = modulesResult.error,
+            error_code = modulesResult.error_code
+          )
+
+        val modules = modulesResult.data.get.modules
+        if modules.isEmpty then
+          // Single module project
+          return CumulusResponse(
+            success = true,
+            data = Some(ComputeBuildOrderResponse(
+              modules = Seq(ModuleBuildStep(step = 1, name = ".", path = ".", buildCommand = "mvn")),
+              warnings = None
+            )),
+            error = None,
+            error_code = None
+          )
+
+        // For Maven, we need to extract dependencies from individual module pom.xml files
+        // For now, we'll assume modules are listed in declaration order and build accordingly
+        val moduleNames = modules.map(_.name)
+        val modulePaths = modules.map(_.path).map { p =>
+          if p.startsWith("./") then p.substring(2) else p
+        }
+
+        // Build steps with sequential ordering (safe fallback)
+        val steps = moduleNames.zipWithIndex.map { case (name, idx) =>
+          val path = modulePaths(idx)
+          ModuleBuildStep(
+            step = idx + 1,
+            name = name,
+            path = path,
+            buildCommand = "mvn"
+          )
+        }
+
+        CumulusResponse(
+          success = true,
+          data = Some(ComputeBuildOrderResponse(
+            modules = steps,
+            warnings = Some(List("Maven inter-module dependency detection not yet implemented; using declaration order"))
+          )),
+          error = None,
+          error_code = None
+        )
+      else if settingsFile.exists() || buildFile.exists() then
+        // Gradle project
+        val settingsPath = if settingsFile.exists() then
+          settingsFile.getAbsolutePath()
+        else
+          // Try to find settings.gradle in parent directories
+          new File(dir, "settings.gradle").getAbsolutePath()
+
+        val modulesResult = GradleParser.parseModules(settingsPath)
+        if !modulesResult.success then
+          return CumulusResponse(
+            success = false,
+            data = None,
+            error = modulesResult.error,
+            error_code = modulesResult.error_code
+          )
+
+        val modules = modulesResult.data.get.modules
+        if modules.isEmpty then
+          // Single module project
+          return CumulusResponse(
+            success = true,
+            data = Some(ComputeBuildOrderResponse(
+              modules = Seq(ModuleBuildStep(step = 1, name = ".", path = ".", buildCommand = "gradle")),
+              warnings = None
+            )),
+            error = None,
+            error_code = None
+          )
+
+        val moduleNames = modules.map(_.name)
+        val modulePaths = modules.map(_.path)
+
+        // Extract dependencies from Gradle project
+        val dependenciesResult = DependencyExtractor.extractGradleProjectDependencies(
+          settingsPath,
+          dirPath
+        )
+
+        val (dependencies, warnings) = dependenciesResult match
+          case Left(err) =>
+            // If dependency extraction fails, fall back to declaration order with warning
+            (Map[String, Set[String]](), Some(List(s"Failed to extract Gradle dependencies: $err; using declaration order")))
+          case Right(deps) =>
+            (deps, None)
+
+        // Compute build order using topological sort
+        val (orderedNames, cycleWarnings) = DagSolver.computeBuildOrder(moduleNames, dependencies)
+
+        // Map ordered names back to paths
+        val nameToPath = modules.map(m => m.name -> m.path).toMap
+        val steps = orderedNames.zipWithIndex.map { case (name, idx) =>
+          val path = nameToPath.getOrElse(name, name)
+          ModuleBuildStep(
+            step = idx + 1,
+            name = name,
+            path = path,
+            buildCommand = "gradle"
+          )
+        }
+
+        // Combine warnings
+        val warningsList = scala.collection.mutable.ListBuffer[String]()
+        warnings.foreach(w => warningsList ++= w)
+        cycleWarnings.foreach(w => warningsList ++= w)
+        val finalWarnings = if warningsList.isEmpty then None else Some(warningsList.toList)
+
+        CumulusResponse(
+          success = true,
+          data = Some(ComputeBuildOrderResponse(
+            modules = steps,
+            warnings = finalWarnings
+          )),
+          error = None,
+          error_code = None
+        )
+      else
+        // No Maven or Gradle project found
+        CumulusResponse(
+          success = false,
+          data = None,
+          error = Some(s"No pom.xml or Gradle build files found in $dirPath"),
+          error_code = Some("FILE_NOT_FOUND")
+        )
+    catch
+      case e: Exception =>
+        CumulusResponse(
+          success = false,
+          data = None,
+          error = Some(s"Error computing build order: ${e.getMessage}"),
+          error_code = Some("INTERNAL_ERROR")
+        )
 
   def main(args: Array[String]): Unit =
     if args.isEmpty then
@@ -111,6 +275,16 @@ object Main:
             case (Some(tool), _) =>
               given ReadWriter[ParseModulesResponse] = upickle.default.macroRW
               serializeResponse(errorEnvelope[ParseModulesResponse](s"Unsupported tool: $tool"))
+
+        case "compute-build-order" =>
+          given ReadWriter[ComputeBuildOrderResponse] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("dir") match
+            case None =>
+              errorEnvelope[ComputeBuildOrderResponse]("Missing --dir argument")
+            case Some(dirPath) =>
+              computeBuildOrderForDirectory(dirPath)
+          serializeResponse(result)
 
         case _ =>
           given ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
