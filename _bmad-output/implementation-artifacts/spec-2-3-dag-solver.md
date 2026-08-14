@@ -94,3 +94,45 @@ Extract module references via regex: `project\('([^']+)'\)`. Normalize module na
 - `cd engine && sbt test` -- expected: all tests pass, including DAG solver edge cases.
 - `cd engine && sbt nativeImage` -- expected: binary builds successfully.
 - `./engine/target/native-image/cumulus-engine compute-build-order --dir /path/to/multi-module-project` -- expected: JSON with ordered module steps.
+
+## Suggested Review Order
+
+**CLI Integration & Entry Point**
+
+- New subcommand dispatch wiring and directory detection logic.
+  [`Main.scala:279`](../../../engine/src/main/scala/cumulus/Main.scala#L279)
+
+- Maven project detection and single-module case; null-safety on parser result.
+  [`Main.scala:57`](../../../engine/src/main/scala/cumulus/Main.scala#L57)
+
+- Gradle project detection with settings/build file handling; module validation.
+  [`Main.scala:137`](../../../engine/src/main/scala/cumulus/Main.scala#L137)
+
+**Core Algorithm & Data Flow**
+
+- Kahn's algorithm implementation with in-degree computation and cycle detection.
+  [`DagSolver.scala:290`](../../../engine/src/main/scala/cumulus/build/DagSolver.scala#L290)
+
+- Build order wrapper with graceful fallback to declaration order on cycle.
+  [`DagSolver.scala:359`](../../../engine/src/main/scala/cumulus/build/DagSolver.scala#L359)
+
+**Dependency Extraction**
+
+- Gradle multi-module dependency extraction across build.gradle files.
+  [`DependencyExtractor.scala:116`](../../../engine/src/main/scala/cumulus/build/DependencyExtractor.scala#L116)
+
+- Gradle single-file dependency regex with whitespace-tolerant pattern matching.
+  [`DependencyExtractor.scala:84`](../../../engine/src/main/scala/cumulus/build/DependencyExtractor.scala#L84)
+
+- Maven inter-module dependency extraction via XML parsing.
+  [`DependencyExtractor.scala:24`](../../../engine/src/main/scala/cumulus/build/DependencyExtractor.scala#L24)
+
+**Data Models**
+
+- Response envelope case classes with uPickle serialization derives.
+  [`BuildModels.scala:215`](../../../engine/src/main/scala/cumulus/build/BuildModels.scala#L215)
+
+**Verification & Tests**
+
+- Comprehensive test suite covering linear chains, diamonds, cycles, and edge cases.
+  [`DagSolverTest.scala:550`](../../../engine/src/test/scala/cumulus/build/DagSolverTest.scala#L550)
