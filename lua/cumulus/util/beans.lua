@@ -3,10 +3,10 @@
 local M = {}
 
 function M.select_bean()
-  local rust = require("cumulus.util.rust")
+  local engine = require("cumulus.util.engine")
   local cwd = vim.fn.getcwd()
 
-  local beans = rust.is_available() and rust.parse_spring_beans(cwd) or nil
+  local beans = engine.is_available() and engine.parse_spring_beans(cwd) or nil
   if not beans or #beans == 0 then
     vim.notify("No Spring stereotypes (@Component, @Service, etc.) found", vim.log.levels.WARN)
     return

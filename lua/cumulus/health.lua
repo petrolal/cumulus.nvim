@@ -1,4 +1,4 @@
--- Cumulus Healthcheck Module (Story 27.2 & Story 35.1)
+-- Cumulus Healthcheck Module (Story 27.2, Story 35.1 & Story 6.1)
 
 local M = {}
 
@@ -23,8 +23,7 @@ function M.check()
     { name = "rg", desc = "ripgrep (required for Telescope live_grep & Snacks picker)", level = "warn" },
     { name = "fd", desc = "fd (optional high-speed file finder)", level = "info" },
     { name = "git", desc = "git (required for version control & git_files picker)", level = "warn" },
-    { name = "sbt", desc = "sbt / GraalVM native-image (optional for building Scala native engine)", level = "info" },
-    { name = "cargo", desc = "cargo (optional for building Rust native engine)", level = "info" },
+    { name = "sbt", desc = "sbt / GraalVM native-image (for building Scala native engine)", level = "info" },
     { name = "npm", desc = "npm (required for markdown-preview.nvim build)", level = "info" },
     { name = "node", desc = "node (required for markdown-preview & npm-based DevOps LSP servers)", level = "info" },
     { name = "python3", desc = "python3 (required for pynvim, ansible-lint, cfn-lint & BMad scripts)", level = "info" },
@@ -42,11 +41,17 @@ function M.check()
     end
   end
 
-  local rust = require("cumulus.util.rust")
-  if rust.is_available() then
-    vim.health.ok(string.format("Cumulus native helper ('cumulus-core'): active (%s)", rust.get_bin()))
+  local engine = require("cumulus.util.engine")
+  if engine.is_available() then
+    local info = engine.ping()
+    if info then
+      vim.health.ok(string.format("Cumulus Scala Engine ('cumulus-engine'): active (%s, v%s, Scala %s, commit %s)",
+        engine.get_bin(), info.version or "unknown", info.scala or "3.x", info.commit or "HEAD"))
+    else
+      vim.health.ok(string.format("Cumulus Scala Engine ('cumulus-engine'): active (%s)", engine.get_bin()))
+    end
   else
-    vim.health.warn("Cumulus native helper ('cumulus-core'): not compiled. Build via 'sbt nativeImage' or 'cargo build --release'")
+    vim.health.warn("Cumulus Scala Engine ('cumulus-engine'): not compiled or not found. Build via 'cd engine && sbt graalvm-native-image:packageBin' or run ':CumulusInstallEngine'")
   end
 
   vim.health.start("Gradle Wrapper & Build Lock (SPEC-012)")
@@ -54,7 +59,7 @@ function M.check()
   local gradle = require("cumulus.util.gradle")
   if gradle.find_gradle() then
     local cwd = vim.fn.getcwd()
-    local status = rust.verify_gradle_wrapper(cwd)
+    local status = engine.verify_gradle_wrapper(cwd)
     if status then
       if status.local_version then
         vim.health.ok(string.format("Local Gradle version: %s", status.local_version))
@@ -74,7 +79,7 @@ function M.check()
         vim.health.warn("SHA-256 checksum: NOT configured (security risk for supply chain)")
       end
 
-      if #status.issues > 0 then
+      if status.issues and #status.issues > 0 then
         for _, issue in ipairs(status.issues) do
           vim.health.warn("Gradle Wrapper: " .. issue)
         end
@@ -99,10 +104,6 @@ function M.check()
       vim.health.error(string.format("Cloud Theme '%s': FAILED to load", theme))
     end
   end
-
-  local current_theme = require("cumulus.theme").get_current_theme()
-  vim.health.info(string.format("Active persisted cloud theme: '%s'", current_theme))
-  pcall(vim.cmd, "colorscheme " .. current_theme)
 end
 
 return M

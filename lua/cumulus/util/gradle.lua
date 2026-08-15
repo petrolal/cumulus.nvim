@@ -1,7 +1,7 @@
 -- Cumulus Gradle Build Integration
 --
 -- Architecture: Lua is a bridge only. All parsing and analysis is done by
--- the cumulus-core Rust binary. This file handles Neovim UI/terminal wiring.
+-- the cumulus-engine Scala binary. This file handles Neovim UI/terminal wiring.
 
 local M = {}
 
@@ -16,6 +16,14 @@ function M.toggle_offline_mode()
 end
 
 function M.find_gradle()
+  local engine = require("cumulus.util.engine")
+  if engine.is_available() then
+    local res = engine.discover_build_tool(vim.fn.getcwd())
+    if res and res.tool == "gradle" then
+      return true
+    end
+  end
+
   local cwd = vim.fn.getcwd()
   return vim.fn.findfile("build.gradle", cwd .. ";") ~= ""
     or vim.fn.findfile("build.gradle.kts", cwd .. ";") ~= ""
@@ -32,8 +40,8 @@ function M.get_gradle_cmd()
     base = "./gradlew"
   end
 
-  local rust = require("cumulus.util.rust")
-  if M.offline_mode or (rust.is_available() and rust.check_network() == false) then
+  local engine = require("cumulus.util.engine")
+  if M.offline_mode or (engine.is_available() and engine.check_network() == false) then
     return base .. " --offline"
   end
 
@@ -83,7 +91,7 @@ function M.sync_dependencies()
 end
 
 --- Get Gradle tasks for the current project.
---- Task output parsing is done entirely by the cumulus-core Rust binary (parse-gradle-tasks).
+--- Task output parsing is done entirely by the cumulus-engine Scala binary (parse-gradle-tasks).
 function M.get_gradle_tasks()
   local base_cmd = M.get_gradle_cmd()
   local output = vim.fn.system(base_cmd .. " tasks --all")
@@ -93,13 +101,13 @@ function M.get_gradle_tasks()
     return {}
   end
 
-  local rust = require("cumulus.util.rust")
-  local tasks = rust.parse_gradle_tasks(output)
+  local engine = require("cumulus.util.engine")
+  local tasks = engine.parse_gradle_tasks(output)
   if tasks and #tasks > 0 then
     return tasks
   end
 
-  vim.notify("cumulus-core: failed to parse Gradle tasks", vim.log.levels.ERROR)
+  vim.notify("cumulus-engine: failed to parse Gradle tasks", vim.log.levels.ERROR)
   return {}
 end
 
@@ -129,7 +137,7 @@ function M.run_gradle_task()
   end)
 end
 
---- Get direct Gradle project dependencies (version catalog) via Rust helper.
+--- Get direct Gradle project dependencies (version catalog) via engine helper.
 ---@param catalog_path? string
 ---@return table[]|nil
 function M.get_dependencies(catalog_path)
@@ -137,9 +145,9 @@ function M.get_dependencies(catalog_path)
   if vim.fn.filereadable(catalog_path) == 0 then
     catalog_path = vim.fn.getcwd() .. "/libs.versions.toml"
   end
-  local rust = require("cumulus.util.rust")
-  if rust.is_available() then
-    return rust.resolve_deps(catalog_path)
+  local engine = require("cumulus.util.engine")
+  if engine.is_available() then
+    return engine.resolve_deps(catalog_path)
   end
   return nil
 end

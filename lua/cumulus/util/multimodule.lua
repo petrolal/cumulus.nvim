@@ -1,12 +1,12 @@
--- Cumulus Multi-Module Topology Helper (SPEC-008 & SPEC-017)
+-- Cumulus Multi-Module Topology Helper (SPEC-008, SPEC-017 & SPEC-028)
 --
 -- Architecture: Lua is a bridge only. All Maven pom.xml and Gradle settings.gradle
--- parsing is done by the cumulus-core Rust binary (parse-modules subcommand).
+-- parsing and workspace root finding is done by the cumulus-engine Scala binary.
 -- No Lua fallbacks. If the binary is missing, the function errors explicitly.
 
 local M = {}
 
---- Parse sub-modules from Maven root pom.xml via Rust backend.
+--- Parse sub-modules from Maven root pom.xml via Scala engine backend.
 ---@param pom_path? string
 ---@return table[] Array of { name = string, path = string }
 function M.get_maven_modules(pom_path)
@@ -15,16 +15,16 @@ function M.get_maven_modules(pom_path)
     return {}
   end
 
-  local rust = require("cumulus.util.rust")
-  local modules = rust.parse_modules("maven", pom_path)
+  local engine = require("cumulus.util.engine")
+  local modules = engine.parse_modules("maven", pom_path)
   if modules then
     return modules
   end
 
-  error("cumulus-core: failed to parse Maven modules from " .. pom_path)
+  error("cumulus-engine: failed to parse Maven modules from " .. pom_path)
 end
 
---- Parse sub-modules from Gradle root settings.gradle via Rust backend.
+--- Parse sub-modules from Gradle root settings.gradle via Scala engine backend.
 ---@param settings_path? string
 ---@return table[] Array of { name = string, path = string }
 function M.get_gradle_modules(settings_path)
@@ -36,16 +36,16 @@ function M.get_gradle_modules(settings_path)
     return {}
   end
 
-  local rust = require("cumulus.util.rust")
-  local modules = rust.parse_modules("gradle", settings_path)
+  local engine = require("cumulus.util.engine")
+  local modules = engine.parse_modules("gradle", settings_path)
   if modules then
     return modules
   end
 
-  error("cumulus-core: failed to parse Gradle modules from " .. settings_path)
+  error("cumulus-engine: failed to parse Gradle modules from " .. settings_path)
 end
 
---- Select and jump to a sub-module build file via Rust backend + UI picker.
+--- Select and jump to a sub-module build file via Scala engine backend + UI picker.
 ---@param tool? "maven"|"gradle"
 function M.select_module(tool)
   tool = tool or "maven"
@@ -87,14 +87,14 @@ function M.select_module(tool)
   end)
 end
 
---- Get topological build order DAG for multi-module project via Rust backend (SPEC-028).
+--- Get topological build order DAG for multi-module project via Scala engine backend (SPEC-028).
 ---@param root_dir? string
 ---@return table[]|nil
 function M.get_build_order(root_dir)
   root_dir = root_dir or vim.fn.getcwd()
-  local rust = require("cumulus.util.rust")
-  if rust.is_available() then
-    return rust.compute_build_order(root_dir)
+  local engine = require("cumulus.util.engine")
+  if engine.is_available() then
+    return engine.compute_build_order(root_dir)
   end
   return nil
 end

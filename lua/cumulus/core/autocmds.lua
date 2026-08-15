@@ -184,10 +184,10 @@ vim.api.nvim_create_autocmd("BufNewFile", {
       return
     end
 
-    local rust = require("cumulus.util.rust")
+    local engine = require("cumulus.util.engine")
     local lines = nil
-    if rust.is_available() then
-      lines = rust.generate_java_header(filepath)
+    if engine.is_available() then
+      lines = engine.generate_java_header(filepath)
     end
 
     if not lines then
@@ -217,8 +217,8 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
   group = augroup("instant_codelens"),
   pattern = { "*.java", "*.kt" },
   callback = function(event)
-    local rust = require("cumulus.util.rust")
-    if not rust.is_available() then
+    local engine = require("cumulus.util.engine")
+    if not engine.is_available() then
       return
     end
 
@@ -227,7 +227,7 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
       return
     end
 
-    local items = rust.extract_codelens(filepath)
+    local items = engine.extract_codelens(filepath)
     vim.api.nvim_buf_clear_namespace(event.buf, codelens_ns, 0, -1)
 
     if items and #items > 0 then
@@ -248,8 +248,8 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
   group = augroup("dep_lens"),
   pattern = { "pom.xml", "build.gradle", "build.gradle.kts", "libs.versions.toml" },
   callback = function(event)
-    local rust = require("cumulus.util.rust")
-    if not rust.is_available() then
+    local engine = require("cumulus.util.engine")
+    if not engine.is_available() then
       return
     end
 
@@ -258,7 +258,7 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
       return
     end
 
-    local lenses = rust.check_dep_versions(filepath)
+    local lenses = engine.check_dep_versions(filepath)
     vim.api.nvim_buf_clear_namespace(event.buf, dep_lens_ns, 0, -1)
 
     if lenses and #lenses > 0 then

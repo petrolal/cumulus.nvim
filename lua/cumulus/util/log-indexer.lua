@@ -7,8 +7,8 @@ function M.index_current_buffer()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
 
-  local rust = require("cumulus.util.rust")
-  local entries = rust.is_available() and rust.index_log(content) or nil
+  local engine = require("cumulus.util.engine")
+  local entries = engine.is_available() and engine.index_log(content) or nil
 
   if not entries or #entries == 0 then
     vim.notify("No ERROR/WARN messages found in log buffer", vim.log.levels.INFO)

@@ -7,8 +7,8 @@ function M.navigate_conflicts()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
 
-  local rust = require("cumulus.util.rust")
-  local blocks = rust.is_available() and rust.parse_git_conflicts(content) or nil
+  local engine = require("cumulus.util.engine")
+  local blocks = engine.is_available() and engine.parse_git_conflicts(content) or nil
 
   if not blocks or #blocks == 0 then
     vim.notify("No Git conflict markers (<<<<<<<) found in buffer", vim.log.levels.INFO)

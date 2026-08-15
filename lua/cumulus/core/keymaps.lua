@@ -235,13 +235,13 @@ lang_keymaps.register({
     {
       "<leader>cjH",
       function()
-        local rust = require("cumulus.util.rust")
+        local engine = require("cumulus.util.engine")
         if not _G.cumulus_jdtls_start_time then
           vim.notify("JDTLS not started yet", vim.log.levels.WARN)
           return
         end
         local cwd = vim.fn.getcwd()
-        local status = rust.check_jdtls_sync(cwd, _G.cumulus_jdtls_start_time)
+        local status = engine.check_jdtls_sync(cwd, _G.cumulus_jdtls_start_time)
         if status and status.sync_needed then
           vim.notify(
             "JDTLS classpath is stale (modified: " .. (status.modified_file or "unknown") .. "). Run dependency sync and JdtRestart.",
@@ -282,9 +282,9 @@ lang_keymaps.register({
       "<leader>cdu",
       function()
         local filepath = vim.api.nvim_buf_get_name(0)
-        local rust = require("cumulus.util.rust")
-        if rust.is_available() then
-          local lenses = rust.check_dep_versions(filepath)
+        local engine = require("cumulus.util.engine")
+        if engine.is_available() then
+          local lenses = engine.check_dep_versions(filepath)
           if lenses and #lenses > 0 then
             vim.notify(string.format("Found %d dependencies to check", #lenses), vim.log.levels.INFO)
           else

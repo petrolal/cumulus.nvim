@@ -110,14 +110,14 @@ local function remember_explorer_state()
 end
 
 local function sanitize_session_file()
-  local rust = require("cumulus.util.rust")
-  if not rust.is_available() then
+  local engine = require("cumulus.util.engine")
+  if not engine.is_available() then
     return
   end
 
   local session_file = get_session_file_path()
   if vim.fn.filereadable(session_file) == 1 then
-    rust.sanitize_session(session_file)
+    engine.sanitize_session(session_file)
   end
 end
 

@@ -1,7 +1,7 @@
 -- Cumulus Maven Build Integration
 --
 -- Architecture: Lua is a bridge only. All parsing and analysis is done by
--- the cumulus-core Rust binary. This file handles Neovim UI/terminal wiring.
+-- the cumulus-engine Scala binary. This file handles Neovim UI/terminal wiring.
 
 local M = {}
 
@@ -16,6 +16,14 @@ function M.toggle_offline_mode()
 end
 
 function M.find_pom()
+  local engine = require("cumulus.util.engine")
+  if engine.is_available() then
+    local res = engine.discover_build_tool(vim.fn.getcwd())
+    if res and res.tool == "maven" then
+      return true
+    end
+  end
+
   local cwd = vim.fn.getcwd()
   local pom = vim.fn.findfile("pom.xml", cwd .. ";")
   if pom == "" then
@@ -38,8 +46,8 @@ function M.get_mvn_cmd()
     base = "./mvnw"
   end
 
-  local rust = require("cumulus.util.rust")
-  if M.offline_mode or (rust.is_available() and rust.check_network() == false) then
+  local engine = require("cumulus.util.engine")
+  if M.offline_mode or (engine.is_available() and engine.check_network() == false) then
     return base .. " -o"
   end
 
@@ -89,7 +97,7 @@ function M.sync_dependencies()
 end
 
 --- Get Maven goals for the current project.
---- All pom.xml parsing is done by the cumulus-core Rust binary (parse-pom subcommand).
+--- All pom.xml parsing is done by the cumulus-engine Scala binary (parse-pom subcommand).
 function M.get_maven_goals()
   local cwd = vim.fn.getcwd()
   local pom_path = vim.fn.findfile("pom.xml", cwd .. ";")
@@ -104,14 +112,14 @@ function M.get_maven_goals()
     return {}
   end
 
-  local rust = require("cumulus.util.rust")
-  local goals = rust.parse_pom_goals(vim.fn.fnamemodify(pom_path, ":p"))
+  local engine = require("cumulus.util.engine")
+  local goals = engine.parse_pom_goals(vim.fn.fnamemodify(pom_path, ":p"))
   if goals and #goals > 0 then
     return goals
   end
 
   -- Binary missing or returned empty — surface the error
-  vim.notify("cumulus-core: failed to parse Maven goals from pom.xml", vim.log.levels.ERROR)
+  vim.notify("cumulus-engine: failed to parse Maven goals from pom.xml", vim.log.levels.ERROR)
   return {}
 end
 
@@ -137,14 +145,14 @@ function M.run_maven_goal()
   end)
 end
 
---- Get direct Maven project dependencies via Rust helper.
+--- Get direct Maven project dependencies via engine helper.
 ---@param pom_path? string
 ---@return table[]|nil
 function M.get_dependencies(pom_path)
   pom_path = pom_path or (vim.fn.getcwd() .. "/pom.xml")
-  local rust = require("cumulus.util.rust")
-  if rust.is_available() then
-    return rust.resolve_deps(pom_path)
+  local engine = require("cumulus.util.engine")
+  if engine.is_available() then
+    return engine.resolve_deps(pom_path)
   end
   return nil
 end

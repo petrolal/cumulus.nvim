@@ -5,10 +5,10 @@
 local M = {}
 
 function M.select_endpoint()
-  local rust = require("cumulus.util.rust")
+  local engine = require("cumulus.util.engine")
   local cwd = vim.fn.getcwd()
 
-  local eps = rust.is_available() and rust.extract_endpoints(cwd) or nil
+  local eps = engine.is_available() and engine.extract_endpoints(cwd) or nil
   if not eps or #eps == 0 then
     vim.notify("No Spring Boot / JAX-RS endpoints found in project", vim.log.levels.WARN)
     return

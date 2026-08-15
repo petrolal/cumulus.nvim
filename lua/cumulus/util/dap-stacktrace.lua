@@ -27,10 +27,10 @@ function M.drill_down_at_line()
     return
   end
 
-  local rust = require("cumulus.util.rust")
+  local engine = require("cumulus.util.engine")
   local cwd = vim.fn.getcwd()
 
-  local symbol = rust.resolve_stacktrace_symbol(line, cwd)
+  local symbol = engine.resolve_stacktrace_symbol(line, cwd)
   if not symbol then
     vim.notify("Unable to resolve stacktrace symbol", vim.log.levels.WARN)
     return

@@ -7,8 +7,8 @@ function M.run()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
 
-  local rust = require("cumulus.util.rust")
-  local new_lines = rust.is_available() and rust.optimize_imports(content) or nil
+  local engine = require("cumulus.util.engine")
+  local new_lines = engine.is_available() and engine.optimize_imports(content) or nil
 
   if new_lines and #new_lines > 0 then
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)

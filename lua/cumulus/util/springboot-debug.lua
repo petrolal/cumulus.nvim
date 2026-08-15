@@ -5,10 +5,10 @@ local M = {}
 
 --- Launch Spring Boot application with debug configuration
 function M.launch_debug()
-  local rust = require("cumulus.util.rust")
+  local engine = require("cumulus.util.engine")
   local cwd = vim.fn.getcwd()
 
-  local config = rust.detect_springboot_app(cwd)
+  local config = engine.detect_springboot_app(cwd)
   if not config then
     vim.notify("Failed to detect Spring Boot application", vim.log.levels.ERROR)
     return
@@ -58,9 +58,9 @@ end
 --- Inject Spring Boot DAP configurations (called from ftplugin/java.lua)
 ---@param root_dir string Root project directory
 function M.setup_springboot_dap(root_dir)
-  local rust = require("cumulus.util.rust")
+  local engine = require("cumulus.util.engine")
 
-  local config = rust.detect_springboot_app(root_dir)
+  local config = engine.detect_springboot_app(root_dir)
   if not config or config.main_class == "" then
     return
   end

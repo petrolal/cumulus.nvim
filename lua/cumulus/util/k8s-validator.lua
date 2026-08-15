@@ -9,8 +9,8 @@ function M.validate_buffer()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
 
-  local rust = require("cumulus.util.rust")
-  local issues = rust.is_available() and rust.validate_k8s_manifest(content) or nil
+  local engine = require("cumulus.util.engine")
+  local issues = engine.is_available() and engine.validate_k8s_manifest(content) or nil
 
   vim.diagnostic.clear(ns, bufnr)
 

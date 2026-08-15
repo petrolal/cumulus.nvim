@@ -3,11 +3,11 @@
 local M = {}
 
 function M.validate_migrations()
-  local rust = require("cumulus.util.rust")
+  local engine = require("cumulus.util.engine")
   local cwd = vim.fn.getcwd()
   local dir = cwd .. "/src/main/resources/db/migration"
 
-  local issues = rust.is_available() and rust.validate_migrations(dir) or nil
+  local issues = engine.is_available() and engine.validate_migrations(dir) or nil
   if not issues or #issues == 0 then
     vim.notify("Flyway migrations verified — 0 issues found", vim.log.levels.INFO)
     return

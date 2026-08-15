@@ -19,8 +19,8 @@ local ns = vim.api.nvim_create_namespace("cumulus_build")
 ---@param tool "maven"|"gradle"
 ---@param log_content string
 function M.populate_from_log(tool, log_content)
-  local rust = require("cumulus.util.rust")
-  if not rust.is_available() then
+  local engine = require("cumulus.util.engine")
+  if not engine.is_available() then
     vim.notify(
       "cumulus-core binary missing: cannot parse build diagnostics. Run 'cargo build --release' in crates/cumulus-core",
       vim.log.levels.WARN
@@ -28,7 +28,7 @@ function M.populate_from_log(tool, log_content)
     return
   end
 
-  local entries = rust.parse_build_log(tool, log_content)
+  local entries = engine.parse_build_log(tool, log_content)
 
 
   if not entries or #entries == 0 then

@@ -6,9 +6,9 @@ local ns = vim.api.nvim_create_namespace("cumulus_coverage")
 
 function M.load_coverage(xml_path)
   xml_path = xml_path or (vim.fn.getcwd() .. "/target/site/jacoco/jacoco.xml")
-  local rust = require("cumulus.util.rust")
+  local engine = require("cumulus.util.engine")
 
-  local entries = rust.is_available() and rust.parse_coverage(xml_path) or nil
+  local entries = engine.is_available() and engine.parse_coverage(xml_path) or nil
   if not entries or #entries == 0 then
     vim.notify("No JaCoCo coverage report found at: " .. xml_path, vim.log.levels.WARN)
     return

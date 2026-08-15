@@ -270,7 +270,15 @@ object Main:
       import CumulusResponse.unitRW
       args(0) match
         case "ping" =>
-          serializeResponse(successEnvelope[Unit](None))
+          case class PingData(status: String, version: String, scala: String, commit: String, built: String) derives ReadWriter
+          val pingInfo = PingData(
+            status = "ok",
+            version = BuildInfo.version,
+            scala = BuildInfo.scalaVersion,
+            commit = BuildInfo.gitCommit,
+            built = BuildInfo.buildTime
+          )
+          serializeResponse(successEnvelope[PingData](Some(pingInfo)))
 
         case "version" | "--version" | "-v" =>
           case class EngineVersion(version: String, commit: String, build_time: String, scala_version: String) derives ReadWriter

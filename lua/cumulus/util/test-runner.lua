@@ -1,15 +1,12 @@
--- Cumulus JUnit 5 Test Runner Integration (SPEC-007)
+-- Cumulus JUnit 5 Test Runner Integration (SPEC-007 & Story 4.4/6.1)
 --
--- Architecture: Lua is a bridge only. All Java/Kotlin source parsing is done
--- by the cumulus-core Rust binary. This file handles Neovim terminal wiring
--- and diagnostic display only.
+-- Architecture: Lua is a bridge only. All Java/Kotlin source parsing, command assembly,
+-- and log parsing is done by the cumulus-engine Scala binary.
+-- This file handles Neovim terminal wiring and diagnostic display only.
 
 local M = {}
 
---- Detect current Java/Kotlin test class and nearest test method using Rust backend.
---- NOTE: SPEC-007 (JUnit 5 Test Runner Integration) & SPEC-028 (Build Order DAG Solver)
---- moved test context detection from Lua regex to Rust binary (cumulus-core detect-test-context).
---- This function delegates to the Rust implementation. Consider removing if Rust backend becomes required.
+--- Detect current Java/Kotlin test class and nearest test method using Scala engine.
 ---@param bufnr? number
 ---@return { class_name: string|nil, method_name: string|nil }
 function M.detect_test_info(bufnr)
@@ -17,8 +14,8 @@ function M.detect_test_info(bufnr)
   local file_path = vim.api.nvim_buf_get_name(bufnr)
   local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
 
-  local rust = require("cumulus.util.rust")
-  local ctx = rust.detect_test_context(file_path, cursor_line)
+  local engine = require("cumulus.util.engine")
+  local ctx = engine.detect_test_context(file_path, cursor_line)
   if ctx then
     return ctx
   end
@@ -27,11 +24,10 @@ function M.detect_test_info(bufnr)
 end
 
 --- Parse test log output and display results via Neovim notify.
---- All log parsing is done by the Rust backend (parse-test-output subcommand).
 ---@param log_content string
 function M.process_results(log_content)
-  local rust = require("cumulus.util.rust")
-  local entries = rust.parse_test_output(log_content)
+  local engine = require("cumulus.util.engine")
+  local entries = engine.parse_test_output(log_content)
 
   if not entries or #entries == 0 then
     return
@@ -66,6 +62,7 @@ end
 function M.run_test(mode)
   local maven = require("cumulus.util.maven")
   local gradle = require("cumulus.util.gradle")
+  local engine = require("cumulus.util.engine")
 
   local is_maven = maven.find_pom()
   local is_gradle = gradle.find_gradle()
@@ -75,26 +72,43 @@ function M.run_test(mode)
     return
   end
 
+  local tool = is_maven and "maven" or "gradle"
   local info = M.detect_test_info()
   local cmd = ""
 
-  if is_maven then
-    local base = maven.get_mvn_cmd()
-    if mode == "nearest" and info.class_name and info.method_name then
-      cmd = base .. " test -Dtest=" .. info.class_name .. "#" .. info.method_name
-    elseif (mode == "class" or mode == "nearest") and info.class_name then
-      cmd = base .. " test -Dtest=" .. info.class_name
-    else
-      cmd = base .. " test"
+  if engine.is_available() then
+    local class_arg = (mode == "nearest" or mode == "class") and info.class_name or nil
+    local method_arg = (mode == "nearest") and info.method_name or nil
+    local assembled = engine.assemble_test_command({
+      tool = tool,
+      ["class"] = class_arg,
+      method = method_arg,
+      dir = vim.fn.getcwd(),
+    })
+    if assembled and assembled.command then
+      cmd = assembled.command
     end
-  else
-    local base = gradle.get_gradle_cmd()
-    if mode == "nearest" and info.class_name and info.method_name then
-      cmd = base .. " test --tests " .. info.class_name .. "." .. info.method_name
-    elseif (mode == "class" or mode == "nearest") and info.class_name then
-      cmd = base .. " test --tests " .. info.class_name
+  end
+
+  if cmd == "" then
+    if is_maven then
+      local base = maven.get_mvn_cmd()
+      if mode == "nearest" and info.class_name and info.method_name then
+        cmd = base .. " test -Dtest=" .. info.class_name .. "#" .. info.method_name
+      elseif (mode == "class" or mode == "nearest") and info.class_name then
+        cmd = base .. " test -Dtest=" .. info.class_name
+      else
+        cmd = base .. " test"
+      end
     else
-      cmd = base .. " test"
+      local base = gradle.get_gradle_cmd()
+      if mode == "nearest" and info.class_name and info.method_name then
+        cmd = base .. " test --tests " .. info.class_name .. "." .. info.method_name
+      elseif (mode == "class" or mode == "nearest") and info.class_name then
+        cmd = base .. " test --tests " .. info.class_name
+      else
+        cmd = base .. " test"
+      end
     end
   end
 
@@ -115,7 +129,6 @@ function M.run_test(mode)
       end
     end,
     on_stderr = function(_, data)
-      -- Some test runners output to stderr; capture it for complete results
       for _, line in ipairs(data) do
         if line ~= "" then
           table.insert(output_lines, line)
@@ -123,8 +136,6 @@ function M.run_test(mode)
       end
     end,
     on_exit = function()
-      -- Add a small delay to ensure all buffered output is flushed before processing.
-      -- This mitigates potential race conditions where on_exit fires before final stdout/stderr chunks arrive.
       vim.schedule(function()
         local log = table.concat(output_lines, "\n")
         M.process_results(log)
