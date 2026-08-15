@@ -214,3 +214,74 @@ class MainTest extends FunSuite:
     finally
       os.remove.all(os.Path(tempDir))
   }
+
+  test("CLI: parse-build-log with valid log file returns diagnostics") {
+    val logContent = """[ERROR] /path/to/File.java:42 Syntax error: expected ')'
+                       |[WARN] /path/to/Utils.java:100 Unused variable""".stripMargin
+    val logPath = createTempFile(logContent)
+    try
+      val diagnostics = cumulus.log.LogParser.parseFromFile(logPath)
+      assert(diagnostics.nonEmpty)
+      assert(diagnostics.length == 2)
+      assert(diagnostics(0).severity == "ERROR")
+      assert(diagnostics(0).line == 42)
+      assert(diagnostics(1).severity == "WARN")
+      assert(diagnostics(1).line == 100)
+    finally
+      Files.delete(Paths.get(logPath))
+  }
+
+  test("CLI: parse-build-log with non-existent file returns error") {
+    val exception = intercept[Exception] {
+      cumulus.log.LogParser.parseFromFile("/nonexistent/build.log")
+    }
+    assert(exception.getMessage.contains("File not found"))
+  }
+
+  test("CLI: index-log with valid file returns indexed entries") {
+    val logContent = """2026-08-14T10:30:45Z [INFO] Starting
+                       |2026-08-14T10:30:46Z [ERROR] Connection failed
+                       |2026-08-14T10:30:47Z [WARN] Retrying""".stripMargin
+    val logPath = createTempFile(logContent)
+    try
+      val entries = cumulus.log.LogIndexer.indexLogFile(logPath)
+      assert(entries.length == 2)
+      assert(entries(0).severity == "ERROR")
+      assert(entries(0).lineNumber == 2)
+      assert(entries(0).timestamp.isDefined)
+      assert(entries(1).severity == "WARN")
+      assert(entries(1).lineNumber == 3)
+    finally
+      Files.delete(Paths.get(logPath))
+  }
+
+  test("CLI: index-log with non-existent file returns error") {
+    val exception = intercept[Exception] {
+      cumulus.log.LogIndexer.indexLogFile("/nonexistent/app.log")
+    }
+    assert(exception.getMessage.contains("File not found"))
+  }
+
+  test("CLI: resolve-stacktrace-symbol with valid frame returns path") {
+    val tempDir = Files.createTempDirectory("stacktrace-test")
+    val srcDir = Paths.get(tempDir.toString, "src", "main", "java", "com", "example")
+    Files.createDirectories(srcDir)
+    val serviceFile = Paths.get(srcDir.toString, "Service.java")
+    Files.write(serviceFile, "".getBytes)
+    try
+      val stacktrace = "at com.example.Service.method(Service.java:123)"
+      val result = cumulus.log.StacktraceResolver.resolveStacktrace(stacktrace, tempDir.toString)
+      assert(result.isRight)
+      val resolved = result.toOption.get
+      assert(resolved.nonEmpty)
+      assert(resolved.values.head.contains("Service.java"))
+    finally
+      os.remove.all(os.Path(tempDir))
+  }
+
+  test("CLI: resolve-stacktrace-symbol with invalid workspace returns error") {
+    val stacktrace = "at com.example.Service.method(Service.java:123)"
+    val result = cumulus.log.StacktraceResolver.resolveStacktrace(stacktrace, "/nonexistent/workspace")
+    assert(result.isLeft)
+    assert(result.left.get.contains("Workspace directory not found"))
+  }
