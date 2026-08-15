@@ -3,6 +3,7 @@ package cumulus
 import cumulus.protocol.{CumulusResponse, CumulusError}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo}
+import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse}
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -365,6 +366,26 @@ object Main:
                   successEnvelope[WorkspaceInfo](Some(wsInfo))
                 case Left(error) =>
                   errorEnvelope[WorkspaceInfo](error)
+          serializeResponse(result)
+
+        case "extract-codelens" =>
+          given ReadWriter[CodeLensResponse] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case None =>
+              errorEnvelope[CodeLensResponse]("Missing --file argument")
+            case Some(filePath) =>
+              try
+                val items = CodeLensExtractor.extractCodeLens(filePath)
+                successEnvelope[CodeLensResponse](Some(CodeLensResponse(items = items)))
+              catch
+                case e: Exception =>
+                  if e.getMessage != null && e.getMessage.contains("not found") then
+                    errorEnvelope[CodeLensResponse](e.getMessage, CumulusError.FILE_NOT_FOUND)
+                  else if e.getMessage != null && e.getMessage.contains("Unsupported file type") then
+                    errorEnvelope[CodeLensResponse](e.getMessage, CumulusError.INVALID_INPUT)
+                  else
+                    errorEnvelope[CodeLensResponse](s"Error extracting CodeLens: ${e.getMessage}")
           serializeResponse(result)
 
         case _ =>

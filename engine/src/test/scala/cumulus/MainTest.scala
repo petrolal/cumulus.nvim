@@ -201,3 +201,16 @@ class MainTest extends FunSuite:
     assert(result.error.isDefined)
     assert(result.error_code.contains("FILE_NOT_FOUND"))
   }
+
+  test("CLI: extract-codelens --file returns correct envelope") {
+    val tempDir = Files.createTempDirectory("cli-test")
+    val testFile = Paths.get(tempDir.toString, "Test.java")
+    Files.write(testFile, "public class T { @Test void t() {} }".getBytes)
+    try
+      val result = cumulus.code.CodeLensExtractor.extractCodeLens(testFile.toString)
+      assert(result.nonEmpty)
+      assert(result(0).line == 1)
+      assert(result(0).title == "▶ Run Test")
+    finally
+      os.remove.all(os.Path(tempDir))
+  }

@@ -62,3 +62,27 @@
 - source_spec: `spec-2-1-maven-pom-parser.md`
   summary: Add integration tests for Main.main() CLI routing of parse-pom and parse-modules
   evidence: Verification gap reviewer found acceptance criteria define CLI behavior but no tests verify end-to-end routing through Main.main(); MavenParser unit tests pass but CLI integration untested
+
+- source_spec: none
+  summary: Story 3.2 — Spring Boot Debug Config & Bean Dependency Graph (detect-springboot-app, parse-spring-beans)
+  evidence: Split from Epic 3 multi-goal scope; 3.1 (CodeLens) prioritized first to establish source scanning foundation
+
+- source_spec: none
+  summary: Story 3.3 — REST Endpoint Extractor, Import Optimizer & Java Header Generator (extract-endpoints, optimize-imports, generate-java-header)
+  evidence: Split from Epic 3 multi-goal scope; 3.1 (CodeLens) prioritized first to establish source scanning foundation
+
+- source_spec: `spec-3-1-codelens-extractor.md`
+  summary: Add logging infrastructure for CodeLens extraction operations
+  evidence: Blind Hunter review identified lack of logging for debugging and audit trails; pre-existing gap not specific to CodeLens
+
+- source_spec: `spec-3-1-codelens-extractor.md`
+  summary: Centralize error message constants across all Main.scala subcommands
+  evidence: Blind Hunter review flagged hardcoded error strings; applies to all CLI handlers, not just CodeLens
+
+- source_spec: `spec-3-1-codelens-extractor.md`
+  summary: Consolidate given ReadWriter definitions to prevent duplication
+  evidence: Inline ReadWriter definitions appear in every subcommand handler; should be centralized for maintainability
+
+- source_spec: `spec-3-1-codelens-extractor.md`
+  summary: Add path security validation (traversal, symbolic link) to file access operations
+  evidence: Verification Gap Reviewer identified missing validation; applies to all file-reading subcommands (parse-pom, extract-codelens, etc.)
