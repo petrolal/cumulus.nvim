@@ -22,7 +22,7 @@ function M.populate_from_log(tool, log_content)
   local engine = require("cumulus.util.engine")
   if not engine.is_available() then
     vim.notify(
-      "cumulus-core binary missing: cannot parse build diagnostics. Run 'cargo build --release' in crates/cumulus-core",
+      "cumulus-engine binary missing: cannot parse build diagnostics. Build via 'cd engine && sbt graalvm-native-image:packageBin' or run ':CumulusInstallEngine'",
       vim.log.levels.WARN
     )
     return

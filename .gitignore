@@ -8,3 +8,8 @@ foo.*
 data
 target/
 **/target/
+engine/target/
+engine/project/target/
+.bsp/
+.metals/
+.bloop/

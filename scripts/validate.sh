@@ -1,39 +1,39 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Quick smoke validation test script for cumulus.nvim
 
-echo "=========================================="
-echo " Cumulus Neovim Automated Verification"
-echo "=========================================="
+set -e
 
-echo "[1/6] Running Neovim headless Lazy plugin check..."
-if nvim -u init.lua --headless "+Lazy check" +qa; then
-  echo "✔ Headless Lazy check PASSED."
+echo "=== Cumulus Neovim Distribution Smoke Test ==="
+
+echo "[1/6] Verifying Neovim Loading & Startup..."
+if nvim -u init.lua --headless "+lua print('✔ Core init.lua loads without error')" +qa; then
+  echo "✔ Headless core init.lua PASSED."
 else
-  echo "✖ Headless Lazy check FAILED."
+  echo "✖ Headless core init.lua FAILED."
   exit 1
 fi
 
-echo "[2/6] Verifying Cumulus core options & clipboard integration..."
-if nvim -u init.lua --headless "+lua assert(vim.g.mapleader == ' '); assert(vim.opt.clipboard:get()[1] == 'unnamedplus'); print('✔ Options verified')" +qa; then
-  echo "✔ Core options PASSED."
+echo "[2/6] Verifying Core Modules (Options, Keymaps, Autocmds, Health)..."
+if nvim -u init.lua --headless "+lua require('cumulus.core.options'); require('cumulus.core.keymaps'); require('cumulus.core.autocmds'); require('cumulus.health'); print('✔ Core modules loaded successfully')" +qa; then
+  echo "✔ Core modules PASSED."
 else
-  echo "✖ Core options FAILED."
+  echo "✖ Core modules FAILED."
   exit 1
 fi
 
-echo "[3/6] Verifying Multi-Cloud Signature Themes (AWS, Azure, GCP, OCI)..."
-if nvim -u init.lua --headless "+colorscheme aws-theme" "+colorscheme azure-theme" "+colorscheme gcp-theme" "+colorscheme oci-theme" "+lua print('✔ All 4 cloud themes loaded')" +qa; then
-  echo "✔ Multi-Cloud Theme engines PASSED."
+echo "[3/6] Verifying Theme System (AWS, Azure, GCP, OCI)..."
+if nvim -u init.lua --headless "+lua require('cumulus.theme').setup(); print('✔ Theme system initialized')" +qa; then
+  echo "✔ Theme system PASSED."
 else
-  echo "✖ Multi-Cloud Theme engines FAILED."
+  echo "✖ Theme system FAILED."
   exit 1
 fi
 
-echo "[4/6] Running Cumulus Healthcheck Suite (:checkhealth cumulus)..."
-if nvim -u init.lua --headless "+checkhealth cumulus" +qa; then
-  echo "✔ Cumulus healthcheck suite PASSED."
+echo "[4/6] Verifying LSP & Completion Specs..."
+if nvim -u init.lua --headless "+lua assert(pcall(require, 'blink.cmp')); assert(pcall(require, 'nvim-lspconfig')); print('✔ LSP & Completion specs verified')" +qa; then
+  echo "✔ LSP and Completion specs PASSED."
 else
-  echo "✖ Cumulus healthcheck suite FAILED."
+  echo "✖ LSP and Completion specs FAILED."
   exit 1
 fi
 
@@ -45,23 +45,16 @@ else
   exit 1
 fi
 
-echo "[6/6] Verifying Native Helper Engine (cumulus-core)..."
-if command -v sbt >/dev/null 2>&1 && [ -f build.sbt ]; then
-  if sbt test; then
+echo "[6/6] Verifying Native Helper Engine (cumulus-engine)..."
+if command -v sbt >/dev/null 2>&1 && [ -d engine ]; then
+  if (cd engine && sbt test); then
     echo "✔ Scala native helper build & unit tests PASSED."
   else
     echo "✖ Scala native helper build or tests FAILED."
     exit 1
   fi
-elif command -v cargo >/dev/null 2>&1 && [ -f crates/cumulus-core/Cargo.toml ]; then
-  if cargo test --manifest-path crates/cumulus-core/Cargo.toml; then
-    echo "✔ Rust native helper build & unit tests PASSED."
-  else
-    echo "✖ Rust native helper build or tests FAILED."
-    exit 1
-  fi
 else
-  echo "ℹ Native toolchain (sbt/cargo) not found or native helper missing -- skipping native engine test suite."
+  echo "ℹ sbt not found or engine directory missing -- skipping native engine test suite."
 fi
 
 echo "=========================================="

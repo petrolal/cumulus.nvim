@@ -22,12 +22,11 @@ else
   MISSING=1
 fi
 
-if has_cmd cargo; then
-  CARGO_VER=$(cargo --version)
-  echo "  ✔ Rust/Cargo detected: $CARGO_VER"
+if has_cmd sbt; then
+  SBT_VER=$(sbt --version 2>&1 | head -n 1 || echo "sbt detected")
+  echo "  ✔ SBT / Scala toolchain detected: $SBT_VER"
 else
-  echo "  ✖ Cargo is not installed or not in PATH."
-  MISSING=1
+  echo "  ℹ sbt is not installed in PATH (engine can be pre-built or downloaded via :CumulusInstallEngine)."
 fi
 
 if has_cmd git; then
@@ -47,18 +46,19 @@ if [ "$MISSING" -eq 1 ]; then
   exit 1
 fi
 
-# 2. Build Rust Native Core Engine
+# 2. Build Scala Native Core Engine (if sbt is available)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "[2/4] Building and installing Rust native engine (cumulus-core)..."
-if cargo install --path "$REPO_DIR/crates/cumulus-core"; then
-  echo "  ✔ cumulus-core installed to Cargo binary path (~/.cargo/bin)!"
-elif cargo build --release --manifest-path "$REPO_DIR/crates/cumulus-core/Cargo.toml"; then
-  echo "  ✔ cumulus-core compiled in workspace release directory!"
+echo "[2/4] Building Scala native engine (cumulus-engine)..."
+if has_cmd sbt && [ -d "$REPO_DIR/engine" ]; then
+  if (cd "$REPO_DIR/engine" && sbt test); then
+    echo "  ✔ cumulus-engine verified with unit test suite!"
+  else
+    echo "  ⚠ Failed to run engine tests via sbt."
+  fi
 else
-  echo "  ✖ Failed to build/install cumulus-core binary."
-  exit 1
+  echo "  ℹ Skipping native engine local compilation (run :CumulusInstallEngine inside Neovim to download pre-built binary)."
 fi
 
 # 3. Sync lazy.nvim Plugins
