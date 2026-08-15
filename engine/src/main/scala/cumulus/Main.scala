@@ -6,6 +6,7 @@ import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, Jd
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
+import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic}
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -600,6 +601,29 @@ object Main:
                   errorEnvelope[Seq[LogIndexEntry]](s"Error indexing log: ${e.getMessage}")
             case None =>
               errorEnvelope[Seq[LogIndexEntry]]("Missing --file argument", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
+
+        case "parse-coverage" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case Some(filePath) =>
+              CoverageParser.parseCoverage(filePath)
+            case None =>
+              errorEnvelope[Seq[CoverageEntry]]("Missing --file argument", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
+
+        case "parse-checkstyle" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case Some(filePath) =>
+              CheckstyleParser.parseCheckstyleFile(filePath)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                CheckstyleParser.parseCheckstyle(stdinInput)
+              catch
+                case e: Exception =>
+                  errorEnvelope[Seq[CheckstyleDiagnostic]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
           serializeResponse(result)
 
         case _ =>

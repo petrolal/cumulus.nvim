@@ -359,5 +359,47 @@ class MainTest extends FunSuite:
     assert(diagnostics(1).severity == "WARN")
   }
 
+  test("CLI: parse-coverage with valid file returns coverage entries") {
+    val xml =
+      """<report name="demo">
+        |  <package name="com/demo">
+        |    <sourcefile name="Main.java">
+        |      <line nr="10" mi="0" ci="2"/>
+        |      <line nr="20" mi="1" ci="0"/>
+        |    </sourcefile>
+        |  </package>
+        |</report>""".stripMargin
+    val file = Files.createTempFile("jacoco", ".xml").toFile
+    try
+      Files.write(file.toPath, xml.getBytes)
+      val result = cumulus.devops.CoverageParser.parseCoverage(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.length, 1)
+      assertEquals(result.data.get.head.file, "com/demo/Main.java")
+      assertEquals(result.data.get.head.covered_lines, Seq(10))
+      assertEquals(result.data.get.head.missed_lines, Seq(20))
+    finally
+      file.delete()
+  }
+
+  test("CLI: parse-checkstyle with valid xml returns diagnostics") {
+    val xml =
+      """<checkstyle version="10.0">
+        |  <file name="/path/to/Main.java">
+        |    <error line="10" column="4" severity="error" message="Unused import"/>
+        |  </file>
+        |</checkstyle>""".stripMargin
+    val result = cumulus.devops.CheckstyleParser.parseCheckstyle(xml)
+    assert(result.success)
+    assert(result.data.isDefined)
+    assertEquals(result.data.get.length, 1)
+    assertEquals(result.data.get.head.file, "/path/to/Main.java")
+    assertEquals(result.data.get.head.line, 10)
+    assertEquals(result.data.get.head.col, Some(4))
+    assertEquals(result.data.get.head.severity, "ERROR")
+  }
+
+
 
 
