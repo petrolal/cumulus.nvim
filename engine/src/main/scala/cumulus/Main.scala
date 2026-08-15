@@ -3,7 +3,7 @@ package cumulus
 import cumulus.protocol.{CumulusResponse, CumulusError}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo}
-import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse}
+import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse}
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -386,6 +386,44 @@ object Main:
                     errorEnvelope[CodeLensResponse](e.getMessage, CumulusError.INVALID_INPUT)
                   else
                     errorEnvelope[CodeLensResponse](s"Error extracting CodeLens: ${e.getMessage}")
+          serializeResponse(result)
+
+        case "detect-springboot-app" =>
+          given ReadWriter[SpringBootApp] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("dir") match
+            case None =>
+              errorEnvelope[SpringBootApp]("Missing --dir argument")
+            case Some(dirPath) =>
+              try
+                val app = SpringBootDetector.detectSpringBootApp(dirPath)
+                successEnvelope[SpringBootApp](Some(app))
+              catch
+                case e: Exception =>
+                  if e.getMessage != null && e.getMessage.contains("No Spring Boot application found") then
+                    errorEnvelope[SpringBootApp](e.getMessage, CumulusError.INVALID_INPUT)
+                  else if e.getMessage != null && e.getMessage.contains("Directory not found") then
+                    errorEnvelope[SpringBootApp](e.getMessage, CumulusError.FILE_NOT_FOUND)
+                  else
+                    errorEnvelope[SpringBootApp](s"Error detecting Spring Boot app: ${e.getMessage}")
+          serializeResponse(result)
+
+        case "parse-spring-beans" =>
+          given ReadWriter[SpringBeansResponse] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("dir") match
+            case None =>
+              errorEnvelope[SpringBeansResponse]("Missing --dir argument")
+            case Some(dirPath) =>
+              try
+                val beans = BeanGraphAnalyzer.parseSpringBeans(dirPath)
+                successEnvelope[SpringBeansResponse](Some(SpringBeansResponse(beans = beans)))
+              catch
+                case e: Exception =>
+                  if e.getMessage != null && e.getMessage.contains("Directory not found") then
+                    errorEnvelope[SpringBeansResponse](e.getMessage, CumulusError.FILE_NOT_FOUND)
+                  else
+                    errorEnvelope[SpringBeansResponse](s"Error parsing Spring beans: ${e.getMessage}")
           serializeResponse(result)
 
         case _ =>
