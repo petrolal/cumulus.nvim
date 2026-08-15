@@ -62,3 +62,64 @@ case class K8sValidationIssue(
   message: String
 ) derives ReadWriter
 
+/**
+ * Result of sanitizing a .vim session file.
+ */
+case class SessionSanitizeResult(
+  success: Boolean,
+  cleaned_lines: Int,
+  total_lines: Int
+) derives ReadWriter
+
+/**
+ * Status of Gradle wrapper and CI configuration verification.
+ */
+case class GradleWrapperStatus(
+  local_version: Option[String],
+  ci_version: Option[String],
+  sha256_configured: Boolean,
+  sha256_valid: Boolean,
+  issues: Seq[String]
+) derives ReadWriter
+
+/**
+ * Network socket connectivity status.
+ */
+case class NetworkStatus(
+  connected: Boolean,
+  host: String,
+  port: Int,
+  elapsed_ms: Long
+) derives ReadWriter
+
+/**
+ * JDTLS classpath synchronization status.
+ */
+case class SyncStatus(
+  sync_needed: Boolean,
+  modified_file: Option[String]
+) derives ReadWriter
+
+/**
+ * Project dependency information.
+ */
+case class DependencyInfo(
+  group: String,
+  artifact: String,
+  version: String,
+  scope: String
+) derives ReadWriter
+
+/**
+ * Dependency version lens information for inlay/virtual text hints.
+ */
+case class DependencyLens(
+  group: String,
+  artifact: String,
+  current_version: String,
+  latest_version: String,
+  line: Int,
+  age_status: String
+) derives ReadWriter
+
+

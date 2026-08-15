@@ -6,8 +6,12 @@ import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, Jd
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
-import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue}
+import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens}
 import cumulus.git.{ConflictParser, ConflictBlock}
+import cumulus.util.{SessionSanitizer, NetworkChecker}
+import cumulus.gradle.WrapperVerifier
+import cumulus.workspace.JdtlsSyncChecker
+import cumulus.dep.{DepResolver, DepLens}
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -659,6 +663,56 @@ object Main:
               catch
                 case e: Exception =>
                   errorEnvelope[Seq[ConflictBlock]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "session-sanitize" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case Some(filePath) =>
+              SessionSanitizer.sanitizeSession(filePath)
+            case None =>
+              errorEnvelope[SessionSanitizeResult]("Missing --file argument", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
+
+        case "verify-gradle-wrapper" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val dir = argMap.getOrElse("dir", ".")
+          val result = WrapperVerifier.verifyGradleWrapper(dir)
+          serializeResponse(result)
+
+        case "check-network" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("host") match
+            case Some(host) =>
+              val timeout = argMap.get("timeout").flatMap(_.toLongOption).getOrElse(3000L)
+              NetworkChecker.checkNetwork(host, timeout)
+            case None =>
+              errorEnvelope[NetworkStatus]("Missing --host argument", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
+
+        case "check-jdtls-sync" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val dir = argMap.getOrElse("dir", ".")
+          val startTime = argMap.get("start-time").flatMap(_.toLongOption).getOrElse(0L)
+          val result = JdtlsSyncChecker.checkJdtlsSync(dir, startTime)
+          serializeResponse(result)
+
+        case "resolve-deps" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case Some(filePath) =>
+              DepResolver.resolveDependencies(filePath)
+            case None =>
+              errorEnvelope[Seq[DependencyInfo]]("Missing --file argument", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
+
+        case "check-dep-versions" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case Some(filePath) =>
+              DepLens.checkDepVersions(filePath)
+            case None =>
+              errorEnvelope[Seq[DependencyLens]]("Missing --file argument", CumulusError.INVALID_INPUT)
           serializeResponse(result)
 
         case _ =>

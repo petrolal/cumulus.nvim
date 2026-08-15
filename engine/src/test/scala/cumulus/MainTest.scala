@@ -432,6 +432,77 @@ class MainTest extends FunSuite:
     assertEquals(result.data.get.head.incoming_header, "branch")
   }
 
+  test("CLI: session-sanitize with session file cleans ephemeral lines") {
+    val file = Files.createTempFile("session", ".vim").toFile
+    try
+      Files.write(file.toPath, "badd +0 /app.java\nbadd +0 [No Name]\n".getBytes)
+      val result = cumulus.util.SessionSanitizer.sanitizeSession(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.cleaned_lines, 1)
+      assertEquals(result.data.get.total_lines, 2)
+    finally
+      file.delete()
+  }
+
+  test("CLI: verify-gradle-wrapper with missing wrapper reports no local version") {
+    val tempDir = Files.createTempDirectory("gradle-test").toFile
+    try
+      val result = cumulus.gradle.WrapperVerifier.verifyGradleWrapper(tempDir.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.local_version, None)
+    finally
+      tempDir.delete()
+  }
+
+  test("CLI: check-network with invalid host returns error") {
+    val result = cumulus.util.NetworkChecker.checkNetwork("invalid_format")
+    assert(!result.success)
+    assertEquals(result.error_code, Some("INVALID_INPUT"))
+  }
+
+  test("CLI: check-jdtls-sync with directory returns status") {
+    val tempDir = Files.createTempDirectory("jdtls-test").toFile
+    try
+      val result = cumulus.workspace.JdtlsSyncChecker.checkJdtlsSync(tempDir.getAbsolutePath, 0L)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.sync_needed, false)
+    finally
+      tempDir.delete()
+  }
+
+  test("CLI: resolve-deps with POM file returns dependencies") {
+    val file = Files.createTempFile("pom", ".xml").toFile
+    try
+      val pom = "<project><dependencies><dependency><groupId>g</groupId><artifactId>a</artifactId><version>1.0</version></dependency></dependencies></project>"
+      Files.write(file.toPath, pom.getBytes)
+      val result = cumulus.dep.DepResolver.resolveDependencies(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.length, 1)
+      assertEquals(result.data.get.head.group, "g")
+      assertEquals(result.data.get.head.artifact, "a")
+    finally
+      file.delete()
+  }
+
+  test("CLI: check-dep-versions with POM file returns dependency lenses") {
+    val file = Files.createTempFile("pom", ".xml").toFile
+    try
+      val pom = "<project><dependencies><dependency><groupId>g</groupId><artifactId>a</artifactId><version>1.0</version></dependency></dependencies></project>"
+      Files.write(file.toPath, pom.getBytes)
+      val result = cumulus.dep.DepLens.checkDepVersions(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.length, 1)
+      assertEquals(result.data.get.head.current_version, "1.0")
+    finally
+      file.delete()
+  }
+
+
 
 
 
