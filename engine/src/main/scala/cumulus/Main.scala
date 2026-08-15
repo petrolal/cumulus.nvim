@@ -3,7 +3,7 @@ package cumulus
 import cumulus.protocol.{CumulusResponse, CumulusError}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo}
-import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse}
+import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -424,6 +424,57 @@ object Main:
                     errorEnvelope[SpringBeansResponse](e.getMessage, CumulusError.FILE_NOT_FOUND)
                   else
                     errorEnvelope[SpringBeansResponse](s"Error parsing Spring beans: ${e.getMessage}")
+          serializeResponse(result)
+
+        case "extract-endpoints" =>
+          given ReadWriter[EndpointsResponse] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("dir") match
+            case None =>
+              errorEnvelope[EndpointsResponse]("Missing --dir argument")
+            case Some(dirPath) =>
+              try
+                val endpoints = EndpointScanner.scanEndpoints(dirPath)
+                successEnvelope[EndpointsResponse](Some(EndpointsResponse(endpoints = endpoints)))
+              catch
+                case e: Exception =>
+                  if e.getMessage != null && e.getMessage.contains("Directory not found") then
+                    errorEnvelope[EndpointsResponse](e.getMessage, CumulusError.FILE_NOT_FOUND)
+                  else
+                    errorEnvelope[EndpointsResponse](s"Error extracting endpoints: ${e.getMessage}")
+          serializeResponse(result)
+
+        case "optimize-imports" =>
+          given ReadWriter[ImportsResponse] = upickle.default.macroRW
+          try
+            val stdinInput = Source.fromInputStream(System.in).mkString
+            val imports = ImportOptimizer.optimizeImports(stdinInput)
+            serializeResponse(successEnvelope[ImportsResponse](Some(ImportsResponse(imports = imports))))
+          catch
+            case e: java.io.IOException =>
+              serializeResponse(CumulusResponse(
+                success = false,
+                data = None,
+                error = Some(s"IO error reading stdin: ${e.getMessage}"),
+                error_code = Some("IO_ERROR")
+              ))
+
+        case "generate-java-header" =>
+          given ReadWriter[JavaHeader] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case None =>
+              errorEnvelope[JavaHeader]("Missing --file argument")
+            case Some(filePath) =>
+              try
+                val header = JavaHeaderGenerator.generateHeader(filePath)
+                successEnvelope[JavaHeader](Some(header))
+              catch
+                case e: Exception =>
+                  if e.getMessage != null && e.getMessage.contains("File not found") then
+                    errorEnvelope[JavaHeader](e.getMessage, CumulusError.FILE_NOT_FOUND)
+                  else
+                    errorEnvelope[JavaHeader](s"Error generating Java header: ${e.getMessage}")
           serializeResponse(result)
 
         case _ =>

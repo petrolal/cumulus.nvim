@@ -79,3 +79,51 @@ case class SpringBootApp(
 case class SpringBeansResponse(
   beans: Seq[SpringBean]
 ) derives ReadWriter
+
+/**
+ * Represents a REST endpoint discovered in source code.
+ *
+ * @param path The full endpoint path (including class-level base path if applicable)
+ * @param http_method The HTTP method (GET, POST, PUT, DELETE, PATCH)
+ * @param class_name The fully-qualified class name containing the endpoint
+ * @param handler_name The method name that handles the endpoint
+ * @param line_number The 1-indexed line number where the handler method is defined
+ */
+case class Endpoint(
+  path: String,
+  http_method: String,
+  class_name: String,
+  handler_name: String,
+  line_number: Int
+) derives ReadWriter
+
+/**
+ * Response wrapper for endpoint extraction results.
+ *
+ * @param endpoints The list of detected endpoints
+ */
+case class EndpointsResponse(
+  endpoints: Seq[Endpoint]
+) derives ReadWriter
+
+/**
+ * Response wrapper for import optimization results.
+ *
+ * @param imports The deduplicated and sorted import statements
+ */
+case class ImportsResponse(
+  imports: Seq[String]
+) derives ReadWriter
+
+/**
+ * Represents generated Java file header with package and class declaration.
+ *
+ * @param package_name The inferred package name
+ * @param class_name The class name (derived from filename)
+ * @param class_declaration The full class declaration line (e.g., "public class ClassName { }")
+ */
+case class JavaHeader(
+  package_name: String,
+  class_name: String,
+  class_declaration: String
+) derives ReadWriter
