@@ -71,6 +71,19 @@ context: ['_bmad-output/implementation-artifacts/epic-2-context.md']
 - Given a project root directory, when `discover-workspace --dir /nested/path` is executed, then stdout returns the parent directory containing build files as the workspace root.
 - Given all above scenarios, `sbt test` passes all tests, and `sbt nativeImage` produces a working binary.
 
+### Review Findings
+
+- [x] [Review][Decision] Maven inter-module dependency resolution — Implement per-module pom.xml dependency extraction or document/preserve declaration-order fallback with warning.
+- [x] [Review][Patch] Adopt os-lib exclusively across GradleParser, DependencyExtractor, DagSolver, BuildToolDetector, JdkDiscoverer, and WorkspaceScanner [`engine/src/main/scala/cumulus/workspace/WorkspaceScanner.scala:96`]
+- [x] [Review][Patch] Support multi-argument and multi-line include statements and includeBuild directives in GradleParser and DependencyExtractor [`engine/src/main/scala/cumulus/build/GradleParser.scala:111`]
+- [x] [Review][Patch] Normalize leading colons on Gradle module paths (strip leading colon) so relative paths are cleanly produced [`engine/src/main/scala/cumulus/build/GradleParser.scala:118`]
+- [x] [Review][Patch] Support Kotlin DSL (settings.gradle.kts and build.gradle.kts) in WorkspaceScanner, BuildToolDetector, DependencyExtractor, and Main.scala [`engine/src/main/scala/cumulus/Main.scala:72`]
+- [x] [Review][Patch] Broaden JDK discovery vendor patterns (java-*, jdk-*, temurin-*, zulu-*, graalvm-*) in JdkDiscoverer [`engine/src/main/scala/cumulus/workspace/JdkDiscoverer.scala:25`]
+- [x] [Review][Patch] Fix error codes: return INVALID_INPUT when JDK not found in discover-jdk and for missing --dir in compute-build-order [`engine/src/main/scala/cumulus/Main.scala:708`]
+- [x] [Review][Patch] Add unit and CLI tests for computeBuildOrderForDirectory, Gradle multi-include, and JdkDiscoverer in MainTest.scala / DiscoveryTest.scala [`engine/src/test/scala/cumulus/MainTest.scala:1`]
+- [x] [Review][Defer] Custom Gradle projectDir overrides (`project(':...').projectDir`) — deferred, pre-existing
+- [x] [Review][Defer] Inspecting JDK `release` file for micro version parsing — deferred, pre-existing
+
 ## Design Notes
 
 **JDK Version Matching:** Version strings in paths (e.g., `java-21-openjdk`) may include minor/patch versions. For `discover-jdk --version 21`, match any path starting with `java-21` (major version). Extract actual version from `<JAVA_HOME>/bin/java -version` output (optional refinement for future story).

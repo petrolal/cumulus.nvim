@@ -1,6 +1,6 @@
 package cumulus.workspace
 
-import java.io.File
+import os.Path
 
 object BuildToolDetector:
 
@@ -13,17 +13,17 @@ object BuildToolDetector:
    */
   def detectBuildTool(dirPath: String): Either[String, BuildToolInfo] =
     try
-      val dir = new File(dirPath)
+      val dir = Path(dirPath, os.pwd)
 
-      if !dir.exists() || !dir.isDirectory() then
+      if !os.exists(dir) || !os.isDir(dir) then
         return Left(s"Directory not found or not a directory: $dirPath")
 
       // Check for Maven
-      val pomExists = new File(dir, "pom.xml").exists()
-      val mvnwFile = new File(dir, "mvnw")
-      val mvnwExists = mvnwFile.exists()
+      val pomExists = os.exists(dir / "pom.xml") && os.isFile(dir / "pom.xml")
+      val mvnwFile = dir / "mvnw"
+      val mvnwExists = os.exists(mvnwFile) && os.isFile(mvnwFile)
       if pomExists || mvnwExists then
-        val wrapperPath = if mvnwExists then Some(mvnwFile.getAbsolutePath) else None
+        val wrapperPath = if mvnwExists then Some(mvnwFile.toString) else None
         val executableFlag = wrapperPath.map(isExecutable)
         val recommendation = wrapperPath.flatMap { wp =>
           if !executableFlag.getOrElse(true) then
@@ -40,12 +40,14 @@ object BuildToolDetector:
         ))
 
       // Check for Gradle
-      val buildGradleExists = new File(dir, "build.gradle").exists()
-      val buildGradleKtsExists = new File(dir, "build.gradle.kts").exists()
-      val gradlewFile = new File(dir, "gradlew")
-      val gradlewExists = gradlewFile.exists()
-      if buildGradleExists || buildGradleKtsExists || gradlewExists then
-        val wrapperPath = if gradlewExists then Some(gradlewFile.getAbsolutePath) else None
+      val buildGradleExists = os.exists(dir / "build.gradle") && os.isFile(dir / "build.gradle")
+      val buildGradleKtsExists = os.exists(dir / "build.gradle.kts") && os.isFile(dir / "build.gradle.kts")
+      val settingsGradleExists = os.exists(dir / "settings.gradle") && os.isFile(dir / "settings.gradle")
+      val settingsGradleKtsExists = os.exists(dir / "settings.gradle.kts") && os.isFile(dir / "settings.gradle.kts")
+      val gradlewFile = dir / "gradlew"
+      val gradlewExists = os.exists(gradlewFile) && os.isFile(gradlewFile)
+      if buildGradleExists || buildGradleKtsExists || settingsGradleExists || settingsGradleKtsExists || gradlewExists then
+        val wrapperPath = if gradlewExists then Some(gradlewFile.toString) else None
         val executableFlag = wrapperPath.map(isExecutable)
         val recommendation = wrapperPath.flatMap { wp =>
           if !executableFlag.getOrElse(true) then
@@ -62,10 +64,10 @@ object BuildToolDetector:
         ))
 
       // Check for SBT
-      val buildSbtExists = new File(dir, "build.sbt").exists()
-      val projectDir = new File(dir, "project")
-      val projectDirExists = projectDir.exists() && projectDir.isDirectory()
-      if buildSbtExists || (projectDirExists && new File(projectDir, "build.properties").exists()) then
+      val buildSbtExists = os.exists(dir / "build.sbt") && os.isFile(dir / "build.sbt")
+      val projectDir = dir / "project"
+      val projectDirExists = os.exists(projectDir) && os.isDir(projectDir)
+      if buildSbtExists || (projectDirExists && os.exists(projectDir / "build.properties")) then
         return Right(BuildToolInfo(
           build_tool = "sbt",
           wrapper = None,
@@ -74,7 +76,7 @@ object BuildToolDetector:
         ))
 
       // No build tool found
-      Left(s"No build tool detected in $dirPath (looking for pom.xml, build.gradle, build.gradle.kts, build.sbt)")
+      Left(s"No build tool detected in $dirPath (looking for pom.xml, build.gradle, build.gradle.kts, settings.gradle, settings.gradle.kts, build.sbt)")
     catch
       case e: Exception =>
         Left(s"Error detecting build tool: ${e.getMessage}")
@@ -91,3 +93,4 @@ object BuildToolDetector:
       file.canExecute()
     catch
       case _: Exception => false
+

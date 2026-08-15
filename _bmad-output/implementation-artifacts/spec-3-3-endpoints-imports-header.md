@@ -83,6 +83,21 @@ context: ['_bmad-output/implementation-artifacts/epic-3-context.md', '_bmad-outp
 - Given a file path `/src/main/java/com/example/MyClass.java`, when `generate-java-header --file <path>` is executed, then output is `package com.example; public class MyClass { }`.
 - All tests pass: `sbt test`, and binary builds with `sbt graalvm-native-image:packageBin`.
 
+### Review Findings
+
+- [x] [Review][Decision] ImportOptimizer contract — Return list of sorted unique imports `ImportsResponse(imports: Seq[String])` (as defined in CodeModels / SPEC-031) or replace entire buffer with reformatted file content.
+- [x] [Review][Patch] Adopt os-lib exclusively across CodeLensExtractor, SpringBootDetector, BeanGraphAnalyzer, and JavaHeaderGenerator [`engine/src/main/scala/cumulus/code/CodeLensExtractor.scala:33`]
+- [x] [Review][Patch] Fix premature class termination on method closing brace in BeanGraphAnalyzer [`engine/src/main/scala/cumulus/code/BeanGraphAnalyzer.scala:146`]
+- [x] [Review][Patch] Set SpringBean line number to class definition line rather than stereotype annotation line [`engine/src/main/scala/cumulus/code/BeanGraphAnalyzer.scala:127`]
+- [x] [Review][Patch] Fix SpringBootDetector to scan src/main/kotlin when src/main/java is present or empty [`engine/src/main/scala/cumulus/code/SpringBootDetector.scala:72`]
+- [x] [Review][Patch] Support src/main/resources/ for active profiles and application-*.yml files in SpringBootDetector [`engine/src/main/scala/cumulus/code/SpringBootDetector.scala:241`]
+- [x] [Review][Patch] Allow generating Java/Kotlin headers for new/non-existent file paths and support relative paths without leading slash [`engine/src/main/scala/cumulus/code/JavaHeaderGenerator.scala:16`]
+- [x] [Review][Patch] Fix path concatenation double-slash in EndpointScanner and support method-level @RequestMapping and JAX-RS / Kotlin syntax [`engine/src/main/scala/cumulus/code/EndpointScanner.scala:161`]
+- [x] [Review][Patch] Fix multi-line Qualifier detection in BeanGraphAnalyzer [`engine/src/main/scala/cumulus/code/BeanGraphAnalyzer.scala:133`]
+- [x] [Review][Patch] Add unit and CLI tests for JAX-RS endpoints, Kotlin endpoints, Qualifier dependencies, and CLI dispatch [`engine/src/test/scala/cumulus/code/EndpointTest.scala:1`]
+- [x] [Review][Defer] Top-level Kotlin fun main() CodeLens detection — deferred, pre-existing
+- [x] [Review][Defer] Kotlin property / constructor-based Spring bean injection — deferred, pre-existing
+
 ## Design Notes
 
 **Endpoint Detection:** Compile regex patterns for Spring annotations (@GetMapping, @PostMapping, @PutMapping, @DeleteMapping, @PatchMapping) and JAX-RS (@GET, @POST, @PUT, @DELETE, @PATCH). Match with method declarations. Extract HTTP method from annotation name or @RequestMethod parameter.

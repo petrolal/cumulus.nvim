@@ -1,8 +1,7 @@
 package cumulus.code
 
-import scala.io.Source
-import java.io.File
-import scala.util.Using
+import os.Path
+import scala.collection.mutable
 
 object BeanGraphAnalyzer:
 
@@ -20,8 +19,8 @@ object BeanGraphAnalyzer:
   private lazy val qualifierPattern = """@Qualifier\s*\(\s*["']([^"']+)["']\s*\)""".r
 
   // Patterns for parsing source
-  private lazy val packagePattern = """^\s*package\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s*;""".r
-  private lazy val classPattern = """^\s*(?:public\s+)?class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*""".r
+  private lazy val packagePattern = """^\s*package\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s*;?""".r
+  private lazy val classPattern = """(?:public|protected|private|final|open|abstract|\s)*\bclass\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*""".r
   private lazy val fieldPattern = """^\s*(?:private|public|protected)?\s*(?:final\s+)?([a-zA-Z_][a-zA-Z0-9_.<>?,\s]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:;|=)""".r
 
   /**
@@ -32,11 +31,11 @@ object BeanGraphAnalyzer:
    * @return Sequence of detected Spring beans
    */
   def parseSpringBeans(dirPath: String): Seq[SpringBean] =
-    val dir = new File(dirPath)
-    if !dir.exists() || !dir.isDirectory() then
+    val p = Path(dirPath, os.pwd)
+    if !os.exists(p) || !os.isDir(p) then
       throw new Exception(s"Directory not found: $dirPath")
 
-    val beans = scala.collection.mutable.ListBuffer[SpringBean]()
+    val beans = mutable.ListBuffer[SpringBean]()
 
     // Scan all source directories
     val sourceDirs = Seq(
@@ -44,7 +43,7 @@ object BeanGraphAnalyzer:
       "src/main/kotlin",
       "src/test/java",
       "src/test/kotlin"
-    ).map(p => new File(dir, p)).filter(_.exists())
+    ).map(rel => p / os.RelPath(rel)).filter(os.exists)
 
     for sourceDir <- sourceDirs do
       scanDirectory(sourceDir, beans)
@@ -54,37 +53,28 @@ object BeanGraphAnalyzer:
   /**
    * Recursively scan a directory for Java/Kotlin files with Spring stereotypes
    */
-  private def scanDirectory(dir: File, beans: scala.collection.mutable.ListBuffer[SpringBean]): Unit =
-    if !dir.isDirectory() then
-      return
+  private def scanDirectory(dir: Path, beans: mutable.ListBuffer[SpringBean]): Unit =
+    if !os.isDir(dir) then return
 
-    val files = dir.listFiles()
-    if files == null then
-      return
-
+    val files = os.walk(dir).filter(f => os.isFile(f) && (f.last.endsWith(".java") || f.last.endsWith(".kt")))
     for file <- files do
-      if file.isDirectory() then
-        scanDirectory(file, beans)
-      else if file.getName.endsWith(".java") || file.getName.endsWith(".kt") then
-        extractBeansFromFile(file.getAbsolutePath(), beans)
+      extractBeansFromFile(file.toString, beans)
 
   /**
    * Extract Spring beans from a single source file
    */
-  private def extractBeansFromFile(filePath: String, beans: scala.collection.mutable.ListBuffer[SpringBean]): Unit =
+  private def extractBeansFromFile(filePath: String, beans: mutable.ListBuffer[SpringBean]): Unit =
     try
-      val file = new File(filePath)
-      val lines = Using(Source.fromFile(file, "UTF-8")) { source =>
-        source.getLines().toList
-      }.get
+      val p = Path(filePath, os.pwd)
+      val lines = os.read.lines(p, charSet = java.nio.charset.StandardCharsets.UTF_8).toList
 
       var currentPackage = ""
       var currentClass = ""
       var currentClassLine = 0
-      var currentStereotypeLine = 0
       var currentStereotype: Option[String] = None
-      val fieldInjections = scala.collection.mutable.Map[String, (String, Option[String])]() // fieldName -> (type, qualifier)
+      val fieldInjections = mutable.Map[String, (String, Option[String])]() // fieldName -> (type, qualifier)
       var inCurrentClass = false
+      var braceDepth = 0
 
       for (line, idx) <- lines.zipWithIndex do
         if line != null then
@@ -103,47 +93,57 @@ object BeanGraphAnalyzer:
             if currentStereotype.isEmpty then
               if componentPattern.findFirstIn(line).isDefined then
                 currentStereotype = Some("@Component")
-                currentStereotypeLine = lineNumber
               else if servicePattern.findFirstIn(line).isDefined then
                 currentStereotype = Some("@Service")
-                currentStereotypeLine = lineNumber
               else if repositoryPattern.findFirstIn(line).isDefined then
                 currentStereotype = Some("@Repository")
-                currentStereotypeLine = lineNumber
               else if controllerPattern.findFirstIn(line).isDefined then
                 currentStereotype = Some("@Controller")
-                currentStereotypeLine = lineNumber
               else if restControllerPattern.findFirstIn(line).isDefined then
                 currentStereotype = Some("@RestController")
-                currentStereotypeLine = lineNumber
               else if configurationPattern.findFirstIn(line).isDefined then
                 currentStereotype = Some("@Configuration")
-                currentStereotypeLine = lineNumber
 
             // Check for class declaration
-            if currentStereotype.isDefined && currentClass.isEmpty then
-              classPattern.findFirstMatchIn(line) foreach { m =>
+            val matchedClass = if currentStereotype.isDefined && !inCurrentClass then
+              classPattern.findFirstMatchIn(line).map { m =>
                 currentClass = m.group(1)
-                currentClassLine = currentStereotypeLine
+                currentClassLine = lineNumber
                 inCurrentClass = true
-              }
+                braceDepth = 0
+                true
+              }.getOrElse(false)
+            else false
 
-            // Extract field injections (within current class context)
+            // Track brace depth within class
             if inCurrentClass then
-              if autowiredPattern.findFirstIn(line).isDefined || injectPattern.findFirstIn(line).isDefined then
-                // Next line should contain the field declaration
-                if idx + 1 < lines.length then
-                  val nextLine = lines(idx + 1)
-                  if nextLine != null then
-                    extractFieldType(nextLine) foreach { case (fieldName, fieldType) =>
-                      val qualifier = qualifierPattern.findFirstMatchIn(line) match
-                        case Some(m) => Some(m.group(1))
-                        case None => None
-                      fieldInjections(fieldName) = (fieldType, qualifier)
-                    }
+              val opens = line.count(_ == '{')
+              val closes = line.count(_ == '}')
+              braceDepth += opens - closes
 
-              // End of class detection (simple: opening brace at column 0 after declaration)
-              if trimmed.startsWith("}") && currentClass.nonEmpty then
+              // Check for field injections (within current class context)
+              if autowiredPattern.findFirstIn(line).isDefined || injectPattern.findFirstIn(line).isDefined then
+                // Check qualifier on same line or next lines
+                var foundQualifier = qualifierPattern.findFirstMatchIn(line).map(_.group(1))
+                // Search forward up to 3 lines for field declaration and/or @Qualifier
+                var scanIdx = idx + 1
+                var foundField = false
+                while scanIdx < lines.length && scanIdx <= idx + 3 && !foundField do
+                  val nextLine = lines(scanIdx)
+                  if nextLine != null then
+                    val nextTrimmed = nextLine.trim
+                    if foundQualifier.isEmpty then
+                      qualifierPattern.findFirstMatchIn(nextTrimmed).foreach { qm =>
+                        foundQualifier = Some(qm.group(1))
+                      }
+                    extractFieldType(nextTrimmed) foreach { case (fieldName, fieldType) =>
+                      fieldInjections(fieldName) = (fieldType, foundQualifier)
+                      foundField = true
+                    }
+                  scanIdx += 1
+
+              // End of class detection when brace depth returns to 0 (and not on the class opening line)
+              if !matchedClass && braceDepth <= 0 && line.contains("}") && currentClass.nonEmpty then
                 // Create bean from collected info
                 if currentStereotype.isDefined then
                   val fqClassName = if currentPackage.nonEmpty then
@@ -174,6 +174,7 @@ object BeanGraphAnalyzer:
                 currentStereotype = None
                 fieldInjections.clear()
                 inCurrentClass = false
+                braceDepth = 0
     catch
       case _: Exception => // Skip files that can't be parsed
 
@@ -191,3 +192,4 @@ object BeanGraphAnalyzer:
         case None => None
     catch
       case _: Exception => None
+

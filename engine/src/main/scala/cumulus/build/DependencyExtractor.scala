@@ -5,6 +5,9 @@ import scala.xml.{XML, Elem, Node}
 import scala.io.Source
 import java.io.File
 import scala.util.Using
+import os.Path
+import scala.collection.mutable
+import scala.xml.XML
 
 /**
  * DependencyExtractor extracts module dependencies from Maven and Gradle build files.
@@ -14,52 +17,34 @@ import scala.util.Using
  */
 object DependencyExtractor:
 
+  private lazy val stringLiteralPattern = """['"]([^'"]+)['"]""".r
+  private lazy val projectPattern = """project\s*\(\s*['"]([^'"]+)['"]\s*\)""".r
+
   /**
    * Extract module dependencies from a Maven pom.xml file.
    * Returns a map of module name to its direct module dependencies.
    *
-   * @param pomPath Path to pom.xml
+   * @param pomPath Path to root pom.xml
    * @return Map where keys are module names and values are sets of module dependencies
    */
   def extractMavenDependencies(pomPath: String): Either[String, Map[String, Set[String]]] =
     try
-      val file = new File(pomPath)
-      if !file.exists() then
+      val p = Path(pomPath, os.pwd)
+      if !os.exists(p) || !os.isFile(p) then
         return Left(s"File not found: $pomPath")
 
-      val pom = XML.loadFile(file)
-      val dependencies = scala.collection.mutable.Map[String, scala.collection.mutable.Set[String]]()
+      val pom = XML.loadString(os.read(p))
+      val dependencies = mutable.Map[String, mutable.Set[String]]()
 
-      // First, extract all module names from <modules>
-      val modules = (pom \\ "module").map(_.text.trim).filter(_.nonEmpty).toSet
+      // Extract all declared modules
+      val moduleNodes = pom \\ "modules" \ "module"
+      val modules = moduleNodes.map(_.text.trim).filter(_.nonEmpty).toSet
 
-      // Extract the project's groupId and version for comparison
-      val projectGroupId = (pom \ "groupId").text.trim
-      val projectVersion = (pom \ "version").text.trim
-
-      // For each module, we could potentially look for its pom.xml to get its dependencies
-      // However, the spec indicates we should look for inter-module references in THIS pom.xml
-      // This would typically be done via properties or direct module references in dependency management
-
-      // Initialize each module with empty dependency set
+      // Initialize all modules with empty dependency sets
       for moduleName <- modules do
-        dependencies(moduleName) = scala.collection.mutable.Set[String]()
+        dependencies(moduleName) = mutable.Set[String]()
 
-      // Look for inter-module dependencies in the main pom's dependencyManagement or dependencies
-      // Extract dependencies that reference other modules (same groupId typically indicates inter-module)
-      val allDeps = (pom \\ "dependency")
-      for dep <- allDeps do
-        val depGroupId = (dep \ "groupId").text.trim
-        val depArtifactId = (dep \ "artifactId").text.trim
-
-        // Check if this is an inter-module dependency (by matching groupId)
-        if depGroupId == projectGroupId && modules.contains(depArtifactId) then
-          // This dependency references an artifact that matches a module name
-          // We'd need context of which module declares this to properly build the graph
-          // For now, we mark all modules as potentially depending on this
-          ()
-
-      Right(dependencies.mapValues(_.toSet).toMap)
+      Right(dependencies.map((k, v) => k -> v.toSet).toMap)
     catch
       case e: org.xml.sax.SAXException =>
         Left(s"XML parse error: ${e.getMessage}")
@@ -67,50 +52,35 @@ object DependencyExtractor:
         Left(s"Error extracting Maven dependencies: ${e.getMessage}")
 
   /**
-   * Extract module dependencies from a Gradle build.gradle file.
-   * Returns a map of module name to its direct module dependencies.
+   * Extract module dependencies from a Gradle build.gradle or build.gradle.kts file.
    *
-   * @param buildGradlePath Path to build.gradle
+   * @param buildGradlePath Path to build.gradle / build.gradle.kts
    * @return Map where keys are module names and values are sets of module dependencies
    */
   def extractGradleDependencies(buildGradlePath: String): Either[String, Map[String, Set[String]]] =
     try
-      val file = new File(buildGradlePath)
-      if !file.exists() then
+      val p = Path(buildGradlePath, os.pwd)
+      if !os.exists(p) || !os.isFile(p) then
         return Left(s"File not found: $buildGradlePath")
 
-      val dependencies = scala.collection.mutable.Map[String, scala.collection.mutable.Set[String]]()
+      val dependencies = mutable.Map[String, mutable.Set[String]]()
+      val content = os.read(p)
 
-      Using(Source.fromFile(file, "UTF-8")) { source =>
-        val content = source.mkString
+      for m <- projectPattern.findAllMatchIn(content) do
+        val rawName = m.group(1).trim
+        val normalized = rawName.stripPrefix(":")
+        if !dependencies.contains(normalized) then
+          dependencies(normalized) = mutable.Set[String]()
 
-        // Parse project(':moduleName') references from dependencies block
-        // Handles both single and double quotes, with optional whitespace
-        val projectPattern = """project\s*\(\s*['"]([^'"]+)['"]\s*\)""".r
-
-        for matchResult <- projectPattern.findAllMatchIn(content) do
-          val moduleName = matchResult.group(1)
-          // Normalize module names (strip leading colons if present)
-          val normalized = if moduleName.startsWith(":") then moduleName.substring(1) else moduleName
-          if !dependencies.contains(normalized) then
-            dependencies(normalized) = scala.collection.mutable.Set[String]()
-      }
-
-      Right(dependencies.mapValues(_.toSet).toMap)
+      Right(dependencies.map((k, v) => k -> v.toSet).toMap)
     catch
-      case e: java.io.IOException =>
-        Left(s"IO error reading build.gradle: ${e.getMessage}")
       case e: Exception =>
         Left(s"Error extracting Gradle dependencies: ${e.getMessage}")
 
   /**
-   * Extract inter-module dependencies from a Gradle settings.gradle file.
-   * Returns a map where each included module may depend on other modules found in the same project.
+   * Extract inter-module dependencies from a Gradle settings file.
    *
-   * Note: This scans the settings.gradle for include directives to find all modules,
-   * then looks for dependency declarations in individual build.gradle files.
-   *
-   * @param settingsPath Path to settings.gradle
+   * @param settingsPath Path to settings.gradle or settings.gradle.kts
    * @param projectDir Base project directory
    * @return Map of module dependencies found
    */
@@ -119,54 +89,48 @@ object DependencyExtractor:
     projectDir: String
   ): Either[String, Map[String, Set[String]]] =
     try
-      val file = new File(settingsPath)
-      if !file.exists() then
+      val p = Path(settingsPath, os.pwd)
+      val baseDir = Path(projectDir, os.pwd)
+      if !os.exists(p) || !os.isFile(p) then
         return Left(s"File not found: $settingsPath")
 
-      val modules = scala.collection.mutable.Set[String]()
-      val dependencies = scala.collection.mutable.Map[String, scala.collection.mutable.Set[String]]()
+      val modules = mutable.Set[String]()
+      val dependencies = mutable.Map[String, mutable.Set[String]]()
 
-      // First pass: extract all module names from settings.gradle
-      Using(Source.fromFile(file, "UTF-8")) { source =>
-        for line <- source.getLines() do
-          val trimmed = line.trim
-          if trimmed.nonEmpty && !trimmed.startsWith("//") && !trimmed.startsWith("#") then
-            if trimmed.startsWith("include ") then
-              val pattern = """include\s+['"]([^'"]+)['"]""".r
-              pattern.findFirstMatchIn(trimmed) match
-                case Some(m) =>
-                  val moduleName = m.group(1)
-                  if moduleName.nonEmpty then
-                    modules += moduleName
-                    // Initialize dependency set for this module
-                    dependencies(moduleName) = scala.collection.mutable.Set[String]()
-                case None => ()
-      }
+      val lines = os.read.lines(p, charSet = java.nio.charset.StandardCharsets.UTF_8)
+      for line <- lines do
+        val trimmed = line.trim
+        if trimmed.nonEmpty && !trimmed.startsWith("//") && !trimmed.startsWith("#") && !trimmed.startsWith("/*") then
+          if trimmed.startsWith("include ") || trimmed.startsWith("include(") ||
+             trimmed.startsWith("includeBuild ") || trimmed.startsWith("includeBuild(") then
+            for m <- stringLiteralPattern.findAllMatchIn(trimmed) do
+              val rawName = m.group(1).trim
+              val normalized = rawName.stripPrefix(":")
+              if normalized.nonEmpty then
+                modules += normalized
+                dependencies(normalized) = mutable.Set[String]()
 
-      // Second pass: for each module, look for its build.gradle and extract dependencies
+      // For each module, look for its build.gradle or build.gradle.kts and extract project(':...') deps
       for moduleName <- modules do
-        val moduleDir = moduleName.replace(":", File.separator)
-        val buildGradleFile = new File(projectDir, moduleDir + File.separator + "build.gradle")
+        val moduleRelPath = moduleName.replace(":", "/")
+        val subDir = baseDir / os.RelPath(moduleRelPath)
+        val buildGradle = subDir / "build.gradle"
+        val buildGradleKts = subDir / "build.gradle.kts"
 
-        if buildGradleFile.exists() then
-          Using(Source.fromFile(buildGradleFile, "UTF-8")) { source =>
-            val content = source.mkString
-            val projectPattern = """project\s*\(\s*['"]([^'"]+)['"]\s*\)""".r
+        val targetFile = if os.exists(buildGradle) && os.isFile(buildGradle) then Some(buildGradle)
+        else if os.exists(buildGradleKts) && os.isFile(buildGradleKts) then Some(buildGradleKts)
+        else None
 
-            for matchResult <- projectPattern.findAllMatchIn(content) do
-              var refModule = matchResult.group(1)
-              // Normalize module names (strip leading colons if present)
-              if refModule.startsWith(":") then
-                refModule = refModule.substring(1)
+        targetFile.foreach { bf =>
+          val content = os.read(bf)
+          for m <- projectPattern.findAllMatchIn(content) do
+            val refRaw = m.group(1).trim
+            val refModule = refRaw.stripPrefix(":")
+            if modules.contains(refModule) && refModule != moduleName then
+              dependencies(moduleName) += refModule
+        }
 
-              // Only add if it's a known module
-              if modules.contains(refModule) && refModule != moduleName then
-                dependencies(moduleName) += refModule
-          }
-
-      Right(dependencies.mapValues(_.toSet).toMap)
+      Right(dependencies.map((k, v) => k -> v.toSet).toMap)
     catch
-      case e: java.io.IOException =>
-        Left(s"IO error: ${e.getMessage}")
       case e: Exception =>
         Left(s"Error extracting Gradle project dependencies: ${e.getMessage}")

@@ -16,6 +16,7 @@ context: ['_bmad-output/implementation-artifacts/epic-1-context.md', '_bmad-outp
 
 **Approach:** Implement `CumulusResponse[T]` envelope (success/data/error/error_code), `CumulusError` enum with standard codes, and a pattern-matching CLI router in `Main.scala`. Verify with `ping` subcommand (returns success, no data) and unknown-command error handling.
 
+
 ## Boundaries & Constraints
 
 **Always:**
@@ -66,6 +67,17 @@ context: ['_bmad-output/implementation-artifacts/epic-1-context.md', '_bmad-outp
 - Given `cumulus-engine unknown-cmd`, when the binary is invoked, then stdout contains valid JSON with `"success": false`, `"error_code": "INVALID_INPUT"`
 - Given zero arguments, when `cumulus-engine` is invoked, then stdout contains valid JSON error envelope with INVALID_INPUT
 - Given `CumulusResponse[T]` case class with uPickle `macroRW`, when `sbt compile` is run, then compilation succeeds with zero errors
+
+### Review Findings
+
+- [x] [Review][Decision] Envelope serialization architecture — Keep `CumulusResponse.toJson`/`fromJson` with `writeJs`/`readJs` (which serializes `Option[T]` as `null` rather than uPickle's 1-element array default) or provide standard `macroRW` derivation.
+- [x] [Review][Patch] Eliminate intermediate string round-trips in `CumulusResponse.toJson` and `fromJson` using `writeJs`/`readJs` [`engine/src/main/scala/cumulus/protocol/Envelope.scala:28`]
+- [x] [Review][Patch] Clean up nativeImageOptions in build.sbt to avoid synthetic class name `$$anon$1` [`engine/build.sbt:13`]
+- [x] [Review][Patch] Add `version` and `--version` CLI commands exposing BuildInfo metadata [`engine/src/main/scala/cumulus/Main.scala:267`]
+- [x] [Review][Patch] Safe boolean parsing in `CumulusResponse.fromJson` to prevent `InvalidData` exceptions on malformed JSON [`engine/src/main/scala/cumulus/protocol/Envelope.scala:36`]
+- [x] [Review][Patch] Add unit and roundtrip tests for `CumulusResponse.fromJson`, `ping`, and `--version` in MainTest.scala [`engine/src/test/scala/cumulus/MainTest.scala:1`]
+- [x] [Review][Defer] Strict scalacOptions compiler warning flags (-deprecation, -Werror) — deferred, pre-existing
+- [x] [Review][Defer] Comprehensive POSIX argument parser supporting trailing flags — deferred, pre-existing
 
 ## Design Notes
 

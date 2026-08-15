@@ -105,7 +105,24 @@ context: ['_bmad-output/implementation-artifacts/epic-4-context.md']
 - Given `--tool gradle --class FooTest --method testBar --dir subproject` with `./gradlew` present, when `assemble-test-command` is executed, then command is `./gradlew :subproject:test --tests FooTest.testBar`
 - Given `--tool sbt --class FooTest --method testBar --dir .`, when `assemble-test-command` is executed, then command is `sbt "testOnly *FooTest -- -t testBar"`
 - All tests pass: `sbt test`
-- Binary builds successfully: `sbt graalvm-native-image:packageBin`
+- [x] Binary builds successfully: `sbt graalvm-native-image:packageBin`
+
+### Review Findings
+
+- [x] [Review][Decision] Adopt os-lib exclusively across all Epic 4 modules — The spec constraint mandates os-lib exclusively for file I/O and path resolution, resolved by migrating LogParser, LogIndexer, StacktraceResolver, TestContextDetector, and TestCommandAssembler to os-lib.
+- [x] [Review][Decision] Stacktrace resolution return schema with line numbers vs map — Resolved to maintain Map[String, String] for backward compatibility with CLI and Neovim client expectations.
+- [x] [Review][Patch] Fix ANSI escape sequence stripping regexes in LogParser and TestOutputParser [`engine/src/main/scala/cumulus/log/LogParser.scala:19`]
+- [x] [Review][Patch] Support bracketed line numbers and column in Maven diagnostic parser (`[ERROR] /path/to/File.java:[123,45]`) [`engine/src/main/scala/cumulus/log/LogParser.scala:37`]
+- [x] [Review][Patch] Standardize Main.scala response envelopes for parse-test-output, parse-build-log, resolve-stacktrace-symbol, and index-log [`engine/src/main/scala/cumulus/Main.scala:505-739`]
+- [x] [Review][Patch] Extract failure messages for failed Gradle test runs in TestOutputParser [`engine/src/main/scala/cumulus/testing/TestOutputParser.scala:108`]
+- [x] [Review][Patch] Support non-*Test class names and IT/Spec in Maven output parsing [`engine/src/main/scala/cumulus/testing/TestOutputParser.scala:139`]
+- [x] [Review][Patch] Fix Windows backslash normalization and submodule directory resolution in TestCommandAssembler [`engine/src/main/scala/cumulus/testing/TestCommandAssembler.scala:91-137`]
+- [x] [Review][Patch] Broaden class declaration matching in TestContextDetector (support final, open, internal, nested) [`engine/src/main/scala/cumulus/testing/TestContextDetector.scala:12`]
+- [x] [Review][Patch] Fix Dead code in StacktraceResolver ambiguous file match check [`engine/src/main/scala/cumulus/log/StacktraceResolver.scala:118`]
+- [x] [Review][Patch] Default --dir to current directory '.' in resolve-stacktrace-symbol [`engine/src/main/scala/cumulus/Main.scala:647`]
+- [x] [Review][Patch] Add unit & CLI integration tests in TestingTest.scala and MainTest.scala covering Maven test outputs and new subcommand CLI routes [`engine/src/test/scala/cumulus/MainTest.scala:215`]
+- [x] [Review][Defer] Interface, enum, and trait context detection in TestContextDetector — deferred, pre-existing
+- [x] [Review][Defer] Shell command argument escaping for class/method names with special characters — deferred, pre-existing
 
 ## Spec Change Log
 

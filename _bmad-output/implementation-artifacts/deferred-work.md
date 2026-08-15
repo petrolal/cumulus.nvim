@@ -118,3 +118,26 @@
 - source_spec: `spec-4-testing-diagnostics-logging.md`
   summary: Add help text and usage documentation for three new CLI subcommands
   evidence: Code review noted subcommands lack help text; users need documentation for --file, --line, --tool, --class, --method, --dir flags
+
+## Deferred from: code review of spec-4-testing-diagnostics-logging.md (2026-08-14)
+
+- Interface, enum, and trait context detection in TestContextDetector
+- Shell command argument escaping for class/method names with special characters in TestCommandAssembler
+
+## Deferred from: code review of Epic 3 (2026-08-14)
+
+- Top-level Kotlin `fun main()` CodeLens detection in CodeLensExtractor
+- Kotlin property syntax (`val`/`var`/`lateinit`) and constructor-based Spring bean injection in BeanGraphAnalyzer
+
+## Deferred from: code review of Epic 2 (2026-08-14)
+
+- Custom Gradle projectDir overrides (`project(':...').projectDir`) in DependencyExtractor
+- Inspecting JDK `release` file for micro version parsing in JdkDiscoverer
+
+## Deferred from: code review of Epic 1 (2026-08-14)
+
+- Strict scalacOptions compiler warning flags (-deprecation, -Werror, -explain)
+- Comprehensive POSIX argument parser supporting trailing flags and boolean options
+
+
+

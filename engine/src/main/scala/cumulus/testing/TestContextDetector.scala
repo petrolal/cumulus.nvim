@@ -1,15 +1,13 @@
 package cumulus.testing
 
-import scala.io.Source
-import java.io.File
-import scala.util.Using
+import os.Path
 
 object TestContextDetector:
 
   // Compiled regex patterns for test annotations (lazy to avoid GraalVM issues)
   private lazy val testAnnotationPattern = """@(?:Test|ParameterizedTest|RepeatedTest)\b""".r
-  private lazy val methodPattern = """(?:(?:public|private|protected)\s+)?(?:fun|void|Unit|String|Boolean|Int|Void)\s+(\w+)\s*\(""".r
-  private lazy val classPattern = """(?:public\s+)?(?:class|record)\s+(\w+)""".r
+  private lazy val methodPattern = """(?:(?:public|private|protected|internal|final|open)\s+)*(?:fun\s+|def\s+|(?:void|Unit|String|Boolean|Int|Long|Double|Float|Void|[\w<>,.?\[\]]+)\s+)(\w+)\s*\(""".r
+  private lazy val classPattern = """(?:public|protected|private|internal|final|open|abstract|sealed|\s)*\b(?:class|record)\s+(\w+)""".r
 
   /**
    * Detect the test context (class name and method name) at a given cursor line in a Java or Kotlin file.
@@ -20,17 +18,15 @@ object TestContextDetector:
    */
   def detectTestContext(filePath: String, lineNumber: Int): Either[String, TestContext] =
     try
-      val file = new File(filePath)
-      if !file.exists() then
+      val p = Path(filePath, os.pwd)
+      if !os.exists(p) then
         return Left(s"File not found: $filePath")
 
       if !filePath.endsWith(".java") && !filePath.endsWith(".kt") then
         return Left(s"Unsupported file type; only .java and .kt files are supported")
 
-      // Read file with UTF-8 encoding
-      val lines = Using(Source.fromFile(file, "UTF-8")) { source =>
-        source.getLines().toList
-      }.get
+      // Read file with UTF-8 encoding using os-lib
+      val lines = os.read.lines(p, charSet = java.nio.charset.StandardCharsets.UTF_8).toList
 
       if lines.isEmpty then
         return Left("File is empty")
@@ -102,3 +98,4 @@ object TestContextDetector:
         }
 
     None
+

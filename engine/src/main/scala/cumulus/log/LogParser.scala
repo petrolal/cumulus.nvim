@@ -1,8 +1,7 @@
 package cumulus.log
 
-import scala.io.Source
-import scala.util.Try
 import scala.collection.mutable
+import os.Path
 
 /**
  * Parses Maven/Gradle build logs to extract diagnostics.
@@ -12,11 +11,14 @@ object LogParser:
 
   /**
    * Strip ANSI escape codes from a string.
-   * Removes patterns like [1;31m, [0m, (B, etc.
+   * Removes patterns like \u001b[1;31m, \u001b[0m, \u001b(B, and unescaped brackets.
    */
   def stripAnsiCodes(text: String): String =
-    // Match ANSI escape sequences: [<numbers>;*m and (B
-    text.replaceAll("\\[[0-9;]*m", "").replaceAll("\\(B", "")
+    text
+      .replaceAll("\u001b\\[[0-9;]*[a-zA-Z]", "")
+      .replaceAll("\u001b\\(B", "")
+      .replaceAll("\\[[0-9;]*m", "")
+      .replaceAll("\\(B", "")
 
   /**
    * Parse a build log (Maven or Gradle) and extract diagnostics.
@@ -32,59 +34,75 @@ object LogParser:
     lines.zipWithIndex.foreach { case (line, _) =>
       val cleanLine = stripAnsiCodes(line)
 
-      // Try Maven pattern first: [ERROR] /path/to/File.java:[line] message
-      // or [WARN] /path/to/File.java:[line] message
-      val mavenPattern = """\[(ERROR|WARN|WARNING)\]\s*(.+?):(\d+)\s*(.*)""".r
-      mavenPattern.findFirstMatchIn(cleanLine) match
+      // Try Maven patterns:
+      // 1. [ERROR] /path/to/File.java:[123,45] message or [ERROR] /path/to/File.java:[123] message
+      // 2. [ERROR] /path/to/File.java:123 message
+      val mavenBracketPattern = """\[(ERROR|WARN|WARNING)\]\s*(.+?):\[(\d+)(?:,(\d+))?\]\s*(.*)""".r
+      val mavenSimplePattern = """\[(ERROR|WARN|WARNING)\]\s*(.+?):(\d+)\s*(.*)""".r
+
+      mavenBracketPattern.findFirstMatchIn(cleanLine) match
         case Some(m) =>
           val severity = if m.group(1) == "WARNING" then "WARN" else m.group(1)
           val file = m.group(2).trim
-          val line = m.group(3).toInt
-          val message = m.group(4).trim
+          val lineNum = m.group(3).toInt
+          val col = Option(m.group(4)).map(_.toInt).getOrElse(1)
+          val message = m.group(5).trim
           diagnostics += BuildDiagnostic(
             file = file,
-            line = line,
-            col = 1,
+            line = lineNum,
+            col = col,
             severity = severity,
             message = message
           )
         case None =>
-          // Try Gradle pattern: File.java:line:col: error: message
-          // or File.java:line: error: message (col optional)
-          val gradlePattern = """^(.+?):(\d+):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
-          gradlePattern.findFirstMatchIn(cleanLine) match
+          mavenSimplePattern.findFirstMatchIn(cleanLine) match
             case Some(m) =>
-              val file = m.group(1).trim
-              val line = m.group(2).toInt
-              val col = m.group(3).toInt
+              val severity = if m.group(1) == "WARNING" then "WARN" else m.group(1)
+              val file = m.group(2).trim
+              val lineNum = m.group(3).toInt
               val message = m.group(4).trim
-              // Gradle errors default to ERROR severity; can detect from message if needed
-              val severity = if cleanLine.toLowerCase.contains("error") then "ERROR" else "WARN"
               diagnostics += BuildDiagnostic(
                 file = file,
-                line = line,
-                col = col,
+                line = lineNum,
+                col = 1,
                 severity = severity,
                 message = message
               )
             case None =>
-              // Try Gradle pattern without column: File.java:line: error: message
-              val gradlePatternNoCol = """^(.+?):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
-              gradlePatternNoCol.findFirstMatchIn(cleanLine) match
+              // Try Gradle pattern: File.java:line:col: error: message
+              val gradlePattern = """^(.+?):(\d+):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
+              gradlePattern.findFirstMatchIn(cleanLine) match
                 case Some(m) =>
                   val file = m.group(1).trim
-                  val line = m.group(2).toInt
-                  val message = m.group(3).trim
+                  val lineNum = m.group(2).toInt
+                  val col = m.group(3).toInt
+                  val message = m.group(4).trim
                   val severity = if cleanLine.toLowerCase.contains("error") then "ERROR" else "WARN"
                   diagnostics += BuildDiagnostic(
                     file = file,
-                    line = line,
-                    col = 1,
+                    line = lineNum,
+                    col = col,
                     severity = severity,
                     message = message
                   )
                 case None =>
-                  // No match, skip line
+                  // Try Gradle pattern without column: File.java:line: error: message
+                  val gradlePatternNoCol = """^(.+?):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
+                  gradlePatternNoCol.findFirstMatchIn(cleanLine) match
+                    case Some(m) =>
+                      val file = m.group(1).trim
+                      val lineNum = m.group(2).toInt
+                      val message = m.group(3).trim
+                      val severity = if cleanLine.toLowerCase.contains("error") then "ERROR" else "WARN"
+                      diagnostics += BuildDiagnostic(
+                        file = file,
+                        line = lineNum,
+                        col = 1,
+                        severity = severity,
+                        message = message
+                      )
+                    case None =>
+                      // No match, skip line
     }
 
     diagnostics.toSeq
@@ -105,24 +123,26 @@ object LogParser:
    * @return Sequence of BuildDiagnostic entries, or throws exception if file not found
    */
   def parseFromFile(filePath: String): Seq[BuildDiagnostic] =
-    val file = new java.io.File(filePath)
-    if !file.exists() then
+    val p = Path(filePath, os.pwd)
+    if !os.exists(p) then
       throw new Exception(s"File not found: $filePath")
-    if !file.isFile() then
+    if !os.isFile(p) then
       throw new java.io.IOException(s"Not a file: $filePath")
 
     // Check file size limit (100MB) to prevent OOM
     val MAX_FILE_SIZE = 100 * 1024 * 1024
-    if file.length() > MAX_FILE_SIZE then
-      throw new java.io.IOException(s"File too large: ${file.length()} bytes (max $MAX_FILE_SIZE)")
+    val fileSize = os.size(p)
+    if fileSize > MAX_FILE_SIZE then
+      throw new java.io.IOException(s"File too large: $fileSize bytes (max $MAX_FILE_SIZE)")
 
     val content = try
-      scala.io.Source.fromFile(filePath, "UTF-8").mkString
+      os.read(p, charSet = java.nio.charset.StandardCharsets.UTF_8)
     catch
       case e: java.nio.charset.MalformedInputException =>
         // Fallback to default charset if UTF-8 fails
-        scala.io.Source.fromFile(filePath).mkString
+        os.read(p, charSet = java.nio.charset.Charset.defaultCharset())
       case e: Exception =>
         throw new Exception(s"Error reading file: ${e.getMessage}")
 
     parseLog(content)
+

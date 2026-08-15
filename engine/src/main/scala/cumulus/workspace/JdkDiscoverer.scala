@@ -1,16 +1,16 @@
 package cumulus.workspace
 
-import java.io.File
-import java.nio.file.Files
-import java.nio.file.Paths
+import os.Path
+import scala.collection.mutable
 
 object JdkDiscoverer:
 
   /**
    * Search for JDK installation matching the specified major version.
    * Searches in standard locations:
-   * - /usr/lib/jvm/java-<version>*
-   * - ~/.sdkman/candidates/java/<version>*
+   * - /usr/lib/jvm/
+   * - ~/.sdkman/candidates/java/
+   * - /Library/Java/JavaVirtualMachines/
    * - $JAVA_HOME environment variable
    *
    * @param version The major JDK version to search for (e.g., "21")
@@ -18,40 +18,55 @@ object JdkDiscoverer:
    */
   def discoverJdk(version: String): Either[String, JdkInfo] =
     try
-      // Try standard Unix locations first
-      val candidates = scala.collection.mutable.ListBuffer[String]()
+      val candidates = mutable.ListBuffer[String]()
 
-      // Regex pattern to match version string with word boundaries: java-21, java-21-openjdk, etc.
-      val versionPattern = s"""java-?$version(?:[.-]|$$)""".r
+      // Regex pattern to match JDK versions with vendor prefixes: java-21, jdk-21, temurin-21, zulu-21, graalvm-21, openjdk-21
+      val versionPattern = s"""(?i)(?:java|jdk|graalvm|temurin|zulu|openjdk)-?$version(?:[._-]|\b|$$)""".r
 
       // Check /usr/lib/jvm/
-      val jvmFile = new File("/usr/lib/jvm")
-      if jvmFile.exists() && jvmFile.isDirectory() then
+      val jvmDir = Path("/usr/lib/jvm", os.root)
+      if os.exists(jvmDir) && os.isDir(jvmDir) then
         try
-          for item <- jvmFile.listFiles() if item != null do
-            if item.isDirectory() && versionPattern.findFirstIn(item.getName).isDefined then
-              candidates += item.getAbsolutePath
+          for item <- os.list(jvmDir) do
+            if os.isDir(item) && versionPattern.findFirstIn(item.last).isDefined then
+              candidates += item.toString
         catch
-          case _: Exception => // Ignore if we can't read the directory
+          case _: Exception => ()
 
       // Check ~/.sdkman/candidates/java/
-      val home = System.getProperty("user.home")
-      val sdkmanPath = new File(s"$home/.sdkman/candidates/java")
-      if sdkmanPath.exists() && sdkmanPath.isDirectory() then
+      val home = Path(System.getProperty("user.home"), os.root)
+      val sdkmanDir = home / ".sdkman" / "candidates" / "java"
+      if os.exists(sdkmanDir) && os.isDir(sdkmanDir) then
         try
-          for item <- sdkmanPath.listFiles() if item != null do
-            if item.isDirectory() && versionPattern.findFirstIn(item.getName).isDefined then
-              candidates += item.getAbsolutePath
+          for item <- os.list(sdkmanDir) do
+            if os.isDir(item) && versionPattern.findFirstIn(item.last).isDefined then
+              candidates += item.toString
         catch
-          case _: Exception => // Ignore if we can't read the directory
+          case _: Exception => ()
+
+      // Check /Library/Java/JavaVirtualMachines/ (macOS)
+      val macJvmDir = Path("/Library/Java/JavaVirtualMachines", os.root)
+      if os.exists(macJvmDir) && os.isDir(macJvmDir) then
+        try
+          for item <- os.list(macJvmDir) do
+            if os.isDir(item) && versionPattern.findFirstIn(item.last).isDefined then
+              val homePath = item / "Contents" / "Home"
+              if os.exists(homePath) && os.isDir(homePath) then
+                candidates += homePath.toString
+              else
+                candidates += item.toString
+        catch
+          case _: Exception => ()
 
       // Check $JAVA_HOME environment variable
       Option(System.getenv("JAVA_HOME")).foreach { javaHome =>
-        val javaFile = new File(javaHome)
-        if javaFile.exists() && javaFile.isDirectory() then
-          // Extract version from path or environment
-          if versionPattern.findFirstIn(javaFile.getAbsolutePath).isDefined then
-            candidates += javaFile.getAbsolutePath
+        try
+          val javaPath = Path(javaHome, os.pwd)
+          if os.exists(javaPath) && os.isDir(javaPath) then
+            if versionPattern.findFirstIn(javaPath.last).isDefined || versionPattern.findFirstIn(javaPath.toString).isDefined then
+              candidates += javaPath.toString
+        catch
+          case _: Exception => ()
       }
 
       if candidates.isEmpty then
@@ -61,7 +76,7 @@ object JdkDiscoverer:
       val sortedCandidates = candidates.sorted
       val selectedPath = sortedCandidates.head
 
-      // Extract version string from path or use generic pattern
+      // Extract version string from path
       val versionString = extractVersionString(selectedPath, version)
 
       Right(JdkInfo(
@@ -74,21 +89,20 @@ object JdkDiscoverer:
 
   /**
    * Extract version string from JDK path.
-   * Falls back to provided version with common patch suffixes.
    *
    * @param path The path to the JDK installation
    * @param version The major version requested
-   * @return A version string (e.g., "21.0.3" or "21")
+   * @return A version string (e.g., "21.0.3" or "21.0.0")
    */
   private def extractVersionString(path: String, version: String): String =
     try
-      // Try to read version from the path (e.g., java-21-openjdk, openjdk-21.0.3)
       val pathLower = path.toLowerCase
-
-      // Pattern: java-21-openjdk-something or similar
-      val pattern = s"""java-?$version[._]?([0-9.]+)?""".r
+      val pattern = s"""(?:java|jdk|graalvm|temurin|zulu|openjdk)-?$version[._]?([0-9.]+)?""".r
       pattern.findFirstMatchIn(pathLower) match
-        case Some(m) if m.group(1) != null => s"$version.${m.group(1)}"
+        case Some(m) if m.group(1) != null && m.group(1).nonEmpty =>
+          val rest = m.group(1).stripPrefix(".").stripPrefix("-")
+          if rest.nonEmpty then s"$version.$rest" else s"$version.0.0"
         case _ => s"$version.0.0"
     catch
       case _: Exception => s"$version.0.0"
+

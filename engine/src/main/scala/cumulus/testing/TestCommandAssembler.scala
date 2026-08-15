@@ -1,6 +1,6 @@
 package cumulus.testing
 
-import java.io.File
+import os.Path
 
 object TestCommandAssembler:
 
@@ -20,17 +20,17 @@ object TestCommandAssembler:
     dirPath: String
   ): Either[String, TestCommand] =
     try
-      val dir = new File(dirPath)
-      if !dir.exists() || !dir.isDirectory() then
+      val dir = Path(dirPath, os.pwd)
+      if !os.exists(dir) || !os.isDir(dir) then
         return Left(s"Directory not found or not a directory: $dirPath")
 
       val projectRoot = findProjectRoot(dir)
-      val projectRootPath = projectRoot.getAbsolutePath()
+      val projectRootPath = projectRoot.toString
 
       val command = tool.toLowerCase() match
         case "maven" =>
           val executable = if hasWrapper(projectRoot, "mvnw") then "./mvnw" else "mvn"
-          val modulePath = detectMavenModule(dirPath, projectRootPath)
+          val modulePath = detectMavenModule(dir, projectRoot)
           if modulePath.nonEmpty && modulePath != "." then
             s"$executable -pl :$modulePath test -Dtest=$className#$methodName"
           else
@@ -38,7 +38,7 @@ object TestCommandAssembler:
 
         case "gradle" =>
           val executable = if hasWrapper(projectRoot, "gradlew") then "./gradlew" else "gradle"
-          val modulePath = detectGradleModule(dirPath, projectRootPath)
+          val modulePath = detectGradleModule(dir, projectRoot)
           if modulePath.nonEmpty && modulePath != "." then
             s"$executable :$modulePath:test --tests $className.$methodName"
           else
@@ -60,58 +60,49 @@ object TestCommandAssembler:
         Left(s"Error assembling test command: ${e.getMessage}")
 
   /**
-   * Find the project root by walking up the directory tree looking for build files.
+   * Find the project root by walking up the directory tree looking for root build files.
    */
-  private def findProjectRoot(startDir: File): File =
-    var current = startDir
-    while current != null do
-      if hasBuildFile(current) then
-        return current
-      current = current.getParentFile()
+  private def findProjectRoot(startDir: Path): Path =
+    var current: Option[Path] = Some(startDir)
+    var rootCandidate = startDir
 
-    startDir // Fallback to starting directory
+    while current.isDefined do
+      val p = current.get
+      if os.exists(p / "pom.xml") || os.exists(p / "settings.gradle") || os.exists(p / "settings.gradle.kts") || os.exists(p / "build.sbt") then
+        rootCandidate = p
+      current = if p == os.root then None else Some(p / os.up)
 
-  /**
-   * Check if a directory contains Maven or Gradle build files.
-   */
-  private def hasBuildFile(dir: File): Boolean =
-    val pomFile = new File(dir, "pom.xml")
-    val settingsFile = new File(dir, "settings.gradle")
-    val buildFile = new File(dir, "build.gradle")
-    pomFile.exists() || settingsFile.exists() || buildFile.exists()
+    // If rootCandidate is still startDir, check if build.gradle exists
+    if rootCandidate == startDir && os.exists(startDir / "build.gradle") then
+      startDir
+    else
+      rootCandidate
 
   /**
    * Check if a wrapper executable exists in the directory.
    */
-  private def hasWrapper(dir: File, wrapperName: String): Boolean =
-    val wrapper = new File(dir, wrapperName)
-    wrapper.exists() && wrapper.isFile()
+  private def hasWrapper(dir: Path, wrapperName: String): Boolean =
+    val wrapper = dir / wrapperName
+    os.exists(wrapper) && os.isFile(wrapper)
 
   /**
    * Detect which Maven module contains the given directory path.
    * Returns the module name or "." for single-module projects.
    */
-  private def detectMavenModule(dirPath: String, projectRoot: String): String =
-    val dir = new File(dirPath)
-    val normalizedDirPath = dir.getAbsolutePath()
-    val normalizedProjectRoot = new File(projectRoot).getAbsolutePath()
-
-    if normalizedDirPath == normalizedProjectRoot then
+  private def detectMavenModule(dir: Path, projectRoot: Path): String =
+    if dir == projectRoot then
       return "."
 
-    // Check if there's a pom.xml in the given directory or its parents
-    var current = Option(dir)
-    while current.isDefined && current.get.getAbsolutePath().startsWith(normalizedProjectRoot) do
-      val pomFile = new File(current.get, "pom.xml")
-      if pomFile.exists() then
-        // Extract module name from relative path
-        val relativePath = current.get.getAbsolutePath().substring(normalizedProjectRoot.length)
-        val cleanPath = if relativePath.startsWith("/") then relativePath.substring(1) else relativePath
-        if cleanPath.nonEmpty then
-          return cleanPath.replace("\\", "/")
-        else
+    var current: Option[Path] = Some(dir)
+    while current.isDefined && current.get.startsWith(projectRoot) do
+      val pomFile = current.get / "pom.xml"
+      if os.exists(pomFile) && os.isFile(pomFile) then
+        if current.get == projectRoot then
           return "."
-      current = Option(current.get.getParentFile())
+        else
+          val rel = current.get.relativeTo(projectRoot).toString
+          return rel.replace('\\', '/').stripPrefix("/")
+      current = if current.get == projectRoot || current.get == os.root then None else Some(current.get / os.up)
 
     "."
 
@@ -119,19 +110,25 @@ object TestCommandAssembler:
    * Detect which Gradle module contains the given directory path.
    * Returns the module name or "." for single-module projects.
    */
-  private def detectGradleModule(dirPath: String, projectRoot: String): String =
-    val dir = new File(dirPath)
-    val normalizedDirPath = dir.getAbsolutePath()
-    val normalizedProjectRoot = new File(projectRoot).getAbsolutePath()
-
-    if normalizedDirPath == normalizedProjectRoot then
+  private def detectGradleModule(dir: Path, projectRoot: Path): String =
+    if dir == projectRoot then
       return "."
 
-    // Extract relative path and convert to Gradle module notation
-    val relativePath = normalizedDirPath.substring(normalizedProjectRoot.length)
-    val cleanPath = if relativePath.startsWith("/") then relativePath.substring(1) else relativePath
-    if cleanPath.nonEmpty then
-      val modulePath = cleanPath.replace("\\", "/").replace("/", ":")
-      if modulePath.isEmpty then "." else modulePath
-    else
+    // Walk up looking for a build.gradle or build.gradle.kts until projectRoot
+    var current: Option[Path] = Some(dir)
+    var submodulePath: Option[Path] = None
+
+    while current.isDefined && current.get.startsWith(projectRoot) do
+      val p = current.get
+      if p != projectRoot && (os.exists(p / "build.gradle") || os.exists(p / "build.gradle.kts") || os.exists(p / "pom.xml")) then
+        submodulePath = Some(p)
+      current = if p == projectRoot || p == os.root then None else Some(p / os.up)
+
+    val targetDir = submodulePath.getOrElse(dir)
+    if targetDir == projectRoot then
       "."
+    else
+      val rel = targetDir.relativeTo(projectRoot).toString.replace('\\', '/').stripPrefix("/")
+      val moduleNotation = rel.replace('/', ':')
+      if moduleNotation.isEmpty then "." else moduleNotation
+

@@ -1,16 +1,15 @@
 package cumulus.code
 
-import scala.io.Source
-import java.io.File
-import scala.util.Using
+import os.Path
+import scala.collection.mutable
 import scala.xml.XML
 
 object SpringBootDetector:
 
   // Compiled regex patterns
   private lazy val springBootAppPattern = """@SpringBootApplication\b""".r
-  private lazy val packagePattern = """^\s*package\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s*;""".r
-  private lazy val classPattern = """^\s*(?:public\s+)?class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*""".r
+  private lazy val packagePattern = """^\s*package\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s*;?""".r
+  private lazy val classPattern = """(?:public|protected|private|final|open|abstract|\s)*\bclass\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*""".r
   private lazy val profilesActivePropertiesPattern = """spring\.profiles\.active\s*=\s*([^\n#]+)""".r
   private lazy val profilesActiveYamlPattern = """active\s*:\s*([^\n#]+)""".r
   private lazy val jvmArgsPattern = """jvmArgs\s*=\s*\[([^\]]+)\]""".r
@@ -23,8 +22,8 @@ object SpringBootDetector:
    * @return SpringBootApp with detected metadata, or error details
    */
   def detectSpringBootApp(dirPath: String): SpringBootApp =
-    val dir = new File(dirPath)
-    if !dir.exists() || !dir.isDirectory() then
+    val dir = Path(dirPath, os.pwd)
+    if !os.exists(dir) || !os.isDir(dir) then
       throw new Exception(s"Directory not found: $dirPath")
 
     // Search for @SpringBootApplication
@@ -33,21 +32,26 @@ object SpringBootDetector:
       case None => throw new Exception("No Spring Boot application found")
 
     // Detect build tool and extract metadata
-    val pomFile = new File(dir, "pom.xml")
-    val buildGradleFile = new File(dir, "build.gradle")
+    val pomFile = dir / "pom.xml"
+    val buildGradleFile = dir / "build.gradle"
+    val buildGradleKtsFile = dir / "build.gradle.kts"
 
-    val (buildTool, projectName) = if pomFile.exists() then
-      ("maven", extractProjectNameFromPom(pomFile.getAbsolutePath()))
-    else if buildGradleFile.exists() then
-      ("gradle", extractProjectNameFromGradle(buildGradleFile.getAbsolutePath()))
+    val (buildTool, projectName) = if os.exists(pomFile) then
+      ("maven", extractProjectNameFromPom(pomFile.toString))
+    else if os.exists(buildGradleFile) then
+      ("gradle", extractProjectNameFromGradle(buildGradleFile.toString))
+    else if os.exists(buildGradleKtsFile) then
+      ("gradle", extractProjectNameFromGradle(buildGradleKtsFile.toString))
     else
-      (null, dir.getName)
+      (null, dir.last)
 
     // Extract JVM debug args
-    val jvmDebugArgs = if pomFile.exists() then
-      extractJvmDebugArgsFromPom(pomFile.getAbsolutePath())
-    else if buildGradleFile.exists() then
-      extractJvmDebugArgsFromGradle(buildGradleFile.getAbsolutePath())
+    val jvmDebugArgs = if os.exists(pomFile) then
+      extractJvmDebugArgsFromPom(pomFile.toString)
+    else if os.exists(buildGradleFile) then
+      extractJvmDebugArgsFromGradle(buildGradleFile.toString)
+    else if os.exists(buildGradleKtsFile) then
+      extractJvmDebugArgsFromGradle(buildGradleKtsFile.toString)
     else
       None
 
@@ -65,43 +69,26 @@ object SpringBootDetector:
   /**
    * Recursively search for @SpringBootApplication in src/main/java and src/main/kotlin
    */
-  private def findSpringBootApp(dir: File): Option[(String, String)] =
-    val srcMainJava = new File(dir, "src/main/java")
-    val srcMainKotlin = new File(dir, "src/main/kotlin")
-
-    val result = if srcMainJava.exists() then
-      searchForSpringBootApp(srcMainJava)
-    else if srcMainKotlin.exists() then
-      searchForSpringBootApp(srcMainKotlin)
-    else
-      None
-
-    result
+  private def findSpringBootApp(dir: Path): Option[(String, String)] =
+    val candidateDirs = Seq(dir / "src" / "main" / "java", dir / "src" / "main" / "kotlin")
+    for d <- candidateDirs if os.exists(d) && os.isDir(d) do
+      val found = searchForSpringBootApp(d)
+      if found.isDefined then
+        return found
+    None
 
   /**
    * Recursively search for @SpringBootApplication in a directory
    * Returns (fully-qualified class name, file path)
    */
-  private def searchForSpringBootApp(dir: File): Option[(String, String)] =
-    if !dir.isDirectory() then
-      return None
+  private def searchForSpringBootApp(dir: Path): Option[(String, String)] =
+    if !os.isDir(dir) then return None
 
-    val files = dir.listFiles()
-    if files == null then
-      return None
-
+    val files = os.walk(dir).filter(f => os.isFile(f) && (f.last.endsWith(".java") || f.last.endsWith(".kt")))
     for file <- files do
-      if file.isDirectory() then
-        val result = searchForSpringBootApp(file)
-        if result.isDefined then
-          return result
-      else if file.getName.endsWith(".java") || file.getName.endsWith(".kt") then
-        try
-          val (pkg, className, hasSpringBootApp) = parseSourceFile(file.getAbsolutePath())
-          if hasSpringBootApp && pkg.nonEmpty && className.nonEmpty then
-            return Some((s"$pkg.$className", file.getAbsolutePath()))
-        catch
-          case _: Exception => // Skip files that can't be parsed
+      val (pkg, className, hasSpringBootApp) = parseSourceFile(file.toString)
+      if hasSpringBootApp && pkg.nonEmpty && className.nonEmpty then
+        return Some((s"$pkg.$className", file.toString))
 
     None
 
@@ -111,10 +98,8 @@ object SpringBootDetector:
    */
   private def parseSourceFile(filePath: String): (String, String, Boolean) =
     try
-      val file = new File(filePath)
-      val lines = Using(Source.fromFile(file, "UTF-8")) { source =>
-        source.getLines().toList
-      }.get
+      val p = Path(filePath, os.pwd)
+      val lines = os.read.lines(p, charSet = java.nio.charset.StandardCharsets.UTF_8).toList
 
       var pkg = ""
       var className = ""
@@ -147,36 +132,33 @@ object SpringBootDetector:
    */
   private def extractProjectNameFromPom(pomPath: String): String =
     try
-      val pom = XML.loadFile(new File(pomPath))
+      val p = Path(pomPath, os.pwd)
+      val pom = XML.loadString(os.read(p))
       // Try <name> element first
       val nameNodes = pom \\ "name"
-      if nameNodes.nonEmpty then
+      if nameNodes.nonEmpty && nameNodes.head.text.trim.nonEmpty then
         return nameNodes.head.text.trim
 
       // Fall back to artifactId
       val artifactNodes = pom \\ "artifactId"
-      if artifactNodes.nonEmpty then
+      if artifactNodes.nonEmpty && artifactNodes.head.text.trim.nonEmpty then
         return artifactNodes.head.text.trim
 
       // Fall back to directory name
-      new File(pomPath).getParent match
-        case p if p != null => new File(p).getName
-        case _ => "unknown"
+      val parent = p / os.up
+      parent.last
     catch
       case _: Exception =>
-        new File(pomPath).getParent match
-          case p if p != null => new File(p).getName
-          case _ => "unknown"
+        val p = Path(pomPath, os.pwd)
+        (p / os.up).last
 
   /**
    * Extract project name from build.gradle
    */
   private def extractProjectNameFromGradle(buildGradlePath: String): String =
     try
-      val file = new File(buildGradlePath)
-      val content = Using(Source.fromFile(file, "UTF-8")) { source =>
-        source.mkString
-      }.get
+      val p = Path(buildGradlePath, os.pwd)
+      val content = os.read(p)
 
       // Try to find rootProject.name
       val rootProjectPattern = """rootProject\.name\s*=\s*['"]([^'"]+)['"]""".r
@@ -185,21 +167,19 @@ object SpringBootDetector:
         case None => ()
 
       // Fall back to directory name
-      new File(buildGradlePath).getParent match
-        case p if p != null => new File(p).getName
-        case _ => "unknown"
+      (p / os.up).last
     catch
       case _: Exception =>
-        new File(buildGradlePath).getParent match
-          case p if p != null => new File(p).getName
-          case _ => "unknown"
+        val p = Path(buildGradlePath, os.pwd)
+        (p / os.up).last
 
   /**
    * Extract JVM debug arguments from pom.xml (maven-surefire or maven-failsafe)
    */
   private def extractJvmDebugArgsFromPom(pomPath: String): Option[String] =
     try
-      val pom = XML.loadFile(new File(pomPath))
+      val p = Path(pomPath, os.pwd)
+      val pom = XML.loadString(os.read(p))
 
       // Look for maven-surefire-plugin or maven-failsafe-plugin
       val plugins = pom \\ "plugin"
@@ -220,10 +200,8 @@ object SpringBootDetector:
    */
   private def extractJvmDebugArgsFromGradle(buildGradlePath: String): Option[String] =
     try
-      val file = new File(buildGradlePath)
-      val content = Using(Source.fromFile(file, "UTF-8")) { source =>
-        source.mkString
-      }.get
+      val p = Path(buildGradlePath, os.pwd)
+      val content = os.read(p)
 
       // Look for test { jvmArgs = [...] }
       jvmArgsPattern.findFirstMatchIn(content) match
@@ -238,24 +216,25 @@ object SpringBootDetector:
   /**
    * Detect active profiles from application.yml and application.properties
    */
-  private def detectActiveProfiles(dir: File): Seq[String] =
-    val profiles = scala.collection.mutable.Set[String]()
+  private def detectActiveProfiles(dir: Path): Seq[String] =
+    val profiles = mutable.Set[String]()
 
-    // Check application.yml
-    val appYml = new File(dir, "application.yml")
-    if appYml.exists() then
-      profiles ++= parseProfilesFromFile(appYml.getAbsolutePath())
+    // Check config directories (root and src/main/resources)
+    val configDirs = Seq(dir, dir / "src" / "main" / "resources").filter(os.exists)
 
-    // Check application.properties
-    val appProps = new File(dir, "application.properties")
-    if appProps.exists() then
-      profiles ++= parseProfilesFromFile(appProps.getAbsolutePath())
+    for cDir <- configDirs if os.isDir(cDir) do
+      val appYml = cDir / "application.yml"
+      if os.exists(appYml) && os.isFile(appYml) then
+        profiles ++= parseProfilesFromFile(appYml.toString)
 
-    // Scan for application-{profile}.yml/properties files in root directory
-    val allFiles = dir.listFiles()
-    if allFiles != null then
-      for file <- allFiles if file.isFile && file.getName.startsWith("application-") do
-        val name = file.getName
+      val appProps = cDir / "application.properties"
+      if os.exists(appProps) && os.isFile(appProps) then
+        profiles ++= parseProfilesFromFile(appProps.toString)
+
+      // Scan for application-{profile}.yml/properties files in config directory
+      val allFiles = os.list(cDir).filter(f => os.isFile(f) && f.last.startsWith("application-"))
+      for file <- allFiles do
+        val name = file.last
         if name.endsWith(".yml") || name.endsWith(".yaml") || name.endsWith(".properties") then
           val profile = name
             .replaceAll("^application-", "")
@@ -270,12 +249,10 @@ object SpringBootDetector:
    */
   private def parseProfilesFromFile(filePath: String): Seq[String] =
     try
-      val file = new File(filePath)
-      val lines = Using(Source.fromFile(file, "UTF-8")) { source =>
-        source.getLines().toList
-      }.get
+      val p = Path(filePath, os.pwd)
+      val lines = os.read.lines(p, charSet = java.nio.charset.StandardCharsets.UTF_8).toList
 
-      val result = scala.collection.mutable.ListBuffer[String]()
+      val result = mutable.ListBuffer[String]()
       for line <- lines do
         if line != null then
           // Match properties format: spring.profiles.active=...

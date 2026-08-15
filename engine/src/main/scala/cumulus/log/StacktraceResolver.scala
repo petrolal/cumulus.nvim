@@ -1,10 +1,7 @@
 package cumulus.log
 
-import scala.io.Source
-import scala.util.Try
 import scala.collection.mutable
-import java.io.File
-import java.nio.file.{Files, Paths}
+import os.Path
 
 /**
  * Resolves stacktrace frames to actual workspace file paths.
@@ -58,8 +55,8 @@ object StacktraceResolver:
    */
   def resolveStackFrame(frame: StackFrame, workspaceDir: String): Either[String, String] =
     try
-      val baseDir = new File(workspaceDir)
-      if !baseDir.exists() || !baseDir.isDirectory() then
+      val baseDir = Path(workspaceDir, os.pwd)
+      if !os.exists(baseDir) || !os.isDir(baseDir) then
         return Left(s"Workspace directory not found: $workspaceDir")
 
       // Standard source directories to search, ordered by preference
@@ -70,27 +67,25 @@ object StacktraceResolver:
         "src/test/kotlin"
       )
 
-      // Extract the class name and convert to file path
-      // For inner classes (Outer$Inner), we need to strip the inner class part
-      val className = frame.className.replace(".", File.separator)
-      val classNameNoInner = className.split("\\$")(0) // Strip $Inner if present
+      // Extract the class name and convert to relative path segments
+      // For inner classes (Outer$Inner), strip the inner class part
+      val classNameNoInner = frame.className.split("\\$")(0)
+      val classRelPath = classNameNoInner.replace('.', '/')
 
-      // Collect all matching paths (to detect ambiguous matches)
+      // Collect all matching paths (to detect matches)
       val matchedPaths = mutable.Buffer[String]()
 
       // Search for the file in all source directories by class path
       for (sourceDir <- sourceDirs) {
-        val sourcePath = new File(baseDir, sourceDir)
-        if sourcePath.exists() && sourcePath.isDirectory() then
-          // Try to find the file
-          val possiblePath = new File(sourcePath, classNameNoInner + ".java")
-          if possiblePath.exists() then
-            matchedPaths += possiblePath.getAbsolutePath()
+        val sourcePath = baseDir / os.RelPath(sourceDir)
+        if os.exists(sourcePath) && os.isDir(sourcePath) then
+          val possibleJava = sourcePath / os.RelPath(classRelPath + ".java")
+          if os.exists(possibleJava) && os.isFile(possibleJava) then
+            matchedPaths += possibleJava.toString
 
-          // Also try .kt extension
-          val possibleKtPath = new File(sourcePath, classNameNoInner + ".kt")
-          if possibleKtPath.exists() then
-            matchedPaths += possibleKtPath.getAbsolutePath()
+          val possibleKt = sourcePath / os.RelPath(classRelPath + ".kt")
+          if os.exists(possibleKt) && os.isFile(possibleKt) then
+            matchedPaths += possibleKt.toString
       }
 
       // If found by class path, prefer src/main over src/test
@@ -98,25 +93,20 @@ object StacktraceResolver:
         val mainPath = matchedPaths.find(_.contains("src/main"))
         return Right(mainPath.getOrElse(matchedPaths(0)))
 
-      // If not found by class path, try a simple file search
+      // If not found by class path, try searching by simple file name
       val fileName = frame.file // e.g., "Service.java"
       val fileMatches = mutable.Buffer[String]()
       for (sourceDir <- sourceDirs) {
-        val sourcePath = new File(baseDir, sourceDir)
-        if sourcePath.exists() && sourcePath.isDirectory() then
-          val possiblePath = new File(sourcePath, fileName)
-          if possiblePath.exists() then
-            fileMatches += possiblePath.getAbsolutePath()
+        val sourcePath = baseDir / os.RelPath(sourceDir)
+        if os.exists(sourcePath) && os.isDir(sourcePath) then
+          val found = os.walk(sourcePath).filter(p => os.isFile(p) && p.last == fileName)
+          fileMatches ++= found.map(_.toString)
       }
 
       if fileMatches.nonEmpty then
         // Prefer src/main over src/test when multiple matches
         val mainPath = fileMatches.find(_.contains("src/main"))
-        return Right(mainPath.getOrElse(fileMatches(0)))
-
-      // Check if multiple ambiguous matches were found
-      if matchedPaths.length > 1 || fileMatches.length > 1 then
-        Left(s"Ambiguous file matches for ${frame.file}: ${(matchedPaths ++ fileMatches).mkString(", ")}")
+        Right(mainPath.getOrElse(fileMatches(0)))
       else
         Left(s"File not found: ${frame.file}")
     catch
@@ -159,3 +149,4 @@ object StacktraceResolver:
     catch
       case e: Exception =>
         Left(s"Error parsing stacktrace: ${e.getMessage}")
+

@@ -128,13 +128,38 @@ class MainTest extends FunSuite:
       given rw: upickle.default.ReadWriter[cumulus.build.ParsePomResponse] = upickle.default.macroRW
 
       // Verify that the response can be serialized
-      val json = ujson.write(CumulusResponse.toJson(result))
+      val jsonVal = CumulusResponse.toJson(result)
+      val json = ujson.write(jsonVal)
       assert(json.contains("\"success\":true"))
       assert(json.contains("\"data\""))
       assert(json.contains("\"goals\""))
+
+      // Test round-trip through fromJson
+      val restored = CumulusResponse.fromJson[cumulus.build.ParsePomResponse](jsonVal)
+      assert(restored.success)
+      assert(restored.data.isDefined)
+      assert(restored.data.get.goals.nonEmpty)
+      assert(restored.error.isEmpty)
+      assert(restored.error_code.isEmpty)
     finally
       Files.delete(Paths.get(pomPath))
   }
+
+  test("CLI: fromJson handles null, missing fields, and error codes gracefully") {
+    val errJson = ujson.Obj(
+      "success" -> ujson.Bool(false),
+      "data" -> ujson.Null,
+      "error" -> ujson.Str("File not found"),
+      "error_code" -> ujson.Str("FILE_NOT_FOUND")
+    )
+    val restoredErr = CumulusResponse.fromJson[String](errJson)
+    assert(!restoredErr.success)
+    assert(restoredErr.data.isEmpty)
+    assert(restoredErr.error.contains("File not found"))
+    assert(restoredErr.error_code.contains("FILE_NOT_FOUND"))
+  }
+
+
 
   test("CLI: parse-gradle-tasks with valid gradle output returns success response") {
     val gradleOutput = """
@@ -285,3 +310,54 @@ class MainTest extends FunSuite:
     assert(result.isLeft)
     assert(result.left.get.contains("Workspace directory not found"))
   }
+
+  test("CLI: detect-test-context missing arguments return error envelope") {
+    val argMap = Main.parseArgs(Array("--line", "10"))
+    assert(argMap.get("file").isEmpty)
+    assert(argMap.get("line").contains("10"))
+  }
+
+  test("CLI: assemble-test-command argument parsing") {
+    val argMap = Main.parseArgs(Array("--tool", "maven", "--class", "FooTest", "--method", "testBar", "--dir", "."))
+    assert(argMap.get("tool").contains("maven"))
+    assert(argMap.get("class").contains("FooTest"))
+    assert(argMap.get("method").contains("testBar"))
+    assert(argMap.get("dir").contains("."))
+  }
+
+  test("CLI: computeBuildOrderForDirectory on missing dir returns FILE_NOT_FOUND") {
+    val result = Main.computeBuildOrderForDirectory("/nonexistent/dir/path")
+    assert(!result.success)
+    assert(result.error_code.contains("FILE_NOT_FOUND"))
+  }
+
+  test("CLI: discoverJdk on non-existent version returns Left") {
+    val result = cumulus.workspace.JdkDiscoverer.discoverJdk("99")
+    assert(result.isLeft)
+    assert(result.left.exists(_.contains("not found")))
+  }
+
+  test("CLI: detectBuildTool on missing dir returns Left") {
+    val result = cumulus.workspace.BuildToolDetector.detectBuildTool("/nonexistent/dir/path")
+    assert(result.isLeft)
+  }
+
+  test("CLI: discoverWorkspace on missing dir returns Left") {
+    val result = cumulus.workspace.WorkspaceScanner.discoverWorkspace("/nonexistent/dir/path")
+    assert(result.isLeft)
+  }
+
+  test("LogParser: parses Maven compiler output with bracketed line numbers") {
+    val logContent = "[ERROR] /workspace/src/main/java/com/example/App.java:[42,15] cannot find symbol\n[WARN] /workspace/src/main/java/com/example/Util.java:[100] unchecked warning"
+    val diagnostics = cumulus.log.LogParser.parseLog(logContent)
+    assert(diagnostics.length == 2)
+    assert(diagnostics(0).line == 42)
+    assert(diagnostics(0).col == 15)
+    assert(diagnostics(0).severity == "ERROR")
+    assert(diagnostics(1).file == "/workspace/src/main/java/com/example/Util.java")
+    assert(diagnostics(1).line == 100)
+    assert(diagnostics(1).severity == "WARN")
+  }
+
+
+

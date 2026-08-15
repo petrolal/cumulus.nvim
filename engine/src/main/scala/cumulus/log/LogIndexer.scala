@@ -1,9 +1,7 @@
 package cumulus.log
 
-import scala.io.Source
-import scala.util.Try
 import scala.collection.mutable
-import java.io.File
+import os.Path
 
 /**
  * Indexes large log files for severity-level lines.
@@ -64,36 +62,36 @@ object LogIndexer:
    * @return Sequence of LogIndexEntry, or throws exception if file not found
    */
   def indexLogFile(filePath: String): Seq[LogIndexEntry] =
-    val file = new File(filePath)
-    if !file.exists() then
+    val p = Path(filePath, os.pwd)
+    if !os.exists(p) then
       throw new Exception(s"File not found: $filePath")
+    if !os.isFile(p) then
+      throw new java.io.IOException(s"Not a file: $filePath")
 
     // Check file size limit (100MB) to prevent OOM
     val MAX_FILE_SIZE = 100 * 1024 * 1024
-    if file.length() > MAX_FILE_SIZE then
-      throw new java.io.IOException(s"File too large: ${file.length()} bytes (max $MAX_FILE_SIZE)")
+    val fileSize = os.size(p)
+    if fileSize > MAX_FILE_SIZE then
+      throw new java.io.IOException(s"File too large: $fileSize bytes (max $MAX_FILE_SIZE)")
 
     val entries = mutable.Buffer[LogIndexEntry]()
-    val source = Source.fromFile(filePath, "UTF-8")
+    val lines = os.read.lines(p, charSet = java.nio.charset.StandardCharsets.UTF_8)
 
-    try
-      var lineNumber = 0
-      for (line <- source.getLines()) {
-        lineNumber += 1
-        extractSeverity(line) match
-          case Some(severity) =>
-            val timestamp = extractTimestamp(line)
-            entries += LogIndexEntry(
-              lineNumber = lineNumber,
-              severity = severity.toUpperCase,
-              timestamp = timestamp,
-              message = line
-            )
-          case None =>
-            // Not a matching severity line, skip
-      }
-    finally
-      source.close()
+    var lineNumber = 0
+    for (line <- lines) {
+      lineNumber += 1
+      extractSeverity(line) match
+        case Some(severity) =>
+          val timestamp = extractTimestamp(line)
+          entries += LogIndexEntry(
+            lineNumber = lineNumber,
+            severity = severity.toUpperCase,
+            timestamp = timestamp,
+            message = line
+          )
+        case None =>
+          // Not a matching severity line, skip
+    }
 
     entries.toSeq
 
@@ -123,3 +121,4 @@ object LogIndexer:
     }
 
     entries.toSeq
+

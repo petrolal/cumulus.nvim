@@ -262,19 +262,56 @@ public class MyClass {
       os.remove.all(Path(dir))
   }
 
-  test("JavaHeaderGenerator: File not found throws exception") {
-    val exception = intercept[Exception] {
-      JavaHeaderGenerator.generateHeader("/nonexistent/path/File.java")
-    }
-    assert(exception.getMessage.contains("File not found"))
+  test("JavaHeaderGenerator: Generates correct class declaration for non-existent/new files") {
+    val header = JavaHeaderGenerator.generateHeader("/workspace/src/main/java/com/example/NewService.java")
+    assert(header.package_name == "com.example")
+    assert(header.class_name == "NewService")
+    assert(header.class_declaration == "public class NewService { }")
   }
 
-  test("JavaHeaderGenerator: Generates correct class declaration") {
+  test("EndpointScanner: JAX-RS @Path and HTTP annotations") {
     val dir = createTempDir()
     try
-      val filePath = createNestedFile(dir, "src/main/java/com/example/Service.java", "")
-      val header = JavaHeaderGenerator.generateHeader(filePath)
-      assert(header.class_declaration == "public class Service { }")
+      val jaxrsContent = """package com.example.api;
+import javax.ws.rs.*;
+
+@Path("/users")
+public class UserResource {
+  @GET
+  @Path("/{id}")
+  public User getUser() { return null; }
+
+  @POST
+  public void createUser() { }
+}"""
+      createNestedFile(dir, "src/main/java/com/example/api/UserResource.java", jaxrsContent)
+      val endpoints = EndpointScanner.scanEndpoints(dir)
+      assert(endpoints.length == 2)
+      assert(endpoints.exists(e => e.http_method == "GET" && e.path == "/users/{id}" && e.handler_name == "getUser"))
+      assert(endpoints.exists(e => e.http_method == "POST" && e.path == "/users" && e.handler_name == "createUser"))
     finally
       os.remove.all(Path(dir))
   }
+
+  test("EndpointScanner: Kotlin Spring @RestController and fun handler") {
+    val dir = createTempDir()
+    try
+      val ktContent = """package com.example.demo
+import org.springframework.web.bind.annotation.*
+
+@RestController
+@RequestMapping("/api/v1")
+class HelloController {
+  @GetMapping("/hello")
+  fun sayHello(): String = "Hello"
+}"""
+      createNestedFile(dir, "src/main/kotlin/com/example/demo/HelloController.kt", ktContent)
+      val endpoints = EndpointScanner.scanEndpoints(dir)
+      assert(endpoints.length == 1)
+      assert(endpoints.head.http_method == "GET")
+      assert(endpoints.head.path == "/api/v1/hello")
+      assert(endpoints.head.handler_name == "sayHello")
+    finally
+      os.remove.all(Path(dir))
+  }
+

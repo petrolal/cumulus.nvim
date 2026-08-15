@@ -60,8 +60,8 @@ object Main:
    */
   def computeBuildOrderForDirectory(dirPath: String): CumulusResponse[ComputeBuildOrderResponse] =
     try
-      val dir = new File(dirPath)
-      if !dir.exists() || !dir.isDirectory() then
+      val p = os.Path(dirPath, os.pwd)
+      if !os.exists(p) || !os.isDir(p) then
         return CumulusResponse(
           success = false,
           data = None,
@@ -69,14 +69,16 @@ object Main:
           error_code = Some("FILE_NOT_FOUND")
         )
 
-      val pomFile = new File(dir, "pom.xml")
-      val settingsFile = new File(dir, "settings.gradle")
-      val buildFile = new File(dir, "build.gradle")
+      val pomFile = p / "pom.xml"
+      val settingsFile = p / "settings.gradle"
+      val settingsKtsFile = p / "settings.gradle.kts"
+      val buildFile = p / "build.gradle"
+      val buildKtsFile = p / "build.gradle.kts"
 
       // Detect project type and extract modules + dependencies
-      if pomFile.exists() then
+      if os.exists(pomFile) && os.isFile(pomFile) then
         // Maven project
-        val modulesResult = MavenParser.parseModules(pomFile.getAbsolutePath())
+        val modulesResult = MavenParser.parseModules(pomFile.toString)
         if !modulesResult.success then
           return CumulusResponse(
             success = false,
@@ -106,8 +108,7 @@ object Main:
             error_code = None
           )
 
-        // For Maven, we need to extract dependencies from individual module pom.xml files
-        // For now, we'll assume modules are listed in declaration order and build accordingly
+        // For Maven, we assume modules are listed in declaration order with warning
         val moduleNames = modules.map(_.name)
         val modulePaths = modules.map(_.path).map { p =>
           if p.startsWith("./") && p.length > 2 then p.substring(2) else p
@@ -133,19 +134,17 @@ object Main:
           error = None,
           error_code = None
         )
-      else if settingsFile.exists() || buildFile.exists() then
+      else if os.exists(settingsFile) || os.exists(settingsKtsFile) || os.exists(buildFile) || os.exists(buildKtsFile) then
         // Gradle project
-        val settingsPath = if settingsFile.exists() then
-          settingsFile.getAbsolutePath()
-        else if buildFile.exists() then
-          buildFile.getAbsolutePath()
+        val settingsPath = if os.exists(settingsFile) && os.isFile(settingsFile) then
+          settingsFile.toString
+        else if os.exists(settingsKtsFile) && os.isFile(settingsKtsFile) then
+          settingsKtsFile.toString
+        else if os.exists(buildFile) && os.isFile(buildFile) then
+          buildFile.toString
         else
-          return CumulusResponse(
-            success = false,
-            data = None,
-            error = Some("Gradle project detected but neither settings.gradle nor build.gradle found"),
-            error_code = Some("FILE_NOT_FOUND")
-          )
+          buildKtsFile.toString
+
 
         val modulesResult = GradleParser.parseModules(settingsPath)
         if !modulesResult.success then
@@ -258,19 +257,24 @@ object Main:
 
   def main(args: Array[String]): Unit =
     if args.isEmpty then
-      given ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
-        _ => "null",
-        _ => ()
-      )
+      import CumulusResponse.unitRW
       serializeResponse(errorEnvelope[Unit]("No subcommand provided"))
     else
+      import CumulusResponse.unitRW
       args(0) match
         case "ping" =>
-          given ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
-            _ => "null",
-            _ => ()
-          )
           serializeResponse(successEnvelope[Unit](None))
+
+        case "version" | "--version" | "-v" =>
+          case class EngineVersion(version: String, commit: String, build_time: String, scala_version: String) derives ReadWriter
+          val info = EngineVersion(
+            version = BuildInfo.version,
+            commit = BuildInfo.gitCommit,
+            build_time = BuildInfo.buildTime,
+            scala_version = BuildInfo.scalaVersion
+          )
+          serializeResponse(successEnvelope[EngineVersion](Some(info)))
+
 
         case "parse-pom" =>
           val argMap = parseArgs(args.slice(1, args.length))
@@ -339,8 +343,9 @@ object Main:
                 case Right(jdkInfo) =>
                   successEnvelope[JdkInfo](Some(jdkInfo))
                 case Left(error) =>
-                  errorEnvelope[JdkInfo](error)
+                  errorEnvelope[JdkInfo](error, CumulusError.INVALID_INPUT)
           serializeResponse(result)
+
 
         case "discover-build-tool" =>
           given ReadWriter[BuildToolInfo] = upickle.default.macroRW
@@ -453,13 +458,9 @@ object Main:
             val imports = ImportOptimizer.optimizeImports(stdinInput)
             serializeResponse(successEnvelope[ImportsResponse](Some(ImportsResponse(imports = imports))))
           catch
-            case e: java.io.IOException =>
-              serializeResponse(CumulusResponse(
-                success = false,
-                data = None,
-                error = Some(s"IO error reading stdin: ${e.getMessage}"),
-                error_code = Some("IO_ERROR")
-              ))
+            case e: Exception =>
+              serializeResponse(errorEnvelope[ImportsResponse](s"Error optimizing imports: ${e.getMessage}"))
+
 
         case "generate-java-header" =>
           given ReadWriter[JavaHeader] = upickle.default.macroRW
@@ -503,41 +504,18 @@ object Main:
           serializeResponse(result)
 
         case "parse-test-output" =>
+          given ReadWriter[TestResult] = upickle.default.macroRW
           try
             val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
             val result = TestOutputParser.parseTestOutput(stdinInput) match
               case Right(results) =>
-                val jsonResults = results.map { r =>
-                  ujson.Obj(
-                    "class_name" -> r.class_name,
-                    "method_name" -> r.method_name,
-                    "status" -> r.status,
-                    "message" -> r.message.map(ujson.Str(_)).getOrElse(ujson.Null)
-                  )
-                }
-                ujson.Obj(
-                  "success" -> true,
-                  "data" -> ujson.Arr(jsonResults*),
-                  "error" -> ujson.Null,
-                  "error_code" -> ujson.Null
-                )
+                successEnvelope[Seq[TestResult]](Some(results))
               case Left(error) =>
-                ujson.Obj(
-                  "success" -> false,
-                  "data" -> ujson.Null,
-                  "error" -> error,
-                  "error_code" -> CumulusError.PARSE_ERROR.toString
-                )
-            println(ujson.write(result))
+                errorEnvelope[Seq[TestResult]](error, CumulusError.PARSE_ERROR)
+            serializeResponse(result)
           catch
             case e: Exception =>
-              val errorResponse = ujson.Obj(
-                "success" -> false,
-                "data" -> ujson.Null,
-                "error" -> s"Error reading or parsing test output: ${e.getMessage}",
-                "error_code" -> CumulusError.INTERNAL_ERROR.toString
-              )
-              println(ujson.write(errorResponse))
+              serializeResponse(errorEnvelope[Seq[TestResult]](s"Error reading or parsing test output: ${e.getMessage}"))
 
         case "assemble-test-command" =>
           given ReadWriter[TestCommand] = upickle.default.macroRW
@@ -560,186 +538,71 @@ object Main:
           serializeResponse(result)
 
         case "parse-build-log" =>
+          given ReadWriter[BuildDiagnostic] = upickle.default.macroRW
           val argMap = parseArgs(args.slice(1, args.length))
-          try
-            val result = argMap.get("file") match
+          val result = try
+            argMap.get("file") match
               case Some(filePath) =>
                 try
                   val diagnostics = LogParser.parseFromFile(filePath)
-                  val jsonDiagnostics = diagnostics.map { d =>
-                    ujson.Obj(
-                      "file" -> d.file,
-                      "line" -> d.line,
-                      "col" -> d.col,
-                      "severity" -> d.severity,
-                      "message" -> d.message
-                    )
-                  }
-                  ujson.Obj(
-                    "success" -> true,
-                    "data" -> ujson.Arr(jsonDiagnostics*),
-                    "error" -> ujson.Null,
-                    "error_code" -> ujson.Null
-                  )
+                  successEnvelope[Seq[BuildDiagnostic]](Some(diagnostics))
                 catch
-                  case e: Exception if e.getMessage.contains("not found") =>
-                    ujson.Obj(
-                      "success" -> false,
-                      "data" -> ujson.Null,
-                      "error" -> e.getMessage,
-                      "error_code" -> CumulusError.FILE_NOT_FOUND.toString
-                    )
+                  case e: Exception if e.getMessage.contains("not found") || e.getMessage.contains("No such file") =>
+                    errorEnvelope[Seq[BuildDiagnostic]](e.getMessage, CumulusError.FILE_NOT_FOUND)
                   case e: Exception =>
-                    ujson.Obj(
-                      "success" -> false,
-                      "data" -> ujson.Null,
-                      "error" -> s"Error parsing log: ${e.getMessage}",
-                      "error_code" -> CumulusError.INTERNAL_ERROR.toString
-                    )
+                    errorEnvelope[Seq[BuildDiagnostic]](s"Error parsing log: ${e.getMessage}")
               case None =>
                 try
                   val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
                   val diagnostics = LogParser.parseFromStdin(stdinInput)
-                  val jsonDiagnostics = diagnostics.map { d =>
-                    ujson.Obj(
-                      "file" -> d.file,
-                      "line" -> d.line,
-                      "col" -> d.col,
-                      "severity" -> d.severity,
-                      "message" -> d.message
-                    )
-                  }
-                  ujson.Obj(
-                    "success" -> true,
-                    "data" -> ujson.Arr(jsonDiagnostics*),
-                    "error" -> ujson.Null,
-                    "error_code" -> ujson.Null
-                  )
+                  successEnvelope[Seq[BuildDiagnostic]](Some(diagnostics))
                 catch
-                  case e: java.io.IOException =>
-                    ujson.Obj(
-                      "success" -> false,
-                      "data" -> ujson.Null,
-                      "error" -> s"IO error reading stdin: ${e.getMessage}",
-                      "error_code" -> CumulusError.INTERNAL_ERROR.toString
-                    )
-            println(ujson.write(result))
+                  case e: Exception =>
+                    errorEnvelope[Seq[BuildDiagnostic]](s"Error reading stdin: ${e.getMessage}")
           catch
             case e: Exception =>
-              val errorResponse = ujson.Obj(
-                "success" -> false,
-                "data" -> ujson.Null,
-                "error" -> s"Error: ${e.getMessage}",
-                "error_code" -> CumulusError.INTERNAL_ERROR.toString
-              )
-              println(ujson.write(errorResponse))
+              errorEnvelope[Seq[BuildDiagnostic]](s"Error: ${e.getMessage}")
+          serializeResponse(result)
 
         case "resolve-stacktrace-symbol" =>
           val argMap = parseArgs(args.slice(1, args.length))
-          val result = (argMap.get("stacktrace"), argMap.get("dir")) match
-            case (None, _) =>
-              ujson.Obj(
-                "success" -> false,
-                "data" -> ujson.Null,
-                "error" -> "Missing --stacktrace argument",
-                "error_code" -> CumulusError.INVALID_INPUT.toString
-              )
-            case (_, None) =>
-              ujson.Obj(
-                "success" -> false,
-                "data" -> ujson.Null,
-                "error" -> "Missing --dir argument (workspace directory)",
-                "error_code" -> CumulusError.INVALID_INPUT.toString
-              )
-            case (Some(stacktraceStr), Some(workspaceDir)) =>
+          val stacktraceOpt = argMap.get("stacktrace")
+          val workspaceDir = argMap.getOrElse("dir", ".")
+
+          val result = stacktraceOpt match
+            case None =>
+              errorEnvelope[Map[String, String]]("Missing --stacktrace argument", CumulusError.INVALID_INPUT)
+            case Some(stacktraceStr) =>
               try
                 StacktraceResolver.resolveStacktrace(stacktraceStr, workspaceDir) match
                   case Right(resolved) =>
-                    val jsonMap = ujson.Obj()
-                    resolved.foreach { case (k, v) =>
-                      jsonMap(k) = v
-                    }
-                    ujson.Obj(
-                      "success" -> true,
-                      "data" -> jsonMap,
-                      "error" -> ujson.Null,
-                      "error_code" -> ujson.Null
-                    )
+                    successEnvelope[Map[String, String]](Some(resolved))
                   case Left(error) =>
-                    val errorCode = if error.contains("not found") then CumulusError.FILE_NOT_FOUND.toString else CumulusError.INTERNAL_ERROR.toString
-                    ujson.Obj(
-                      "success" -> false,
-                      "data" -> ujson.Null,
-                      "error" -> error,
-                      "error_code" -> errorCode
-                    )
+                    val errCode = if error.contains("not found") then CumulusError.FILE_NOT_FOUND else CumulusError.INTERNAL_ERROR
+                    errorEnvelope[Map[String, String]](error, errCode)
               catch
                 case e: Exception =>
-                  ujson.Obj(
-                    "success" -> false,
-                    "data" -> ujson.Null,
-                    "error" -> s"Error resolving stacktrace: ${e.getMessage}",
-                    "error_code" -> CumulusError.INTERNAL_ERROR.toString
-                  )
-          println(ujson.write(result))
+                  errorEnvelope[Map[String, String]](s"Error resolving stacktrace: ${e.getMessage}")
+          serializeResponse(result)
 
         case "index-log" =>
+          given ReadWriter[LogIndexEntry] = upickle.default.macroRW
           val argMap = parseArgs(args.slice(1, args.length))
-          try
-            val result = argMap.get("file") match
-              case Some(filePath) =>
-                try
-                  val entries = LogIndexer.indexLogFile(filePath)
-                  val jsonEntries = entries.map { e =>
-                    ujson.Obj(
-                      "lineNumber" -> e.lineNumber,
-                      "severity" -> e.severity,
-                      "timestamp" -> e.timestamp.map(ujson.Str(_)).getOrElse(ujson.Null),
-                      "message" -> e.message
-                    )
-                  }
-                  ujson.Obj(
-                    "success" -> true,
-                    "data" -> ujson.Arr(jsonEntries*),
-                    "error" -> ujson.Null,
-                    "error_code" -> ujson.Null
-                  )
-                catch
-                  case e: Exception if e.getMessage.contains("not found") =>
-                    ujson.Obj(
-                      "success" -> false,
-                      "data" -> ujson.Null,
-                      "error" -> e.getMessage,
-                      "error_code" -> CumulusError.FILE_NOT_FOUND.toString
-                    )
-                  case e: Exception =>
-                    ujson.Obj(
-                      "success" -> false,
-                      "data" -> ujson.Null,
-                      "error" -> s"Error indexing log: ${e.getMessage}",
-                      "error_code" -> CumulusError.INTERNAL_ERROR.toString
-                    )
-              case None =>
-                ujson.Obj(
-                  "success" -> false,
-                  "data" -> ujson.Null,
-                  "error" -> "Missing --file argument",
-                  "error_code" -> CumulusError.INVALID_INPUT.toString
-                )
-            println(ujson.write(result))
-          catch
-            case e: Exception =>
-              val errorResponse = ujson.Obj(
-                "success" -> false,
-                "data" -> ujson.Null,
-                "error" -> s"Error: ${e.getMessage}",
-                "error_code" -> CumulusError.INTERNAL_ERROR.toString
-              )
-              println(ujson.write(errorResponse))
+          val result = argMap.get("file") match
+            case Some(filePath) =>
+              try
+                val entries = LogIndexer.indexLogFile(filePath)
+                successEnvelope[Seq[LogIndexEntry]](Some(entries))
+              catch
+                case e: Exception if e.getMessage.contains("not found") || e.getMessage.contains("No such file") =>
+                  errorEnvelope[Seq[LogIndexEntry]](e.getMessage, CumulusError.FILE_NOT_FOUND)
+                case e: Exception =>
+                  errorEnvelope[Seq[LogIndexEntry]](s"Error indexing log: ${e.getMessage}")
+            case None =>
+              errorEnvelope[Seq[LogIndexEntry]]("Missing --file argument", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
 
         case _ =>
-          given ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
-            _ => "null",
-            _ => ()
-          )
+          import CumulusResponse.unitRW
           serializeResponse(errorEnvelope[Unit]("Unknown subcommand"))
+

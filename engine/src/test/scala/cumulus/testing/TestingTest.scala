@@ -220,9 +220,11 @@ public class MyClass {
     assert(results(0).status == "SKIPPED")
   }
 
-  test("TestOutputParser: Gradle test output format") {
+  test("TestOutputParser: Gradle test output format with failure message") {
     val gradleOutput = """MyTest > testFoo PASSED
 AnotherTest > testBar FAILED
+    java.lang.AssertionError: expected true but was false
+        at com.example.AnotherTest.testBar(AnotherTest.java:25)
 ThirdTest > testSkipped SKIPPED
 """.stripMargin
     val result = TestOutputParser.parseTestOutput(gradleOutput)
@@ -231,7 +233,33 @@ ThirdTest > testSkipped SKIPPED
     assert(results.length == 3)
     assert(results(0).status == "PASSED")
     assert(results(1).status == "FAILED")
+    assert(results(1).message.isDefined)
+    assert(results(1).message.get.contains("AssertionError"))
     assert(results(2).status == "SKIPPED")
+  }
+
+  test("TestOutputParser: Maven Surefire text output format with failure") {
+    val mavenOutput = """[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.example.UserServiceTest
+[ERROR] Tests run: 2, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.123 s <<< FAILURE! -- in com.example.UserServiceTest
+[ERROR] com.example.UserServiceTest.testCreateUser -- Time elapsed: 0.045 s <<< FAILURE!
+java.lang.AssertionError: expected:<1> but was:<0>
+	at com.example.UserServiceTest.testCreateUser(UserServiceTest.java:42)
+[INFO]
+[INFO] Results:
+[INFO]
+[ERROR] Failures:
+[ERROR]   UserServiceTest.testCreateUser:42 expected:<1> but was:<0>
+[INFO]
+[ERROR] Tests run: 2, Failures: 1, Errors: 0, Skipped: 0
+""".stripMargin
+    val result = TestOutputParser.parseTestOutput(mavenOutput)
+    assert(result.isRight)
+    val results = result.toOption.get
+    assert(results.nonEmpty)
+    assert(results.exists(r => r.class_name == "UserServiceTest" && r.method_name == "testCreateUser" && r.status == "FAILED"))
   }
 
   test("TestOutputParser: Empty input") {

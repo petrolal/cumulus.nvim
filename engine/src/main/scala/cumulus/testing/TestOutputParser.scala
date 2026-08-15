@@ -1,14 +1,22 @@
 package cumulus.testing
 
 import scala.xml.{XML, NodeSeq}
-import scala.io.Source
 import scala.util.Try
 
 object TestOutputParser:
 
   // Compiled regex patterns
   private lazy val gradleTestLinePattern = """(\w+(?:\.\w+)*)\s*>\s*(\w+)\s+(PASSED|FAILED|SKIPPED)""".r
-  private lazy val ansiEscapePattern = """\[[0-9;]*m""".r
+
+  /**
+   * Strip ANSI escape codes from string.
+   */
+  private def stripAnsi(text: String): String =
+    text
+      .replaceAll("\u001b\\[[0-9;]*[a-zA-Z]", "")
+      .replaceAll("\u001b\\(B", "")
+      .replaceAll("\\[[0-9;]*m", "")
+      .replaceAll("\\(B", "")
 
   /**
    * Parse test output from stdin (supports JUnit 5 XML, Maven Surefire text, and Gradle output).
@@ -44,12 +52,14 @@ object TestOutputParser:
    */
   private def parseJunitXml(input: String): Either[String, Seq[TestResult]] =
     try
+      val stripped = stripAnsi(input)
       // Try to parse XML; handle malformed or partial XML gracefully
       val xml = Try {
-        XML.loadString(input)
+        XML.loadString(stripped)
       }.getOrElse {
-        // Fallback: try wrapping in a root element if not present
-        XML.loadString(s"<root>$input</root>")
+        // Fallback: strip XML declaration and wrap in root element
+        val withoutDecl = stripped.replaceAll("<\\?xml[^>]*\\?>", "")
+        XML.loadString(s"<root>$withoutDecl</root>")
       }
 
       val testcases: NodeSeq = xml \\ "testcase"
@@ -97,24 +107,43 @@ object TestOutputParser:
   private def parseGradleOutput(input: String): Seq[TestResult] =
     val lines = input.split("\n")
     val results = scala.collection.mutable.ArrayBuffer[TestResult]()
+    var lastFailedIdx: Option[Int] = None
+    val failureMessages = scala.collection.mutable.Map[Int, StringBuilder]()
 
     lines.foreach { line =>
-      val cleanedLine = ansiEscapePattern.replaceAllIn(line, "").trim
-      gradleTestLinePattern.findFirstMatchIn(cleanedLine).foreach { m =>
-        val fullClassName = m.group(1)
-        val methodName = m.group(2)
-        val status = m.group(3)
+      val cleanedLine = stripAnsi(line).trim
+      gradleTestLinePattern.findFirstMatchIn(cleanedLine) match
+        case Some(m) =>
+          val fullClassName = m.group(1)
+          val methodName = m.group(2)
+          val status = m.group(3)
 
-        results += TestResult(
-          class_name = extractSimpleClassName(fullClassName),
-          method_name = methodName,
-          status = status,
-          message = None
-        )
-      }
+          val currentIdx = results.length
+          results += TestResult(
+            class_name = extractSimpleClassName(fullClassName),
+            method_name = methodName,
+            status = status,
+            message = None
+          )
+          if status == "FAILED" then
+            lastFailedIdx = Some(currentIdx)
+            failureMessages(currentIdx) = new StringBuilder()
+          else
+            lastFailedIdx = None
+
+        case None =>
+          // Accumulate failure stacktraces/messages for the last failed test if indented
+          if lastFailedIdx.isDefined && cleanedLine.nonEmpty && !cleanedLine.startsWith("BUILD") && !cleanedLine.startsWith("Task :") then
+            failureMessages(lastFailedIdx.get).append(cleanedLine).append("\n")
     }
 
-    results.toSeq
+    // Attach accumulated failure messages
+    results.zipWithIndex.map { case (r, idx) =>
+      if r.status == "FAILED" && failureMessages.contains(idx) && failureMessages(idx).nonEmpty then
+        r.copy(message = Some(failureMessages(idx).toString.trim))
+      else
+        r
+    }.toSeq
 
   /**
    * Parse Maven Surefire test output format.
@@ -130,15 +159,14 @@ object TestOutputParser:
     var currentFailureMessage = scala.collection.mutable.StringBuilder()
 
     lines.foreach { line =>
-      val cleanedLine = ansiEscapePattern.replaceAllIn(line, "").trim
+      val cleanedLine = stripAnsi(line).trim
 
       // Check for test failure indicators
       if cleanedLine.contains("FAILURE") || cleanedLine.contains("ERROR") then
-        // Extract class and method from failure line
-        // Format might be: "SomeClassTest.someMethod" or just a file reference
-        val classMethodPattern = """(\w+Test)\.(\w+)""".r
+        // Extract class and method from failure line: e.g., "com.pkg.SomeClassTest.someMethod" or "SomeClass.someMethod"
+        val classMethodPattern = """([A-Za-z0-9_.]+(?:Test|Tests|TestCase|IT|Spec|[A-Z][A-Za-z0-9_]*))\s*\.\s*([A-Za-z0-9_]+)""".r
         classMethodPattern.findFirstMatchIn(cleanedLine).foreach { m =>
-          currentFailureClass = Some(m.group(1))
+          currentFailureClass = Some(extractSimpleClassName(m.group(1)))
           currentFailureMethod = Some(m.group(2))
         }
 
@@ -177,3 +205,4 @@ object TestOutputParser:
    */
   private def extractSimpleClassName(fullClassName: String): String =
     fullClassName.split('.').lastOption.getOrElse(fullClassName)
+

@@ -435,10 +435,11 @@ class SpringBootTest extends FunSuite:
       val beans = BeanGraphAnalyzer.parseSpringBeans(dir)
       val userService = beans.find(b => b.name == "UserService")
       assert(userService.isDefined)
-      assert(userService.get.line_number == 4)
+      assert(userService.get.line_number == 5)
     finally
       os.remove.all(Path(dir))
   }
+
 
   test("handle multiple beans in single file") {
     val dir = createTempDir()
@@ -538,3 +539,51 @@ class SpringBootTest extends FunSuite:
     finally
       os.remove.all(Path(dir))
   }
+
+  test("BeanGraphAnalyzer: extracts @Qualifier on injected dependency") {
+    val dir = createTempDir()
+    try
+      writeFile(dir, "src/main/java/com/example/OrderService.java",
+        """package com.example;
+          |import org.springframework.stereotype.Service;
+          |import org.springframework.beans.factory.annotation.Autowired;
+          |import org.springframework.beans.factory.annotation.Qualifier;
+          |
+          |@Service
+          |public class OrderService {
+          |  @Autowired
+          |  @Qualifier("sqlPaymentGateway")
+          |  private PaymentGateway paymentGateway;
+          |}
+          |""".stripMargin)
+
+      val beans = BeanGraphAnalyzer.parseSpringBeans(dir)
+      val orderBean = beans.find(_.name == "OrderService").get
+      assert(orderBean.injected_dependencies.length == 1)
+      assert(orderBean.injected_dependencies.head.qualifier == Some("sqlPaymentGateway"))
+    finally
+      os.remove.all(Path(dir))
+  }
+
+  test("SpringBootDetector: detects profiles and debug args in src/main/resources") {
+    val dir = createTempDir()
+    try
+      writeFile(dir, "pom.xml", "<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>demo</artifactId><version>1.0</version></project>")
+      writeFile(dir, "src/main/java/com/example/DemoApp.java",
+        """package com.example;
+          |import org.springframework.boot.autoconfigure.SpringBootApplication;
+          |@SpringBootApplication
+          |public class DemoApp {}
+          |""".stripMargin)
+      writeFile(dir, "src/main/resources/application.yml", "spring:\n  profiles:\n    active: staging,qa\n")
+      writeFile(dir, "src/main/resources/application-prod.properties", "server.port=8080\n")
+
+      val app = SpringBootDetector.detectSpringBootApp(dir)
+      assert(app.main_class == "com.example.DemoApp")
+      assert(app.active_profiles.contains("staging"))
+      assert(app.active_profiles.contains("qa"))
+      assert(app.active_profiles.contains("prod"))
+    finally
+      os.remove.all(Path(dir))
+  }
+

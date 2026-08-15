@@ -380,3 +380,26 @@ class GradleParserTest extends FunSuite:
     finally
       Files.delete(Paths.get(settingsPath))
   }
+
+  test("handle multi-argument include and includeBuild directives") {
+    val settingsContent = """
+      |rootProject.name = 'my-project'
+      |include 'core', 'web:api', 'util'
+      |includeBuild '../composite-plugin'
+      |""".stripMargin
+
+    val settingsPath = createTempFile(settingsContent, "settings", ".gradle")
+    try
+      val result = GradleParser.parseModules(settingsPath)
+      assert(result.success)
+      val modules = result.data.get.modules
+      val moduleNames = modules.map(_.name)
+      assert(moduleNames.contains("core"))
+      assert(moduleNames.contains("web:api"))
+      assert(moduleNames.contains("util"))
+      assert(moduleNames.contains("../composite-plugin"))
+      assert(modules.find(_.name == "web:api").get.path == "web/api")
+    finally
+      Files.delete(Paths.get(settingsPath))
+  }
+
