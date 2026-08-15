@@ -55,7 +55,7 @@ object DepLens:
   def classifyVersionAge(current: String, latest: String): String =
     def parseVersion(v: String): Seq[Int] =
       val clean = v.trim.stripPrefix("v").stripPrefix("V")
-      clean.split("""[.-]""").take(3).flatMap(_.toIntOption).toSeq
+      clean.split("""[.\-+_]""").take(3).flatMap(_.toIntOption).toSeq
 
     val currentParts = parseVersion(current)
     val latestParts = parseVersion(latest)
@@ -111,18 +111,38 @@ object DepLens:
     val results = mutable.ListBuffer[DependencyLens]()
     val properties = mutable.Map[String, String]()
 
-    // First scan properties
-    var inProps = false
-    val propLineRegex = """<([a-zA-Z0-9_\-\.]+)>([^<]+)</([a-zA-Z0-9_\-\.]+)>""".r
-    for line <- lines do
-      val trimmed = line.trim
-      if trimmed.contains("<properties>") then inProps = true
-      if trimmed.contains("</properties>") then inProps = false
-      if inProps then
-        propLineRegex.findFirstMatchIn(trimmed).foreach { m =>
-          if m.group(1) == m.group(3) then
-            properties(m.group(1)) = m.group(2).trim
-        }
+    // Extract properties using scala-xml if possible, with line fallback
+    try
+      val xml = scala.xml.XML.loadString(content)
+      for propBlock <- xml \ "properties" do
+        for child <- propBlock.child if child.isInstanceOf[scala.xml.Elem] do
+          properties(child.label) = child.text.trim
+
+      val projGroup = (xml \ "groupId").text.trim
+      val projArtifact = (xml \ "artifactId").text.trim
+      val projVersion = (xml \ "version").text.trim
+      if projGroup.nonEmpty then
+        properties("project.groupId") = projGroup
+        properties("pom.groupId") = projGroup
+      if projArtifact.nonEmpty then
+        properties("project.artifactId") = projArtifact
+        properties("pom.artifactId") = projArtifact
+      if projVersion.nonEmpty then
+        properties("project.version") = projVersion
+        properties("pom.version") = projVersion
+    catch
+      case _: Exception =>
+        var inProps = false
+        val propLineRegex = """<([a-zA-Z0-9_\-\.]+)>([^<]+)</([a-zA-Z0-9_\-\.]+)>""".r
+        for line <- lines do
+          val trimmed = line.trim
+          if trimmed.contains("<properties>") then inProps = true
+          if inProps then
+            propLineRegex.findFirstMatchIn(trimmed).foreach { m =>
+              if m.group(1) == m.group(3) then
+                properties(m.group(1)) = m.group(2).trim
+            }
+          if trimmed.contains("</properties>") then inProps = false
 
     def resolveProp(value: String): String =
       var res = value

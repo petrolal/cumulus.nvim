@@ -93,4 +93,10 @@ object SessionSanitizer:
 
   private def shouldSkipBufferReference(line: String): Boolean =
     val trimmed = line.trim
-    !trimmed.startsWith("badd +") && (trimmed.contains("[No Name]") || trimmed.contains("term://") || trimmed.contains("snacks_picker") || trimmed.contains("snacks_dashboard"))
+    !trimmed.startsWith("badd +") && (
+      trimmed.contains("[No Name]") ||
+      trimmed.contains("term://") ||
+      trimmed.contains("snacks_picker") ||
+      trimmed.contains("snacks_dashboard") ||
+      trimmed.contains("snacks_explorer")
+    )

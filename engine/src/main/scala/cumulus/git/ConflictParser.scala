@@ -51,6 +51,26 @@ object ConflictParser:
             state = Outside
           case _ => ()
 
+    // Handle unterminated conflict blocks at EOF
+    state match
+      case InIncoming(startLine, currentHeader, sepLine) =>
+        blocks += ConflictBlock(
+          start_line = startLine,
+          sep_line = sepLine,
+          end_line = lines.length,
+          current_header = currentHeader,
+          incoming_header = "UNTERMINATED"
+        )
+      case InCurrent(startLine, currentHeader) =>
+        blocks += ConflictBlock(
+          start_line = startLine,
+          sep_line = lines.length,
+          end_line = lines.length,
+          current_header = currentHeader,
+          incoming_header = "UNTERMINATED"
+        )
+      case Outside => ()
+
     blocks.toSeq
 
   /**

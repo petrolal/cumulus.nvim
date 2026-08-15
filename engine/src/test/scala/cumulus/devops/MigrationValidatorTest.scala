@@ -65,3 +65,31 @@ class MigrationValidatorTest extends FunSuite:
     finally
       os.remove.all(tempDir)
   }
+
+  test("detects normalized duplicate versions (V1 vs V01, V1_0 vs V1.0)") {
+    val tempDir = os.temp.dir(prefix = "cumulus-migrations-norm-")
+    try
+      os.write(tempDir / "V1__init.sql", "CREATE TABLE a (id INT);")
+      os.write(tempDir / "V01__other.sql", "CREATE TABLE b (id INT);")
+      os.write(tempDir / "V2_0__two.sql", "CREATE TABLE c (id INT);")
+      os.write(tempDir / "V2.0__two_dup.sql", "CREATE TABLE d (id INT);")
+
+      val issues = MigrationValidator.validateMigrations(tempDir)
+      assertEquals(issues.length, 4)
+      assert(issues.forall(_.severity == "ERROR"))
+    finally
+      os.remove.all(tempDir)
+  }
+
+  test("valid multi-part semver versions are accepted") {
+    val tempDir = os.temp.dir(prefix = "cumulus-migrations-semver-")
+    try
+      os.write(tempDir / "V1.10.100__patch.sql", "SELECT 1;")
+      os.write(tempDir / "U1.10.100__undo.sql", "SELECT 2;")
+
+      val issues = MigrationValidator.validateMigrations(tempDir)
+      assertEquals(issues, Seq.empty)
+    finally
+      os.remove.all(tempDir)
+  }
+

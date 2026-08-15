@@ -20,7 +20,7 @@ object CoverageParser:
 
     for pkg <- xml \ "package" do
       val rawPkgName = (pkg \ "@name").text.trim
-      val pkgName = rawPkgName.replace('.', '/')
+      val pkgName = rawPkgName.replace('.', '/').stripPrefix("/").stripSuffix("/")
       for sf <- pkg \ "sourcefile" do
         val sfName = (sf \ "@name").text.trim
         if sfName.nonEmpty then

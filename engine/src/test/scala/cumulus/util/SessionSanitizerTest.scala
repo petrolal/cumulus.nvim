@@ -12,11 +12,12 @@ class SessionSanitizerTest extends FunSuite:
       "badd +0 term://localhost:1000:1",
       "badd +0 snacks_dashboard",
       "badd +0 /home/user/project/build.gradle",
-      "badd +0 snacks_picker"
+      "badd +0 snacks_picker",
+      "badd +0 snacks_explorer"
     )
 
     val (filtered, removed) = SessionSanitizer.filterSessionLines(lines)
-    assertEquals(removed, 4)
+    assertEquals(removed, 5)
     assertEquals(filtered.length, 2)
     assert(filtered(0).contains("Main.java"))
     assert(filtered(1).contains("build.gradle"))

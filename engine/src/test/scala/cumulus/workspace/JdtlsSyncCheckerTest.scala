@@ -31,3 +31,20 @@ class JdtlsSyncCheckerTest extends FunSuite:
     finally
       os.remove.all(tempDir)
   }
+
+  test("detects modified build file in submodule") {
+    val tempDir = os.temp.dir()
+    try
+      val subDir = tempDir / "modules" / "core"
+      os.makeDir.all(subDir)
+      val subPom = subDir / "pom.xml"
+      os.write(subPom, "<project></project>")
+
+      val startTime = 1000L
+      val status = JdtlsSyncChecker.checkSync(tempDir, startTime)
+      assertEquals(status.sync_needed, true)
+      assertEquals(status.modified_file, Some("modules/core/pom.xml"))
+    finally
+      os.remove.all(tempDir)
+  }
+

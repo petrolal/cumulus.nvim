@@ -100,3 +100,20 @@ class ThemeManagerTest extends FunSuite:
       os.remove(tempFile)
   }
 
+  test("setTheme normalizes uppercase theme to lowercase") {
+    val tempFile = os.temp("FLAVOR=aws\nMODE=DARK\n")
+    try
+      val res = ThemeManager.setTheme("AWS", Some("LIGHT"), Some(tempFile.toString))
+      assert(res.success)
+      assertEquals(res.data.get.theme, "aws")
+      assertEquals(res.data.get.variant, Some("light"))
+    finally
+      os.remove(tempFile)
+  }
+
+  test("getTheme handles bare tilde path without crashing") {
+    val res = ThemeManager.getTheme(Some("~"))
+    assert(res.success)
+  }
+
+

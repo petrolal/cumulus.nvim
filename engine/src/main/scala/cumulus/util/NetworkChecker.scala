@@ -50,7 +50,7 @@ object NetworkChecker:
 
     try
       socket = new Socket()
-      val timeout = if timeoutMs > 0 then timeoutMs.toInt else 3000
+      val timeout = if timeoutMs > 0 then math.min(timeoutMs, 60000L).toInt else 3000
       socket.connect(new InetSocketAddress(host, port), timeout)
       connected = socket.isConnected
     catch

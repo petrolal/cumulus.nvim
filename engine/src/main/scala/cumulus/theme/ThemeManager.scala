@@ -55,12 +55,12 @@ object ThemeManager:
               val v = unquote(trimmed.substring(eqIdx + 1).trim)
               values(k) = v
 
-      val themeClean = theme.trim
+      val themeClean = theme.trim.toLowerCase
       values("NVIM_COLORSCHEME") = if themeClean.endsWith("-theme") then themeClean else s"$themeClean-theme"
       values("FLAVOR") = themeClean.stripSuffix("-theme")
 
       variantOpt match
-        case Some(v) if v.trim.nonEmpty => values("MODE") = v.trim
+        case Some(v) if v.trim.nonEmpty => values("MODE") = v.trim.toLowerCase
         case _ => if !values.contains("MODE") then values("MODE") = DefaultVariant
 
       val writtenKeys = mutable.Set[String]()
@@ -130,13 +130,14 @@ object ThemeManager:
             values(k) = v
           else if values.isEmpty then
             // Single line format e.g. "azure" or "azure-theme"
-            val t = unquote(trimmed).stripSuffix("-theme").trim
+            val t = unquote(trimmed).stripSuffix("-theme").trim.toLowerCase
             return Some(ThemeState(theme = t, variant = Some(DefaultVariant)))
 
       val themeOpt = values.get("FLAVOR")
         .orElse(values.get("NVIM_COLORSCHEME").map(_.stripSuffix("-theme")))
+        .map(_.toLowerCase)
 
-      val variant = values.get("MODE").orElse(values.get("VARIANT")).getOrElse(DefaultVariant)
+      val variant = values.get("MODE").orElse(values.get("VARIANT")).map(_.toLowerCase).getOrElse(DefaultVariant)
 
       themeOpt.map(t => ThemeState(theme = t, variant = Some(variant)))
     catch
@@ -148,7 +149,8 @@ object ThemeManager:
   private def toPath(f: String): Path =
     if f.startsWith("~") then
       val home = sys.props.getOrElse("user.home", "/tmp")
-      os.Path(home) / os.RelPath(f.stripPrefix("~/").stripPrefix("~"))
+      val rel = f.stripPrefix("~/").stripPrefix("~").trim
+      if rel.isEmpty then os.Path(home) else os.Path(home) / os.RelPath(rel)
     else if f.startsWith("/") then
       Path(f)
     else

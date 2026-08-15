@@ -12,9 +12,9 @@ import scala.util.matching.Regex
 object WrapperVerifier:
 
   private val VersionUrlPattern: Regex = """gradle-(\d+\.\d+(?:\.\d+)?)-""".r
-  private val YamlVersionPattern: Regex = """gradle[_-]version\s*[:=]\s*["\']?(\d+\.\d+(?:\.\d+)?)["\']?""".r
+  private val YamlVersionPattern: Regex = """(?i)gradle[_-]?version\s*[:=]\s*["\']?(\d+\.\d+(?:\.\d+)?)["\']?""".r
   private val PathVersionPattern: Regex = """gradle[/\\]gradle-(\d+\.\d+(?:\.\d+)?)-""".r
-  private val GroovyVersionPattern: Regex = """gradle[_-]version\s*=\s*["\'](\d+\.\d+(?:\.\d+)?)["\']""".r
+  private val GroovyVersionPattern: Regex = """(?i)gradle[_-]?version\s*[:=]\s*["\'](\d+\.\d+(?:\.\d+)?)["\']""".r
 
   def verifyGradleWrapper(dir: String): CumulusResponse[GradleWrapperStatus] =
     try
@@ -35,6 +35,10 @@ object WrapperVerifier:
       case (Some(local), Some(ci)) if local != ci =>
         issues += s"Gradle version mismatch: local=$local, CI=$ci"
       case _ => ()
+
+    val isGradleProject = os.exists(dirPath / "build.gradle") || os.exists(dirPath / "build.gradle.kts") || ciVersion.isDefined
+    if localVersion.isEmpty && isGradleProject then
+      issues += "Gradle wrapper properties file (gradle/wrapper/gradle-wrapper.properties) not found"
 
     if !sha256Configured && localVersion.isDefined then
       issues += "Gradle wrapper SHA-256 checksum not configured (security risk)"

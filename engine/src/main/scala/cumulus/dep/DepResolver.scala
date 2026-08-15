@@ -52,6 +52,19 @@ object DepResolver:
         for child <- propBlock.child if child.isInstanceOf[scala.xml.Elem] do
           properties(child.label) = child.text.trim
 
+      val projGroup = (xml \ "groupId").text.trim
+      val projArtifact = (xml \ "artifactId").text.trim
+      val projVersion = (xml \ "version").text.trim
+      if projGroup.nonEmpty then
+        properties("project.groupId") = projGroup
+        properties("pom.groupId") = projGroup
+      if projArtifact.nonEmpty then
+        properties("project.artifactId") = projArtifact
+        properties("pom.artifactId") = projArtifact
+      if projVersion.nonEmpty then
+        properties("project.version") = projVersion
+        properties("pom.version") = projVersion
+
       def resolveProp(value: String): String =
         var result = value
         var iterations = 0

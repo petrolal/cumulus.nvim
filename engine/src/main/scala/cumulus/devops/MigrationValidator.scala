@@ -12,6 +12,12 @@ object MigrationValidator:
   // Repeatable: R__views.sql
   val RepeatablePattern = """^R__([A-Za-z0-9_-]+)\.sql$""".r
 
+  private def normalizeVersion(v: String): String =
+    v.replace('_', '.')
+      .split("""\.""")
+      .map(part => part.toIntOption.map(_.toString).getOrElse(part))
+      .mkString(".")
+
   /**
    * Validates Flyway migrations in the given directory path.
    * Checks for duplicate version numbers (ERROR) and invalid naming conventions (WARN).
@@ -34,7 +40,8 @@ object MigrationValidator:
       if filename.endsWith(".sql") then
         filename match
           case VersionedPattern(prefix, version, _) =>
-            val versionKey = s"$prefix$version"
+            val normVersion = normalizeVersion(version)
+            val versionKey = s"$prefix$normVersion"
             versionMap.getOrElseUpdate(versionKey, ListBuffer()) += filename
           case RepeatablePattern(_) =>
             // Repeatable migrations are valid and skip version uniqueness check

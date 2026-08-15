@@ -76,3 +76,57 @@ class WrapperVerifierTest extends FunSuite:
     finally
       os.remove.all(tempDir)
   }
+
+  test("detects CI version from .gitlab-ci.yml") {
+    val tempDir = os.temp.dir()
+    try
+      val wrapperDir = tempDir / "gradle" / "wrapper"
+      os.makeDir.all(wrapperDir)
+      os.write(
+        wrapperDir / "gradle-wrapper.properties",
+        """distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
+          |distributionSha256Sum=abc123
+          |""".stripMargin
+      )
+      os.write(tempDir / ".gitlab-ci.yml", "image: gradle:8.4-jdk17\ngradle-version: 8.4\n")
+
+      val status = WrapperVerifier.verifyDirectory(tempDir)
+      assertEquals(status.local_version, Some("8.4"))
+      assertEquals(status.ci_version, Some("8.4"))
+      assertEquals(status.issues, Seq.empty)
+    finally
+      os.remove.all(tempDir)
+  }
+
+  test("detects CI version from Jenkinsfile") {
+    val tempDir = os.temp.dir()
+    try
+      val wrapperDir = tempDir / "gradle" / "wrapper"
+      os.makeDir.all(wrapperDir)
+      os.write(
+        wrapperDir / "gradle-wrapper.properties",
+        """distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
+          |distributionSha256Sum=abc123
+          |""".stripMargin
+      )
+      os.write(tempDir / "Jenkinsfile", "pipeline { environment { GRADLE_VERSION = '8.5' } }\n")
+
+      val status = WrapperVerifier.verifyDirectory(tempDir)
+      assertEquals(status.local_version, Some("8.5"))
+      assertEquals(status.ci_version, Some("8.5"))
+      assertEquals(status.issues, Seq.empty)
+    finally
+      os.remove.all(tempDir)
+  }
+
+  test("flags missing wrapper properties file in a Gradle project") {
+    val tempDir = os.temp.dir()
+    try
+      os.write(tempDir / "build.gradle", "plugins { id 'java' }\n")
+      val status = WrapperVerifier.verifyDirectory(tempDir)
+      assertEquals(status.local_version, None)
+      assert(status.issues.exists(_.contains("Gradle wrapper properties file")))
+    finally
+      os.remove.all(tempDir)
+  }
+

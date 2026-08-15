@@ -49,3 +49,37 @@ class DepLensTest extends FunSuite:
     assertEquals(lenses.head.current_version, "5.10.0")
     assertEquals(lenses.head.line, 5)
   }
+
+  test("handles versions with build metadata and pre-release suffixes") {
+    assertEquals(DepLens.classifyVersionAge("1.2.3+build1", "1.2.3"), "CURRENT")
+    assertEquals(DepLens.classifyVersionAge("1.2.0-RC1", "1.2.5"), "PATCH_OUTDATED")
+    assertEquals(DepLens.classifyVersionAge("1.0.0_release", "2.0.0"), "MAJOR_OUTDATED")
+  }
+
+  test("resolves inline properties and built-in project coordinates") {
+    val pomXml =
+      """<project>
+        |  <groupId>com.example</groupId>
+        |  <artifactId>app</artifactId>
+        |  <version>1.5.0</version>
+        |  <properties><lib.version>2.0.0</lib.version></properties>
+        |  <dependencies>
+        |    <dependency>
+        |      <groupId>com.example</groupId>
+        |      <artifactId>core</artifactId>
+        |      <version>${project.version}</version>
+        |    </dependency>
+        |    <dependency>
+        |      <groupId>org.sample</groupId>
+        |      <artifactId>lib</artifactId>
+        |      <version>${lib.version}</version>
+        |    </dependency>
+        |  </dependencies>
+        |</project>""".stripMargin
+
+    val lenses = DepLens.parsePomWithLines(pomXml)
+    assertEquals(lenses.length, 2)
+    assertEquals(lenses(0).current_version, "1.5.0")
+    assertEquals(lenses(1).current_version, "2.0.0")
+  }
+

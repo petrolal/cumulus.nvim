@@ -32,14 +32,29 @@ object JdtlsSyncChecker:
 
   def checkSync(dirPath: Path, startTime: Long): SyncStatus =
     if startTime <= 0 then return SyncStatus(sync_needed = false, modified_file = None)
+    
+    // Check root build files
     for relPathStr <- BuildFiles do
       val filePath = dirPath / os.RelPath(relPathStr)
       if os.exists(filePath) && os.isFile(filePath) then
-        // os.mtime returns milliseconds since epoch; convert to seconds if startTime is in seconds
         val mtimeMillis = os.mtime(filePath)
         val mtimeSec = mtimeMillis / 1000
         val isStale = if startTime > 1000000000000L then mtimeMillis > startTime else mtimeSec > startTime
         if isStale then
           return SyncStatus(sync_needed = true, modified_file = Some(relPathStr))
+
+    // Check submodule build files up to 2 levels deep
+    try
+      val subBuildFiles = os.walk(dirPath, maxDepth = 3, skip = (p: Path) => p.last.startsWith(".") || p.last == "target" || p.last == "node_modules" || p.last == "build")
+        .filter(p => os.isFile(p) && (p.last == "pom.xml" || p.last == "build.gradle" || p.last == "build.gradle.kts"))
+      for filePath <- subBuildFiles do
+        val mtimeMillis = os.mtime(filePath)
+        val mtimeSec = mtimeMillis / 1000
+        val isStale = if startTime > 1000000000000L then mtimeMillis > startTime else mtimeSec > startTime
+        if isStale then
+          val relPath = filePath.relativeTo(dirPath).toString
+          return SyncStatus(sync_needed = true, modified_file = Some(relPath))
+    catch
+      case _: Exception => ()
 
     SyncStatus(sync_needed = false, modified_file = None)

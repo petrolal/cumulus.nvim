@@ -108,3 +108,18 @@ class ConflictParserTest extends FunSuite:
     finally
       os.remove(tempFile)
   }
+
+  test("unterminated conflict marker at EOF is reported with UNTERMINATED status") {
+    val content =
+      """<<<<<<< HEAD
+        |some work in progress
+        |=======""".stripMargin
+
+    val blocks = ConflictParser.parseConflicts(content)
+    assertEquals(blocks.length, 1)
+    val block = blocks.head
+    assertEquals(block.start_line, 1)
+    assertEquals(block.sep_line, 3)
+    assertEquals(block.incoming_header, "UNTERMINATED")
+  }
+
