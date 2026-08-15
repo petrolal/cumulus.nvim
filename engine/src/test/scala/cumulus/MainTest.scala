@@ -502,6 +502,25 @@ class MainTest extends FunSuite:
       file.delete()
   }
 
+  test("CLI: manage-theme get returns theme state") {
+    val result = cumulus.theme.ThemeManager.getTheme(None)
+    assert(result.success)
+    assert(result.data.isDefined)
+    assert(result.data.get.theme.nonEmpty)
+  }
+
+  test("CLI: manage-theme set updates theme") {
+    val tempFile = Files.createTempFile("theme-state", ".txt").toFile
+    try
+      val result = cumulus.theme.ThemeManager.setTheme(theme = "azure", fileOpt = Some(tempFile.getAbsolutePath))
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.theme, "azure")
+    finally
+      tempFile.delete()
+  }
+
+
 
 
 

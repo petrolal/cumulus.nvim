@@ -6,12 +6,13 @@ import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, Jd
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
-import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens}
+import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState}
 import cumulus.git.{ConflictParser, ConflictBlock}
 import cumulus.util.{SessionSanitizer, NetworkChecker}
 import cumulus.gradle.WrapperVerifier
 import cumulus.workspace.JdtlsSyncChecker
 import cumulus.dep.{DepResolver, DepLens}
+import cumulus.theme.ThemeManager
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -713,6 +714,24 @@ object Main:
               DepLens.checkDepVersions(filePath)
             case None =>
               errorEnvelope[Seq[DependencyLens]]("Missing --file argument", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
+
+        case "manage-theme" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val action = argMap.getOrElse("action", "get").toLowerCase
+          val fileOpt = argMap.get("file")
+          val result = action match
+            case "get" =>
+              ThemeManager.getTheme(fileOpt)
+            case "set" =>
+              argMap.get("theme") match
+                case Some(theme) =>
+                  val variantOpt = argMap.get("variant")
+                  ThemeManager.setTheme(theme, variantOpt, fileOpt)
+                case None =>
+                  errorEnvelope[ThemeState]("Missing --theme argument for set action", CumulusError.INVALID_INPUT)
+            case other =>
+              errorEnvelope[ThemeState](s"Unknown action '$other'. Expected 'get' or 'set'", CumulusError.INVALID_INPUT)
           serializeResponse(result)
 
         case _ =>

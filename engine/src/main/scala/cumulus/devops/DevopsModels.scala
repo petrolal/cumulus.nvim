@@ -122,4 +122,13 @@ case class DependencyLens(
   age_status: String
 ) derives ReadWriter
 
+/**
+ * Cloud theme state information.
+ */
+case class ThemeState(
+  theme: String,
+  variant: Option[String] = Some("dark")
+) derives ReadWriter
+
+
 
