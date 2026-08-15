@@ -6,7 +6,8 @@ import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, Jd
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
-import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic}
+import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue}
+import cumulus.git.{ConflictParser, ConflictBlock}
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -624,6 +625,40 @@ object Main:
               catch
                 case e: Exception =>
                   errorEnvelope[Seq[CheckstyleDiagnostic]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "validate-migrations" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val dir = argMap.getOrElse("dir", ".")
+          val result = MigrationValidator.validateMigrationsDir(dir)
+          serializeResponse(result)
+
+        case "validate-k8s-manifest" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case Some(filePath) =>
+              K8sValidator.validateK8sManifestFile(filePath)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                K8sValidator.validateK8sManifest(stdinInput)
+              catch
+                case e: Exception =>
+                  errorEnvelope[Seq[K8sValidationIssue]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "parse-git-conflicts" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case Some(filePath) =>
+              ConflictParser.parseGitConflictsFile(filePath)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                ConflictParser.parseGitConflicts(stdinInput)
+              catch
+                case e: Exception =>
+                  errorEnvelope[Seq[ConflictBlock]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
           serializeResponse(result)
 
         case _ =>

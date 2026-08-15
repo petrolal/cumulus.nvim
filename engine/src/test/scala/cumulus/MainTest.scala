@@ -400,6 +400,39 @@ class MainTest extends FunSuite:
     assertEquals(result.data.get.head.severity, "ERROR")
   }
 
+  test("CLI: validate-migrations with directory returns issues") {
+    val tempDir = Files.createTempDirectory("migrations").toFile
+    try
+      Files.write(new java.io.File(tempDir, "V1__init.sql").toPath, "CREATE TABLE t;".getBytes)
+      Files.write(new java.io.File(tempDir, "V1__dup.sql").toPath, "CREATE TABLE t2;".getBytes)
+      val result = cumulus.devops.MigrationValidator.validateMigrationsDir(tempDir.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.length, 2)
+      assertEquals(result.data.get.head.severity, "ERROR")
+    finally
+      tempDir.delete()
+  }
+
+  test("CLI: validate-k8s-manifest with valid YAML returns success") {
+    val yaml = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: test\n"
+    val result = cumulus.devops.K8sValidator.validateK8sManifest(yaml)
+    assert(result.success)
+    assert(result.data.isDefined)
+    assertEquals(result.data.get.length, 0)
+  }
+
+  test("CLI: parse-git-conflicts with conflict markers returns blocks") {
+    val content = "<<<<<<< HEAD\na\n=======\nb\n>>>>>>> branch\n"
+    val result = cumulus.git.ConflictParser.parseGitConflicts(content)
+    assert(result.success)
+    assert(result.data.isDefined)
+    assertEquals(result.data.get.length, 1)
+    assertEquals(result.data.get.head.current_header, "HEAD")
+    assertEquals(result.data.get.head.incoming_header, "branch")
+  }
+
+
 
 
 

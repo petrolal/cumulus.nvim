@@ -31,3 +31,34 @@ case class CheckstyleDiagnostic(
   severity: String,
   message: String
 ) derives ReadWriter
+
+/**
+ * Represents an issue found when validating Flyway database migrations.
+ *
+ * @param file The filename of the migration script
+ * @param line Optional 1-indexed line number where the issue occurs
+ * @param severity Severity of the issue ("ERROR" | "WARN")
+ * @param message Description of the validation issue
+ */
+case class MigrationIssue(
+  file: String,
+  line: Option[Int] = None,
+  severity: String,
+  message: String
+) derives ReadWriter
+
+/**
+ * Represents a validation issue in a Kubernetes YAML manifest.
+ *
+ * @param line 1-indexed line number of the issue
+ * @param col Optional 1-indexed column number
+ * @param severity Severity level (defaults to "ERROR")
+ * @param message Description of the validation issue
+ */
+case class K8sValidationIssue(
+  line: Int,
+  col: Option[Int] = None,
+  severity: String = "ERROR",
+  message: String
+) derives ReadWriter
+
