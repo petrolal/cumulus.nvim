@@ -86,3 +86,35 @@
 - source_spec: `spec-3-1-codelens-extractor.md`
   summary: Add path security validation (traversal, symbolic link) to file access operations
   evidence: Verification Gap Reviewer identified missing validation; applies to all file-reading subcommands (parse-pom, extract-codelens, etc.)
+
+- source_spec: `spec-4-testing-diagnostics-logging.md`
+  summary: Story 4.2 — Build Log Diagnostic Parser & Stacktrace Drill-Down (parse-build-log, resolve-stacktrace-symbol)
+  evidence: Split from Epic 4 multi-goal scope; Stories 4.1 & 4.4 prioritized first to establish test detection and command assembly foundation
+
+- source_spec: `spec-4-testing-diagnostics-logging.md`
+  summary: Story 4.3 — High-Speed Log File Indexer (index-log)
+  evidence: Split from Epic 4 multi-goal scope; Stories 4.1 & 4.4 prioritized first to establish test workflow
+
+- source_spec: `spec-4-testing-diagnostics-logging.md`
+  summary: Add support for additional test frameworks (TestNG, JUnit 4)
+  evidence: Code review identified only JUnit 5, Maven Surefire, and Gradle formats supported; other frameworks not in scope for Epic 4 but would expand test output parsing capability
+
+- source_spec: `spec-4-testing-diagnostics-logging.md`
+  summary: Enhance TestContextDetector to support interface, enum, and nested/inner class declarations
+  evidence: Code review found regex only matches class/record; inner classes and other declaration types not supported
+
+- source_spec: `spec-4-testing-diagnostics-logging.md`
+  summary: Add class/method name validation and escaping for special characters in TestCommandAssembler
+  evidence: Code review flagged that className/methodName lack validation; special characters (quotes, pipes, wildcards) in names not escaped in assembled commands
+
+- source_spec: `spec-4-testing-diagnostics-logging.md`
+  summary: Extend TestContextDetector to handle multi-line method signatures
+  evidence: Code review identified 10-line scan limit for method signatures; longer signatures split across multiple lines won't be captured
+
+- source_spec: `spec-4-testing-diagnostics-logging.md`
+  summary: Add end-to-end integration tests for detect-test-context → assemble-test-command workflow
+  evidence: Code review found individual components thoroughly tested but workflow integration and edge cases (e.g., test detection → command assembly round-trip) not covered
+
+- source_spec: `spec-4-testing-diagnostics-logging.md`
+  summary: Add help text and usage documentation for three new CLI subcommands
+  evidence: Code review noted subcommands lack help text; users need documentation for --file, --line, --tool, --class, --method, --dir flags

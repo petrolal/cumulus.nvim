@@ -4,6 +4,7 @@ import cumulus.protocol.{CumulusResponse, CumulusError}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo}
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
+import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -283,7 +284,7 @@ object Main:
         case "parse-gradle-tasks" =>
           given ReadWriter[ParseGradleTasksResponse] = upickle.default.macroRW
           try
-            val stdinInput = Source.fromInputStream(System.in).mkString
+            val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
             val result = GradleParser.parseTasks(stdinInput)
             serializeResponse(result)
           catch
@@ -447,7 +448,7 @@ object Main:
         case "optimize-imports" =>
           given ReadWriter[ImportsResponse] = upickle.default.macroRW
           try
-            val stdinInput = Source.fromInputStream(System.in).mkString
+            val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
             val imports = ImportOptimizer.optimizeImports(stdinInput)
             serializeResponse(successEnvelope[ImportsResponse](Some(ImportsResponse(imports = imports))))
           catch
@@ -475,6 +476,86 @@ object Main:
                     errorEnvelope[JavaHeader](e.getMessage, CumulusError.FILE_NOT_FOUND)
                   else
                     errorEnvelope[JavaHeader](s"Error generating Java header: ${e.getMessage}")
+          serializeResponse(result)
+
+        case "detect-test-context" =>
+          given ReadWriter[TestContext] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = (argMap.get("file"), argMap.get("line")) match
+            case (None, _) =>
+              errorEnvelope[TestContext]("Missing --file argument")
+            case (_, None) =>
+              errorEnvelope[TestContext]("Missing --line argument")
+            case (Some(filePath), Some(lineStr)) =>
+              try
+                val lineNumber = lineStr.toInt
+                TestContextDetector.detectTestContext(filePath, lineNumber) match
+                  case Right(context) =>
+                    successEnvelope[TestContext](Some(context))
+                  case Left(error) =>
+                    errorEnvelope[TestContext](error, CumulusError.INVALID_INPUT)
+              catch
+                case e: NumberFormatException =>
+                  errorEnvelope[TestContext](s"Invalid line number: $lineStr")
+                case e: Exception =>
+                  errorEnvelope[TestContext](s"Error detecting test context: ${e.getMessage}")
+          serializeResponse(result)
+
+        case "parse-test-output" =>
+          try
+            val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+            val result = TestOutputParser.parseTestOutput(stdinInput) match
+              case Right(results) =>
+                val jsonResults = results.map { r =>
+                  ujson.Obj(
+                    "class_name" -> r.class_name,
+                    "method_name" -> r.method_name,
+                    "status" -> r.status,
+                    "message" -> r.message.map(ujson.Str(_)).getOrElse(ujson.Null)
+                  )
+                }
+                ujson.Obj(
+                  "success" -> true,
+                  "data" -> ujson.Arr(jsonResults*),
+                  "error" -> ujson.Null,
+                  "error_code" -> ujson.Null
+                )
+              case Left(error) =>
+                ujson.Obj(
+                  "success" -> false,
+                  "data" -> ujson.Null,
+                  "error" -> error,
+                  "error_code" -> CumulusError.PARSE_ERROR.toString
+                )
+            println(ujson.write(result))
+          catch
+            case e: Exception =>
+              val errorResponse = ujson.Obj(
+                "success" -> false,
+                "data" -> ujson.Null,
+                "error" -> s"Error reading or parsing test output: ${e.getMessage}",
+                "error_code" -> CumulusError.INTERNAL_ERROR.toString
+              )
+              println(ujson.write(errorResponse))
+
+        case "assemble-test-command" =>
+          given ReadWriter[TestCommand] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = (argMap.get("tool"), argMap.get("class"), argMap.get("method"), argMap.get("dir")) match
+            case (None, _, _, _) =>
+              errorEnvelope[TestCommand]("Missing --tool argument")
+            case (_, None, _, _) =>
+              errorEnvelope[TestCommand]("Missing --class argument")
+            case (_, _, None, _) =>
+              errorEnvelope[TestCommand]("Missing --method argument")
+            case (_, _, _, None) =>
+              errorEnvelope[TestCommand]("Missing --dir argument")
+            case (Some(tool), Some(className), Some(methodName), Some(dirPath)) =>
+              TestCommandAssembler.assembleTestCommand(tool, className, methodName, dirPath) match
+                case Right(command) =>
+                  successEnvelope[TestCommand](Some(command))
+                case Left(error) =>
+                  errorEnvelope[TestCommand](error, CumulusError.INVALID_INPUT)
           serializeResponse(result)
 
         case _ =>
