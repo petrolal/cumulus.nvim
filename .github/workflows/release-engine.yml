@@ -110,13 +110,18 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
-      - name: Publish Artifacts via sbt-ci-release
+      - name: Publish Artifacts to Maven Central via sbt-ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_HOST: central.sonatype.com
         run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG_NAME#v}"
+          echo "Publishing version: $VERSION to Sonatype Maven Central"
+          export CI_VERSION="$VERSION"
           cd engine
           sbt ci-release
 
