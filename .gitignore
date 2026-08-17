@@ -14,8 +14,13 @@ engine/project/target/
 .metals/
 .bloop/
 
-# BMAD & AI agent configurations and outputs
-_bmad/
-_bmad-output/
+# Dotfiles project-specific artifacts
+.dotfiles_backup/
+.agent/
 .agents/
 .claude/
+_bmad/
+_bmad-output/
+AGENTS.md
+CLAUDE.md
+
