@@ -6,7 +6,7 @@ import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, Jd
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
-import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue, AnsibleParser, AnsiblePlaybookInfo, AnsibleValidationIssue, AnsibleInventoryGroup, TerraformParser, TfSecurityParser, TerraformInfo, SecurityFinding}
+import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue, AnsibleParser, AnsiblePlaybookInfo, AnsibleValidationIssue, AnsibleInventoryGroup, TerraformParser, TfSecurityParser, TerraformInfo, SecurityFinding, DockerParser, DockerValidator, DockerImage, ContainerValidationIssue}
 import cumulus.git.{ConflictParser, ConflictBlock}
 import cumulus.util.{SessionSanitizer, NetworkChecker}
 import cumulus.gradle.WrapperVerifier
@@ -841,6 +841,46 @@ object Main:
               catch
                 case e: Exception =>
                   errorEnvelope[Seq[SecurityFinding]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "docker-inspect" | "--docker-inspect" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val filePath = argMap.get("file").orElse(args.lift(1).filter(!_.startsWith("--")))
+          val result = filePath match
+            case Some(path) =>
+              DockerParser.parseFile(path)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                CumulusResponse(
+                  success = true,
+                  data = Some(DockerParser.parseContent(stdinInput)),
+                  error = None,
+                  error_code = None
+                )
+              catch
+                case e: Exception =>
+                  errorEnvelope[DockerImage](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "docker-validate" | "--docker-validate" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val filePath = argMap.get("file").orElse(args.lift(1).filter(!_.startsWith("--")))
+          val result = filePath match
+            case Some(path) =>
+              DockerValidator.validateFile(path)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                CumulusResponse(
+                  success = true,
+                  data = Some(DockerValidator.validateContent(stdinInput)),
+                  error = None,
+                  error_code = None
+                )
+              catch
+                case e: Exception =>
+                  errorEnvelope[Seq[ContainerValidationIssue]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
           serializeResponse(result)
 
         case "install" | "bootstrap" =>

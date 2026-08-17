@@ -320,3 +320,73 @@ case class SecurityFinding(
   resolution: Option[String] = None
 ) derives ReadWriter
 
+/**
+ * Represents a single build stage in a multi-stage Dockerfile.
+ *
+ * @param name Optional stage name from `FROM ... AS <name>`
+ * @param base_image The base image reference (e.g. "ubuntu:22.04", "node:20-alpine")
+ * @param instructions List of instructions in this stage (RUN, COPY, ADD, etc.)
+ */
+case class DockerStage(
+  name: Option[String] = None,
+  base_image: String,
+  instructions: Seq[String] = Seq.empty
+) derives ReadWriter
+
+/**
+ * Represents a Dockerfile health check configuration.
+ *
+ * @param interval Check interval (e.g. "30s")
+ * @param timeout Check timeout (e.g. "3s")
+ * @param start_period Initial startup grace period (e.g. "5s")
+ * @param retries Number of retries before marking as unhealthy
+ * @param cmd The health check command
+ */
+case class HealthCheck(
+  interval: Option[String] = None,
+  timeout: Option[String] = None,
+  start_period: Option[String] = None,
+  retries: Option[Int] = None,
+  cmd: Option[String] = None
+) derives ReadWriter
+
+/**
+ * Parsed Dockerfile content with all multi-stage information.
+ *
+ * @param stages List of build stages (single or multi-stage)
+ * @param exposed_ports List of exposed ports (from EXPOSE directives)
+ * @param volumes List of volume mount points (from VOLUME directives)
+ * @param entrypoint ENTRYPOINT directive, if present
+ * @param cmd CMD directive (default command), if present
+ * @param healthcheck HEALTHCHECK configuration, if present
+ * @param user USER directive (if present, e.g. "appuser" or "root")
+ * @param workdir WORKDIR directive (working directory)
+ */
+case class DockerImage(
+  stages: Seq[DockerStage] = Seq.empty,
+  exposed_ports: Seq[String] = Seq.empty,
+  volumes: Seq[String] = Seq.empty,
+  entrypoint: Option[String] = None,
+  cmd: Option[String] = None,
+  healthcheck: Option[HealthCheck] = None,
+  user: Option[String] = None,
+  workdir: Option[String] = None
+) derives ReadWriter
+
+/**
+ * Represents a validation issue detected in a Dockerfile.
+ *
+ * @param issue_type Type of issue (e.g. "UNPINNED_BASE_IMAGE", "RUNS_AS_ROOT", "MISSING_HEALTHCHECK")
+ * @param severity Severity level ("ERROR", "WARN", "INFO")
+ * @param line 1-indexed line number where the issue is detected
+ * @param description Human-readable description of the issue
+ * @param remediation Suggested fix for the issue
+ */
+case class ContainerValidationIssue(
+  issue_type: String,
+  severity: String,
+  line: Int,
+  description: String,
+  remediation: String
+) derives ReadWriter
+
