@@ -36,6 +36,10 @@ FR20: Implement Global DevOps Platform Execution without requiring an active buf
 FR21: Implement Smart File vs Workspace Fallbacks for single-file operations (format, lint) when invoked from non-DevOps buffers.
 FR22: Implement Proactive Workspace Diagnostics and warning toasts when DevOps commands are invoked in workspaces lacking the target tool's configuration.
 FR23: Ensure WhichKey registers and displays `<leader>o` and all DevOps sub-groups (`<leader>ot`, `<leader>oc`, `<leader>oy`, `<leader>od`, `<leader>ok`) with icons and descriptions globally.
+FR24: Implement Native Scala 3 DevOps & IaC Analyzers: `TerraformParser` (AST, variables, outputs, local resource DAG), `TfSecurityParser` (trivy/tfsec JSON audit parser), `AnsibleParser` (playbook/role inspection, syntax validator, inventory graph transform), `DockerParser` (multi-stage analyzer, lint checks), and `HelmParser` (Chart.yaml & values hierarchy engine).
+FR25: Implement Native Scala 3 Universal Workspace Classifier & Root Discovery (`WorkspaceClassifier`, `DevopsRootDiscoverer`), replacing ad-hoc `vim.fs.root` and `findfile` crawler loops across Lua modules with a single unified topology scanner.
+FR26: Implement Centralized Command Assembler (`CommandAssembler`) and DAP Configuration Generator (`DapConfigGenerator`) in Scala 3, moving CLI escaping/flag construction and Spring Boot/JVM debug configuration dictionaries out of Lua into the engine.
+FR27: Minimize Lua Footprint & Consolidate Utility Wrappers: purge obsolete `rust.lua` stub, merge thin 20-30 line Lua wrapper files directly into `engine.lua`, and standardize all terminal/UI runners to reduce Lua code by ~50%.
 
 ### NonFunctional Requirements
 
@@ -49,6 +53,9 @@ NFR7: Filesystem operations must use `os-lib` for clean, zero-reflection directo
 NFR8: All DevOps execution must run in interactive, non-blocking terminal sessions (`Snacks.terminal` or split buffers) without locking Neovim UI.
 NFR9: Project root marker discovery must execute in < 5ms using Neovim's `vim.fs.root()`.
 NFR10: The developer experience and error feedback of `<leader>o` must strictly mirror the UX conventions of the JVM platform suite (`<leader>j`).
+NFR11: Zero Business Logic in Lua — all AST parsing, schema validation, regex scanning, graph solving, and command assembly must reside in the Scala 3 engine.
+NFR12: Sub-10ms CLI Execution — all new engine subcommands must execute with zero-reflection uPickle serialization and start up in < 10ms with GraalVM native-image.
+NFR13: 50% Lua File Reduction — eliminate redundant utility `.lua` files and remove all duplicate filesystem search loops.
 
 ### Additional Requirements
 
@@ -93,6 +100,10 @@ FR20: Epic 9 (Story 9.1, 9.2) — Global DevOps platform execution without activ
 FR21: Epic 9 (Story 9.2) — Smart file vs workspace fallback for lint and format
 FR22: Epic 9 (Story 9.1, 9.2) — Proactive workspace diagnostics for missing configurations
 FR23: Epic 9 (Story 9.3) — WhichKey global group consistency & keymap scoping
+FR24: Epic 10 (Story 10.1, 10.2, 10.3, 10.4) — Native Scala 3 DevOps Analyzers (Terraform, Ansible, Docker, Helm)
+FR25: Epic 11 (Story 11.1, 11.2, 11.3) — Unified Workspace Classifier & Root Discovery Engine
+FR26: Epic 12 (Story 12.1, 12.2) — Centralized Command Assembler & DAP Configuration Engine
+FR27: Epic 13 (Story 13.1, 13.2) — Lua Footprint Minimization & Util Consolidation
 
 ## Epic List
 
@@ -632,4 +643,172 @@ So that all DevOps tools are immediately discoverable and accessible with consis
 **Then** WhichKey surfaces all DevOps sub-groups (`<leader>ot`, `<leader>oc`, `<leader>oy`, `<leader>od`, `<leader>ok`) with their respective icons and descriptions
 **And** pressing any DevOps shortcut executes the root-aware command seamlessly
 **And** buffer-specific LSP linting (`nvim-lint`) and autoformatting (`conform.nvim`) continue to work seamlessly when editing specific DevOps files
+
+---
+
+## Epic 10: Native Scala 3 DevOps Analyzers & Toolchain Suite (Terraform, Ansible, Docker, Helm)
+
+Cloud and DevOps engineers receive instantaneous syntax validation, resource graph extraction, security audit parsing, and inventory visualization natively in Scala 3 for Terraform, Ansible, Docker, and Helm without external Lua logic.
+
+### Story 10.1: Native Terraform & OpenTofu Parser, Resource Graph & Security Audit Engine
+
+As a DevOps Engineer,
+I want native Scala 3 parsing for `.tf`, `.tofu`, and `.tfvars` files, local resource dependency DAG solving, and JSON security audit parsing (`trivy`/`tfsec`),
+So that I can inspect Terraform resources, understand dependency graphs, and view structured security issues without external CLI latency.
+
+**Acceptance Criteria:**
+
+**Given** a Terraform directory or `.tf` file
+**When** `cumulus-engine --tf-inspect <dir_or_file>` is executed
+**Then** it returns parsed resources, variables, providers, outputs, and local resource dependency graph
+**And** `cumulus-engine --tf-security-parse <json_file>` parses Trivy/tfsec JSON output into `CumulusResponse[Seq[SecurityFinding]]`
+**And** syntax errors or missing required fields are returned as structured diagnostics
+
+### Story 10.2: Native Ansible Playbook, Role, Syntax & Inventory Graph Parser
+
+As an Automation Engineer,
+I want native Scala 3 parsing for Ansible playbooks, roles, tasks, handlers, syntax validation, and inventory graph analysis,
+So that I can analyze playbooks, validate syntax offline, and inspect host group trees with instant feedback.
+
+**Acceptance Criteria:**
+
+**Given** an Ansible playbook YAML file
+**When** `cumulus-engine --ansible-inspect <file>` is called
+**Then** it returns play structure, target hosts, task lists, and role dependencies
+**And** `cumulus-engine --ansible-validate <file>` performs offline syntax/structure checks
+**And** `cumulus-engine --ansible-inventory-parse <json_or_file>` transforms raw JSON inventory into hierarchical host/group tree models
+
+### Story 10.3: Native Dockerfile Multi-Stage Analyzer & Container Validator
+
+As a Container Engineer,
+I want native Scala 3 parsing for multi-stage Dockerfiles and container configurations,
+So that I can inspect build stages, base images, exposed ports, entrypoints, and validate container best practices.
+
+**Acceptance Criteria:**
+
+**Given** a `Dockerfile`
+**When** `cumulus-engine --docker-inspect <file>` is executed
+**Then** it extracts all build stages (`FROM ... AS ...`), base images, exposed ports, volume mount points, and entrypoint/CMD instructions
+**And** `cumulus-engine --docker-validate <file>` detects anti-patterns (e.g. unpinned tags, running as root, missing healthcheck)
+
+### Story 10.4: Native Helm Chart & Kubernetes Value Hierarchy Engine
+
+As a Kubernetes Engineer,
+I want native Scala 3 parsing for `Chart.yaml`, `values.yaml` hierarchies, and template variable substitution analysis,
+So that I can inspect Helm chart dependencies, values overrides, and template variables directly from the engine.
+
+**Acceptance Criteria:**
+
+**Given** a Helm chart directory
+**When** `cumulus-engine --helm-inspect <dir>` is called
+**Then** it parses `Chart.yaml` metadata, dependencies, and `values.yaml` default properties
+**And** template variable references (`.Values.*`) are extracted and verified against schema/values
+
+---
+
+## Epic 11: Unified Workspace Classifier & Root Discovery Engine
+
+Developers and DevOps engineers get complete workspace topology, multi-project classification (JVM, DevOps, Polyglot), and IaC root detection in a single native engine call, eliminating all redundant `findfile` and `vim.fs.root` crawling loops across Lua modules.
+
+### Story 11.1: Scala 3 Universal Project Classifier & Workspace Topology Scanner
+
+As a Polyglot Engineer,
+I want a single unified `cumulus-engine --classify-workspace <dir>` CLI call,
+So that Neovim can instantly classify project types (Maven, Gradle, SBT, Terraform, SAM, Ansible, Docker, Helm, Polyglot), discover all sub-projects, and report installed toolchains in < 10ms.
+
+**Acceptance Criteria:**
+
+**Given** any workspace directory
+**When** `cumulus-engine --classify-workspace <dir>` is called
+**Then** it returns a complete `WorkspaceTopology` containing primary project type, sub-project list with relative paths and build tools, active Spring/JVM profiles, and detected IaC configurations
+**And** execution takes < 10ms with zero reflection
+
+### Story 11.2: Native DevOps Root & Workspace Multi-Project Discoverer
+
+As a Cloud Engineer working in a mono-repo,
+I want native Scala 3 discovery of tool root directories from any nested file path,
+So that IaC tools (Terraform, SAM, Ansible, Docker, Helm) can automatically locate their respective root directories regardless of the current active buffer.
+
+**Acceptance Criteria:**
+
+**Given** a nested file path in a repository
+**When** `cumulus-engine --discover-devops-roots <file_or_dir>` is called
+**Then** it returns root paths for Terraform (`.terraform`, `*.tf`), SAM (`template.yaml`), Ansible (`ansible.cfg`, `playbook.yml`), Docker (`Dockerfile`), and Helm (`Chart.yaml`)
+
+### Story 11.3: Lua Workspace Root Engine Integration & Heuristic Loop Removal
+
+As a Cumulus Maintainer,
+I want to replace all ad-hoc `vim.fs.root` and `findfile` crawler loops in `jvm.lua`, `gradle.lua`, `maven.lua`, and `devops.lua` with the Scala engine's classifier,
+So that workspace detection is instantaneous, consistent, and centralized in the native engine.
+
+**Acceptance Criteria:**
+
+**Given** `jvm.lua`, `gradle.lua`, `maven.lua`, and `devops.lua`
+**When** determining workspace capabilities and roots
+**Then** they call `engine.classify_workspace()` or `engine.discover_devops_roots()` instead of manual filesystem traversals
+**And** all duplicate filesystem search helper loops are removed from Lua
+
+---
+
+## Epic 12: Centralized Command Assembler & DAP Configuration Engine
+
+JVM and Cloud engineers get centralized, bulletproof CLI command construction and ready-to-run DAP debug configurations (Spring Boot JDWP flags, profiles, main class) generated directly by the Scala engine.
+
+### Story 12.1: Native Build & DevOps CLI Command Assembler
+
+As an Editor Integrator,
+I want all CLI command line strings and arguments (`mvn`, `gradle`, `sbt`, `terraform`, `sam`, `ansible-playbook`, `docker`, `helm`) to be generated natively by the Scala engine,
+So that flag construction, escaping, offline mode flags, test selectors, and template paths are computed centrally without Lua formatting bugs.
+
+**Acceptance Criteria:**
+
+**Given** intent parameters `{ tool: "...", action: "...", target: "...", flags: [...] }`
+**When** `cumulus-engine --assemble-command ...` is called
+**Then** it returns the exact escaped command line string with all applicable flags
+**And** `devops.lua`, `maven.lua`, `gradle.lua`, and `test-runner.lua` use this engine API
+
+### Story 12.2: Native Spring Boot & JVM DAP Debug Configuration Generator
+
+As a Java/Kotlin Developer,
+I want DAP launch/attach dictionaries and JDWP argument strings generated directly by the Scala engine,
+So that debug configuration setup in `springboot-debug.lua` and `lsp-java.lua` is a pure 1-line pass-through of the engine's output to `dap.continue()`.
+
+**Acceptance Criteria:**
+
+**Given** a Spring Boot or JVM workspace
+**When** `cumulus-engine --generate-dap-config <dir>` is called
+**Then** it returns complete DAP JSON configuration with main class, project name, JDWP arguments, active Spring profiles, and pre-launch tasks
+**And** `springboot-debug.lua` uses this engine result directly
+
+---
+
+## Epic 13: Lua Footprint Minimization & Util Consolidation
+
+The distribution is drastically simplified: obsolete legacy stubs (`rust.lua`) are purged, and thin single-purpose Lua utility wrappers are consolidated directly into `engine.lua` and unified UI bridges, shrinking the Lua codebase by ~50% while leaving only essential editor/terminal glue.
+
+### Story 13.1: Obsolete Stub Purge & Thin Wrapper Consolidation into `engine.lua`
+
+As a Cumulus Maintainer,
+I want to purge `rust.lua` and merge thin 20-30 line Lua wrapper files (`beans.lua`, `endpoints.lua`, `import-optimizer.lua`, `k8s-validator.lua`, `migrations.lua`, `conflicts.lua`, `coverage.lua`, `log-indexer.lua`) directly into `engine.lua`,
+So that the number of Lua files under `lua/cumulus/util/` is reduced by ~50% and all engine interactions go through a single cohesive module.
+
+**Acceptance Criteria:**
+
+**Given** `lua/cumulus/util/rust.lua` and the 8 thin wrapper files
+**When** this story is completed
+**Then** `rust.lua` is deleted and all thin wrapper functions are unified directly in `engine.lua`
+**And** all keymaps and caller sites are updated with zero regression
+
+### Story 13.2: Universal UI Terminal & Notification Bridge Standardization
+
+As a Neovim User,
+I want unified terminal execution and notification helpers across all DevOps and JVM commands in `devops.lua` and `jvm.lua`,
+So that non-blocking interactive terminals (`Snacks.terminal` / split fallback) and notifications are standardized with zero duplicated code.
+
+**Acceptance Criteria:**
+
+**Given** `devops.lua` and `jvm.lua`
+**When** executing interactive or long-running processes
+**Then** all commands run through standardized non-blocking runner functions with consistent toast notifications
+**And** all headless validation tests in `scripts/validate.sh` pass cleanly
 

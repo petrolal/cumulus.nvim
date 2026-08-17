@@ -728,5 +728,42 @@ function M.validate_cfn_template(file_path, opts)
   return call_engine_command({ "cfn-validate", "--file", file_path }, nil, "cfn-validate", opts)
 end
 
+--- Inspect Ansible playbook via Scala engine
+---@param file_path string Path to playbook YAML
+---@param opts? { silent?: boolean }
+---@return { plays: table[], total_tasks: number, roles: string[], hosts: string[] }|nil
+function M.inspect_ansible_playbook(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "ansible-inspect", "--file", file_path }, nil, "ansible-inspect", opts)
+end
+
+--- Validate Ansible playbook offline via Scala engine
+---@param file_path string Path to playbook YAML
+---@param opts? { silent?: boolean }
+---@return { line: number, col: number|nil, severity: string, message: string }[]|nil
+function M.validate_ansible_playbook(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "ansible-validate", "--file", file_path }, nil, "ansible-validate", opts)
+end
+
+--- Parse Ansible inventory via Scala engine
+---@param file_path string Path to inventory file or graph/JSON text
+---@param opts? { silent?: boolean }
+---@return { name: string, hosts: string[], children: string[], vars: table }[]|nil
+function M.parse_ansible_inventory(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "ansible-inventory-parse", "--file", file_path }, nil, "ansible-inventory-parse", opts)
+end
+
 return M
+
 

@@ -6,7 +6,7 @@ import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, Jd
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
-import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue}
+import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue, AnsibleParser, AnsiblePlaybookInfo, AnsibleValidationIssue, AnsibleInventoryGroup}
 import cumulus.git.{ConflictParser, ConflictBlock}
 import cumulus.util.{SessionSanitizer, NetworkChecker}
 import cumulus.gradle.WrapperVerifier
@@ -762,6 +762,51 @@ object Main:
               catch
                 case e: Exception =>
                   errorEnvelope[Seq[CfnValidationIssue]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "ansible-inspect" | "--ansible-inspect" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val filePath = argMap.get("file").orElse(args.lift(1).filter(!_.startsWith("--")))
+          val result = filePath match
+            case Some(path) =>
+              AnsibleParser.inspectPlaybookFile(path)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                successEnvelope(Some(AnsibleParser.inspectPlaybook(stdinInput)))
+              catch
+                case e: Exception =>
+                  errorEnvelope[AnsiblePlaybookInfo](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "ansible-validate" | "--ansible-validate" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val filePath = argMap.get("file").orElse(args.lift(1).filter(!_.startsWith("--")))
+          val result = filePath match
+            case Some(path) =>
+              AnsibleParser.validatePlaybookFile(path)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                successEnvelope(Some(AnsibleParser.validatePlaybook(stdinInput)))
+              catch
+                case e: Exception =>
+                  errorEnvelope[Seq[AnsibleValidationIssue]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "ansible-inventory-parse" | "--ansible-inventory-parse" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val filePath = argMap.get("file").orElse(args.lift(1).filter(!_.startsWith("--")))
+          val result = filePath match
+            case Some(path) =>
+              AnsibleParser.parseInventoryFile(path)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                successEnvelope(Some(AnsibleParser.parseInventory(stdinInput)))
+              catch
+                case e: Exception =>
+                  errorEnvelope[Seq[AnsibleInventoryGroup]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
           serializeResponse(result)
 
         case "install" | "bootstrap" =>

@@ -110,6 +110,24 @@ function M.check()
     end
   end
 
+  vim.health.start("Ansible Automation Tooling (Story 8.3)")
+
+  local ansible_tools = {
+    { name = "ansible-playbook", desc = "Ansible Playbook CLI (required for '--syntax-check', '--check', execution)", install = "Install via pip install ansible or brew install ansible" },
+    { name = "ansible-lint", desc = "Ansible Playbook Linter", install = ":MasonInstall ansible-lint or pip install ansible-lint" },
+    { name = "ansible-inventory", desc = "Ansible Inventory CLI (required for '--graph')", install = "Included with ansible package (pip install ansible)" },
+    { name = "ansible-vault", desc = "Ansible Vault CLI (encrypt/decrypt/view secrets)", install = "Included with ansible package (pip install ansible)" },
+    { name = "ansible-doc", desc = "Ansible Module Documentation Browser", install = "Included with ansible package (pip install ansible)" },
+  }
+
+  for _, tool in ipairs(ansible_tools) do
+    if vim.fn.executable(tool.name) == 1 then
+      vim.health.ok(string.format("%s: installed and executable", tool.name))
+    else
+      vim.health.info(string.format("%s: NOT found on $PATH (%s. Suggestion: %s)", tool.name, tool.desc, tool.install))
+    end
+  end
+
   vim.health.start("Cumulus Signature Cloud Themes")
 
 

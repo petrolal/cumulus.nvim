@@ -45,11 +45,11 @@ else
   exit 1
 fi
 
-echo "[6/7] Verifying Engine Bridge & DevOps Suite (<leader>oc, :CumulusInstallEngine)..."
-if nvim -u init.lua --headless "+lua local e = require('cumulus.util.engine'); assert(type(e.detect_platform) == 'function', 'detect_platform not found'); assert(type(e.install) == 'function', 'install not found'); assert(type(e.inspect_cfn_template) == 'function', 'inspect_cfn_template not found'); assert(type(e.validate_cfn_template) == 'function', 'validate_cfn_template not found'); local devops = require('cumulus.util.devops'); assert(type(devops.cfn_validate) == 'function'); assert(type(devops.sam_local_invoke) == 'function'); local plat = e.detect_platform() or 'unknown'; assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered'); print('✔ Engine bridge APIs & DevOps CFN/SAM suite verified (' .. plat .. ')')" +qa; then
-  echo "✔ Engine bridge & DevOps CFN/SAM suite PASSED."
+echo "[6/7] Verifying Engine Bridge & DevOps Suite (<leader>ot, <leader>oc, <leader>oy, :CumulusInstallEngine)..."
+if nvim -u init.lua --headless "+lua local e = require('cumulus.util.engine'); assert(type(e.detect_platform) == 'function', 'detect_platform not found'); assert(type(e.install) == 'function', 'install not found'); assert(type(e.inspect_cfn_template) == 'function', 'inspect_cfn_template not found'); assert(type(e.validate_cfn_template) == 'function', 'validate_cfn_template not found'); assert(type(e.inspect_ansible_playbook) == 'function', 'inspect_ansible_playbook not found'); assert(type(e.validate_ansible_playbook) == 'function', 'validate_ansible_playbook not found'); assert(type(e.parse_ansible_inventory) == 'function', 'parse_ansible_inventory not found'); local devops = require('cumulus.util.devops'); assert(type(devops.cfn_validate) == 'function'); assert(type(devops.sam_local_invoke) == 'function'); assert(type(devops.ansible_syntax_check) == 'function'); assert(type(devops.ansible_lint) == 'function'); assert(type(devops.ansible_dry_run) == 'function'); assert(type(devops.ansible_run_playbook) == 'function'); assert(type(devops.ansible_inventory_graph) == 'function'); assert(type(devops.ansible_doc_lookup) == 'function'); assert(type(devops.ansible_vault_action) == 'function'); local plat = e.detect_platform() or 'unknown'; assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered'); print('✔ Engine bridge APIs & DevOps Terraform/CFN/Ansible suite verified (' .. plat .. ')')" +qa; then
+  echo "✔ Engine bridge & DevOps suite PASSED."
 else
-  echo "✖ Engine bridge & DevOps CFN/SAM suite FAILED."
+  echo "✖ Engine bridge & DevOps suite FAILED."
   exit 1
 fi
 

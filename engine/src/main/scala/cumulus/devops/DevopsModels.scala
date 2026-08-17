@@ -185,3 +185,55 @@ case class CfnValidationIssue(
   message: String,
   logical_id: Option[String] = None
 ) derives ReadWriter
+
+/**
+ * Information about a single task in an Ansible play or role.
+ */
+case class AnsibleTaskInfo(
+  name: String,
+  module: String,
+  line: Option[Int] = None
+) derives ReadWriter
+
+/**
+ * Information about a single play in an Ansible playbook.
+ */
+case class AnsiblePlayInfo(
+  name: String,
+  hosts: String,
+  gather_facts: Option[Boolean] = None,
+  roles: Seq[String] = Seq.empty,
+  tasks: Seq[AnsibleTaskInfo] = Seq.empty,
+  line: Option[Int] = None
+) derives ReadWriter
+
+/**
+ * Inspected Ansible playbook metadata.
+ */
+case class AnsiblePlaybookInfo(
+  plays: Seq[AnsiblePlayInfo] = Seq.empty,
+  total_tasks: Int = 0,
+  roles: Seq[String] = Seq.empty,
+  hosts: Seq[String] = Seq.empty
+) derives ReadWriter
+
+/**
+ * Issue detected during offline Ansible playbook validation.
+ */
+case class AnsibleValidationIssue(
+  line: Int,
+  col: Option[Int] = None,
+  severity: String = "ERROR",
+  message: String
+) derives ReadWriter
+
+/**
+ * Parsed group from an Ansible inventory hierarchy/graph.
+ */
+case class AnsibleInventoryGroup(
+  name: String,
+  hosts: Seq[String] = Seq.empty,
+  children: Seq[String] = Seq.empty,
+  vars: Map[String, String] = Map.empty
+) derives ReadWriter
+
