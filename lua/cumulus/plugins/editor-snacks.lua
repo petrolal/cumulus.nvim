@@ -193,12 +193,33 @@ return {
         desc = "Buffers",
       },
       {
+        "<leader>sg",
+        function()
+          Snacks.picker.grep()
+        end,
+        desc = "Grep (Root Dir)",
+      },
+      {
         "<leader>sw",
         function()
           Snacks.picker.grep_word()
         end,
         desc = "Visual selection or word",
         mode = { "n", "x" },
+      },
+      {
+        "<leader>sd",
+        function()
+          Snacks.picker.diagnostics()
+        end,
+        desc = "Search Diagnostics",
+      },
+      {
+        "<leader>ss",
+        function()
+          Snacks.picker.lsp_symbols()
+        end,
+        desc = "Search LSP Symbols",
       },
       {
         "<leader>sh",
@@ -215,18 +236,18 @@ return {
         desc = "Keymaps",
       },
       {
-        "<leader>ld",
+        "<leader>bd",
         function()
-          Snacks.picker.diagnostics()
+          Snacks.bufdelete()
         end,
-        desc = "Diagnostics",
+        desc = "Close Buffer",
       },
       {
-        "<leader>ls",
+        "<leader>bo",
         function()
-          Snacks.picker.lsp_symbols()
+          Snacks.bufdelete.other()
         end,
-        desc = "LSP Symbols",
+        desc = "Close Other Buffers",
       },
       {
         "gd",
@@ -294,13 +315,6 @@ return {
           Snacks.terminal("lazydocker")
         end,
         desc = "LazyDocker",
-      },
-      {
-        "<leader>og",
-        function()
-          Snacks.terminal("lazygit")
-        end,
-        desc = "LazyGit",
       },
       {
         "<leader>gg",

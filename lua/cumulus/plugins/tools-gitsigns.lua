@@ -35,9 +35,7 @@ return {
           return "<Ignore>"
         end, { expr = true, desc = "Prev Hunk" })
 
-        -- Actions (Story 10.2 & Story 13.2)
         map("n", "<leader>gb", function() gs.blame_line({ full = true }) end, { desc = "Blame Line" })
-        map("n", "<leader>gbl", function() gs.blame_line({ full = true }) end, { desc = "Blame Line" })
         map("n", "<leader>gB", gs.blame, { desc = "Blame Buffer Toggle" })
         map("n", "<leader>gd", gs.diffthis, { desc = "Git Diff This" })
         map("n", "<leader>ghs", gs.stage_hunk, { desc = "Stage Hunk" })

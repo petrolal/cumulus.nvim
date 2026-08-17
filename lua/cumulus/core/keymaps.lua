@@ -268,54 +268,68 @@ map("n", "<leader>jid", "<cmd>CumulusInstallEngine<cr>", { desc = "Cumulus Engin
 map("n", "<leader>jih", "<cmd>checkhealth cumulus<cr>", { desc = "Cumulus Health Check" })
 
 -- ==============================================================================
--- Non-JVM DevOps Language Scopes (Terraform, Ansible, Docker, Helm)
+-- 󱁢 Infrastructure & DevOps Language Scopes (<leader>o)
 -- ==============================================================================
 lang_keymaps.register({
   filetypes = { "terraform", "terraform-vars", "hcl" },
-  group = "<leader>ct",
+  group = "<leader>ot",
   label = "terraform/opentofu",
   icon = "󱁢 ",
   keys = {
-    { "<leader>ctv", "<cmd>!terraform validate<cr>", "Terraform: Validate" },
-    { "<leader>ctp", "<cmd>!terraform plan<cr>", "Terraform: Plan" },
-    { "<leader>ctf", "<cmd>!terraform fmt<cr>", "Terraform: Format" },
+    { "<leader>otv", "<cmd>!terraform validate<cr>", "Terraform: Validate" },
+    { "<leader>otp", "<cmd>!terraform plan<cr>", "Terraform: Plan" },
+    { "<leader>otf", "<cmd>!terraform fmt<cr>", "Terraform: Format" },
   },
 })
 
 lang_keymaps.register({
   filetypes = { "yaml.ansible", "ansible" },
-  group = "<leader>cy",
+  group = "<leader>oy",
   label = "ansible",
   icon = "󰚰 ",
   keys = {
-    { "<leader>cya", "<cmd>!ansible-lint %<cr>", "Ansible: Lint Playbook" },
-    { "<leader>cys", "<cmd>!ansible-playbook --syntax-check %<cr>", "Ansible: Syntax Check" },
+    { "<leader>oya", "<cmd>!ansible-lint %<cr>", "Ansible: Lint Playbook" },
+    { "<leader>oys", "<cmd>!ansible-playbook --syntax-check %<cr>", "Ansible: Syntax Check" },
   },
 })
 
 lang_keymaps.register({
   filetypes = { "dockerfile" },
-  group = "<leader>cD",
+  group = "<leader>od",
   label = "docker",
   icon = "󰡨 ",
   keys = {
-    { "<leader>cDb", "<cmd>!docker build -t %:h:t .<cr>", "Docker: Build Image" },
-    { "<leader>cDl", "<cmd>!hadolint %<cr>", "Docker: Lint Dockerfile" },
+    { "<leader>odb", "<cmd>!docker build -t %:h:t .<cr>", "Docker: Build Image" },
+    { "<leader>odl", "<cmd>!hadolint %<cr>", "Docker: Lint Dockerfile" },
   },
 })
 
 lang_keymaps.register({
   filetypes = { "helm" },
-  group = "<leader>ck",
+  group = "<leader>ok",
   label = "helm/k8s",
   icon = "󱃾 ",
   keys = {
-    { "<leader>ckl", "<cmd>!helm lint %:h<cr>", "Helm: Lint Chart" },
-    { "<leader>ckt", "<cmd>!helm template %:h<cr>", "Helm: Render Template" },
+    { "<leader>okl", "<cmd>!helm lint %:h<cr>", "Helm: Lint Chart" },
+    { "<leader>okt", "<cmd>!helm template %:h<cr>", "Helm: Render Template" },
   },
 })
 
 lang_keymaps.setup()
+
+-- Plugin & Package Management Keymaps (<leader>l)
+map("n", "<leader>ll", "<cmd>Lazy<cr>", { desc = "Lazy Plugin Manager" })
+map("n", "<leader>lm", "<cmd>Mason<cr>", { desc = "Mason Tool Manager" })
+map("n", "<leader>lc", "<cmd>checkhealth<cr>", { desc = "Checkhealth System" })
+
+-- Buffer Navigation Keymaps (<leader>b)
+map("n", "<leader>bp", "<cmd>bprevious<cr>", { desc = "Previous Buffer" })
+map("n", "<leader>bn", "<cmd>bnext<cr>", { desc = "Next Buffer" })
+
+-- Window Management Splits & Navigation (<leader>w)
+map("n", "<leader>ws", "<cmd>split<cr>", { desc = "Split Window Horizontally" })
+map("n", "<leader>wv", "<cmd>vsplit<cr>", { desc = "Split Window Vertically" })
+map("n", "<leader>wd", "<cmd>close<cr>", { desc = "Close Window" })
 
 -- Session & Quit Keymaps (Story 10.1 & Story 29.1)
 map("n", "<leader>qq", "<cmd>confirm qa<cr>", { desc = "Quit Neovim (Confirm)" })
