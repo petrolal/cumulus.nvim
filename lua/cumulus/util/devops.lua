@@ -782,6 +782,10 @@ function M.ansible_vault_action()
           return
         end
         if input ~= "" then
+          if input:match("^/") or input:match("%.%.") then
+            vim.notify("Invalid path. Use relative paths within the project (e.g., 'vault/secrets.yml').", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+            return
+          end
           local full_target = vim.fs.normalize(root .. "/" .. input)
           run_vault_on_file(full_target)
         end
@@ -819,6 +823,7 @@ function M.docker_build()
     local target_dir_name = raw_name:lower():gsub("[^%w%._%-]", "-"):gsub("^%-+", ""):gsub("%-+$", "")
     if target_dir_name == "" then
       target_dir_name = "app"
+      vim.notify("Using default image name 'app' (root directory name was unprintable)", vim.log.levels.INFO, { title = "Cumulus DevOps" })
     end
     M.run_term("docker build -t " .. vim.fn.shellescape(target_dir_name) .. " .", { cwd = root })
   end)
@@ -889,6 +894,7 @@ function M.setup_keymaps(force)
   if M.keymaps_registered and not force then
     return
   end
+  -- Set flag BEFORE registration to prevent concurrent duplicate registration
   M.keymaps_registered = true
 
   local function safe_map(mode, lhs, rhs, opts)
