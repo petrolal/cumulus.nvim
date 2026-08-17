@@ -155,8 +155,8 @@ lang_keymaps.register({
   label = "docker",
   icon = "󰡨 ",
   keys = {
-    { "<leader>odb", "<cmd>!docker build -t %:h:t .<cr>", "Docker: Build Image" },
-    { "<leader>odl", "<cmd>!hadolint %<cr>", "Docker: Lint Dockerfile" },
+    { "<leader>odb", devops.docker_build, "Docker: Build Image" },
+    { "<leader>odl", devops.docker_lint, "Docker: Lint Dockerfile" },
   },
 })
 
@@ -166,8 +166,8 @@ lang_keymaps.register({
   label = "helm/k8s",
   icon = "󱃾 ",
   keys = {
-    { "<leader>okl", "<cmd>!helm lint %:h<cr>", "Helm: Lint Chart" },
-    { "<leader>okt", "<cmd>!helm template %:h<cr>", "Helm: Render Template" },
+    { "<leader>okl", devops.helm_lint, "Helm: Lint Chart" },
+    { "<leader>okt", devops.helm_template, "Helm: Render Template" },
   },
 })
 

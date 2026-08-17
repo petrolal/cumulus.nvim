@@ -233,7 +233,7 @@ if nvim -u init.lua --headless "+lua
   assert(devops.find_helm_root(empty_proj) == nil, 'find_helm_root should be nil for empty workspace')
   assert(devops.find_tf_root(999999) == nil or type(devops.find_tf_root(999999)) == 'string', 'find_tf_root invalid buffer must not error')
 
-  -- 7. Verify Root Adoption in Runner Execution
+  -- 7. Verify Root Adoption in Runner Execution & Warning Toasts
   local last_executed_cmd, last_executed_opts = nil, nil
   local orig_run_term = devops.run_term
   devops.run_term = function(cmd, opts)
@@ -241,7 +241,14 @@ if nvim -u init.lua --headless "+lua
     last_executed_opts = opts
   end
 
-  -- Test Terraform adoption
+  local last_notify_msg, last_notify_level = nil, nil
+  local orig_notify = vim.notify
+  vim.notify = function(msg, level, opts)
+    last_notify_msg = msg
+    last_notify_level = level
+  end
+
+  -- Test Terraform adoption & missing notification
   local orig_get_tf_cmd = devops.get_tf_cmd
   devops.get_tf_cmd = function() return 'tofu' end
   local orig_find_tf_root = devops.find_tf_root
@@ -250,25 +257,81 @@ if nvim -u init.lua --headless "+lua
   assert(last_executed_cmd == 'tofu init', 'terraform_init command mismatch')
   assert(last_executed_opts and last_executed_opts.cwd == '/mock/tf/root', 'terraform_init cwd not adopted: ' .. vim.inspect(last_executed_opts))
 
-  -- Test Ansible adoption
+  -- Test Missing TF workspace warning
+  devops.find_tf_root = function() return nil end
+  last_executed_cmd = nil
+  last_notify_msg = nil
+  devops.terraform_plan()
+  assert(last_executed_cmd == nil, 'terraform_plan should not execute when no root is found')
+  assert(last_notify_msg:match('No Terraform/OpenTofu configuration found in workspace'), 'Missing TF warning toast: ' .. tostring(last_notify_msg))
+
+  -- Test Ansible adoption & missing notification
   local orig_find_ansible_root = devops.find_ansible_root
   devops.find_ansible_root = function() return '/mock/ansible/root' end
   devops.ansible_inventory_graph()
   assert(last_executed_cmd == 'ansible-inventory --graph', 'ansible_inventory_graph command mismatch')
   assert(last_executed_opts and last_executed_opts.cwd == '/mock/ansible/root', 'ansible_inventory_graph cwd not adopted: ' .. vim.inspect(last_executed_opts))
 
+  devops.find_ansible_root = function() return nil end
+  last_executed_cmd = nil
+  last_notify_msg = nil
+  devops.ansible_syntax_check()
+  assert(last_executed_cmd == nil, 'ansible_syntax_check should not execute when no root is found')
+  assert(last_notify_msg:match('No Ansible configuration found in workspace'), 'Missing Ansible warning toast: ' .. tostring(last_notify_msg))
+
+  -- Test Docker adoption & missing notification
+  local orig_find_docker_root = devops.find_docker_root
+  devops.find_docker_root = function() return '/mock/docker/my-app' end
+  devops.docker_build()
+  assert(last_executed_cmd:match('docker build %-t %'my%-app%' %.'), 'docker_build command mismatch: ' .. tostring(last_executed_cmd))
+  assert(last_executed_opts and last_executed_opts.cwd == '/mock/docker/my-app', 'docker_build cwd not adopted')
+
+  devops.find_docker_root = function() return nil end
+  last_executed_cmd = nil
+  last_notify_msg = nil
+  devops.docker_build()
+  assert(last_executed_cmd == nil, 'docker_build should not execute when no root is found')
+  assert(last_notify_msg:match('No Docker configuration found in workspace'), 'Missing Docker warning toast: ' .. tostring(last_notify_msg))
+
+  -- Test Helm adoption & missing notification
+  local orig_find_helm_root = devops.find_helm_root
+  devops.find_helm_root = function() return '/mock/helm/my-chart' end
+  devops.helm_lint()
+  assert(last_executed_cmd == 'helm lint .', 'helm_lint command mismatch: ' .. tostring(last_executed_cmd))
+  assert(last_executed_opts and last_executed_opts.cwd == '/mock/helm/my-chart', 'helm_lint cwd not adopted')
+
+  devops.find_helm_root = function() return nil end
+  last_executed_cmd = nil
+  last_notify_msg = nil
+  devops.helm_lint()
+  assert(last_executed_cmd == nil, 'helm_lint should not execute when no root is found')
+  assert(last_notify_msg:match('No Helm configuration found in workspace'), 'Missing Helm warning toast: ' .. tostring(last_notify_msg))
+
+  -- Test CloudFormation / SAM missing notification
+  local orig_find_cfn_root = devops.find_cfn_root
+  devops.find_cfn_root = function() return nil end
+  last_executed_cmd = nil
+  last_notify_msg = nil
+  devops.sam_validate()
+  assert(last_executed_cmd == nil, 'sam_validate should not execute when no root is found')
+  assert(last_notify_msg:match('No CloudFormation/SAM configuration found in workspace'), 'Missing CFN warning toast: ' .. tostring(last_notify_msg))
+
   -- Restore mocks
   devops.run_term = orig_run_term
+  vim.notify = orig_notify
   devops.get_tf_cmd = orig_get_tf_cmd
   devops.find_tf_root = orig_find_tf_root
   devops.find_ansible_root = orig_find_ansible_root
+  devops.find_docker_root = orig_find_docker_root
+  devops.find_helm_root = orig_find_helm_root
+  devops.find_cfn_root = orig_find_cfn_root
 
   -- Cleanup mock workspace
   vim.fn.delete(tmp_root, 'rf')
 
   local plat = e.detect_platform() or 'unknown'
   assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered')
-  print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling, Workspace Root Discovery & Runner cwd adoption verified (' .. plat .. ')')
+  print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling, Workspace Root Discovery & Global Root Execution with Warning Toasts verified (' .. plat .. ')')
 
 " +qa; then
   echo "✔ Engine bridge & DevOps suite PASSED."

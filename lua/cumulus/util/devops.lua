@@ -1,4 +1,4 @@
--- Cumulus DevOps & Infrastructure Tooling Suite (Story 8.1, Story 8.2, Story 8.3, Story 8.4, Story 9.1)
+-- Cumulus DevOps & Infrastructure Tooling Suite (Story 8.1, Story 8.2, Story 8.3, Story 8.4, Story 9.1, Story 9.2)
 --
 -- Interactive and non-blocking compilers, validators, linters, and runners
 -- for Terraform/OpenTofu, AWS CloudFormation/SAM, Ansible, Docker, and Helm.
@@ -259,6 +259,19 @@ function M.run_term(cmd, opts)
 end
 
 -- =============================================================================
+-- Helper Guards for Global Root Execution & Missing Workspace Diagnostics
+-- =============================================================================
+
+local function with_root(finder, missing_msg, callback)
+  local root = finder()
+  if not root then
+    vim.notify(missing_msg, vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    return
+  end
+  callback(root)
+end
+
+-- =============================================================================
 -- Terraform & OpenTofu
 -- =============================================================================
 
@@ -281,8 +294,9 @@ local function with_tf(callback)
     )
     return
   end
-  local root = M.find_tf_root() or vim.fn.getcwd()
-  callback(tf, root)
+  with_root(M.find_tf_root, "No Terraform/OpenTofu configuration found in workspace", function(root)
+    callback(tf, root)
+  end)
 end
 
 function M.terraform_init()
@@ -312,7 +326,8 @@ end
 function M.terraform_fmt()
   with_tf(function(tf, root)
     local file = vim.fn.expand("%:p")
-    if file ~= "" then
+    local is_tf_file = file ~= "" and (file:match("%.tf$") or file:match("%.tofu$") or file:match("%.tfvars$"))
+    if is_tf_file then
       vim.cmd("update")
       local out = vim.fn.system({ tf, "fmt", file })
       vim.cmd("edit!")
@@ -328,23 +343,25 @@ function M.terraform_fmt()
 end
 
 function M.terraform_lint()
-  local root = M.find_tf_root() or vim.fn.getcwd()
-  if vim.fn.executable("tflint") == 1 then
-    M.run_term("tflint", { cwd = root })
-  else
-    vim.notify("tflint is not installed in PATH. Install via Mason (:MasonInstall tflint).", vim.log.levels.WARN)
-  end
+  with_root(M.find_tf_root, "No Terraform/OpenTofu configuration found in workspace", function(root)
+    if vim.fn.executable("tflint") == 1 then
+      M.run_term("tflint", { cwd = root })
+    else
+      vim.notify("tflint is not installed in PATH. Install via Mason (:MasonInstall tflint).", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+  end)
 end
 
 function M.terraform_security()
-  local root = M.find_tf_root() or vim.fn.getcwd()
-  if vim.fn.executable("trivy") == 1 then
-    M.run_term("trivy config .", { cwd = root })
-  elseif vim.fn.executable("tfsec") == 1 then
-    M.run_term("tfsec .", { cwd = root })
-  else
-    vim.notify("Neither 'trivy' nor 'tfsec' is installed in PATH.", vim.log.levels.WARN)
-  end
+  with_root(M.find_tf_root, "No Terraform/OpenTofu configuration found in workspace", function(root)
+    if vim.fn.executable("trivy") == 1 then
+      M.run_term("trivy config .", { cwd = root })
+    elseif vim.fn.executable("tfsec") == 1 then
+      M.run_term("tfsec .", { cwd = root })
+    else
+      vim.notify("Neither 'trivy' nor 'tfsec' is installed in PATH.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+  end)
 end
 
 function M.terraform_output()
@@ -377,154 +394,172 @@ function M.is_cloudformation_buffer(buf)
   return false
 end
 
-function M.cfn_validate()
+local function with_cfn(callback)
+  with_root(M.find_cfn_root, "No CloudFormation/SAM configuration found in workspace", callback)
+end
+
+local function resolve_cfn_target_file(root)
   local file = vim.fn.expand("%:p")
-  local root = M.find_cfn_root()
-  if file == "" and root then
+  if file ~= "" and M.is_cloudformation_buffer() then
+    return file
+  end
+  if root then
     if is_file(root .. "/template.yaml") then
-      file = root .. "/template.yaml"
+      return root .. "/template.yaml"
     elseif is_file(root .. "/template.yml") then
-      file = root .. "/template.yml"
+      return root .. "/template.yml"
+    elseif is_file(root .. "/template.json") then
+      return root .. "/template.json"
     end
   end
-  if file == "" then
-    vim.notify("No file to validate", vim.log.levels.WARN, { title = "Cumulus DevOps" })
-    return
-  end
-  local cwd = root or vim.fs.normalize(vim.fn.fnamemodify(file, ":h"))
-  if vim.fn.executable("aws") == 1 then
-    M.run_term("aws cloudformation validate-template --template-body file://" .. vim.fn.shellescape(file), { cwd = cwd })
-  elseif vim.fn.executable("cfn-lint") == 1 then
-    M.run_term("cfn-lint " .. vim.fn.shellescape(file), { cwd = cwd })
-  else
-    vim.notify(
-      "Neither 'aws' CLI nor 'cfn-lint' was found in PATH. Please install the AWS CLI or cfn-lint (:MasonInstall cfn-lint).",
-      vim.log.levels.WARN,
-      { title = "Cumulus DevOps" }
-    )
-  end
+  return file ~= "" and file or nil
+end
+
+function M.cfn_validate()
+  with_cfn(function(root)
+    local file = resolve_cfn_target_file(root)
+    if not file then
+      vim.notify("No CloudFormation/SAM template file found to validate.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      return
+    end
+    local cwd = root or vim.fs.normalize(vim.fn.fnamemodify(file, ":h"))
+    if vim.fn.executable("aws") == 1 then
+      M.run_term("aws cloudformation validate-template --template-body file://" .. vim.fn.shellescape(file), { cwd = cwd })
+    elseif vim.fn.executable("cfn-lint") == 1 then
+      M.run_term("cfn-lint " .. vim.fn.shellescape(file), { cwd = cwd })
+    else
+      vim.notify(
+        "Neither 'aws' CLI nor 'cfn-lint' was found in PATH. Please install the AWS CLI or cfn-lint (:MasonInstall cfn-lint).",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
+    end
+  end)
 end
 
 function M.cfn_lint()
-  local file = vim.fn.expand("%:p")
-  local root = M.find_cfn_root()
-  local cwd = root or vim.fn.getcwd()
-  if vim.fn.executable("cfn-lint") == 1 then
-    if file ~= "" then
-      M.run_term("cfn-lint " .. vim.fn.shellescape(file), { cwd = cwd })
+  with_cfn(function(root)
+    local file = resolve_cfn_target_file(root)
+    if vim.fn.executable("cfn-lint") == 1 then
+      if file and file ~= "" then
+        M.run_term("cfn-lint " .. vim.fn.shellescape(file), { cwd = root })
+      else
+        M.run_term("cfn-lint", { cwd = root })
+      end
     else
-      M.run_term("cfn-lint", { cwd = cwd })
+      vim.notify(
+        "cfn-lint is not installed in PATH. Install via Mason (:MasonInstall cfn-lint) or pip ('pip install cfn-lint').",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
     end
-  else
-    vim.notify(
-      "cfn-lint is not installed in PATH. Install via Mason (:MasonInstall cfn-lint) or pip ('pip install cfn-lint').",
-      vim.log.levels.WARN,
-      { title = "Cumulus DevOps" }
-    )
-  end
+  end)
 end
 
 function M.sam_validate()
-  local root = M.find_cfn_root() or vim.fn.getcwd()
-  if vim.fn.executable("sam") == 1 then
-    M.run_term("sam validate", { cwd = root })
-  else
-    vim.notify(
-      "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
-      vim.log.levels.WARN,
-      { title = "Cumulus DevOps" }
-    )
-  end
+  with_cfn(function(root)
+    if vim.fn.executable("sam") == 1 then
+      M.run_term("sam validate", { cwd = root })
+    else
+      vim.notify(
+        "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
+    end
+  end)
 end
 
 function M.sam_build()
-  local root = M.find_cfn_root() or vim.fn.getcwd()
-  if vim.fn.executable("sam") == 1 then
-    M.run_term("sam build", { cwd = root })
-  else
-    vim.notify(
-      "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
-      vim.log.levels.WARN,
-      { title = "Cumulus DevOps" }
-    )
-  end
+  with_cfn(function(root)
+    if vim.fn.executable("sam") == 1 then
+      M.run_term("sam build", { cwd = root })
+    else
+      vim.notify(
+        "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
+    end
+  end)
 end
 
 function M.sam_local_invoke()
-  if vim.fn.executable("sam") ~= 1 then
-    vim.notify(
-      "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
-      vim.log.levels.WARN,
-      { title = "Cumulus DevOps" }
-    )
-    return
-  end
+  with_cfn(function(root)
+    if vim.fn.executable("sam") ~= 1 then
+      vim.notify(
+        "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
+      return
+    end
 
-  local file = vim.fn.expand("%:p")
-  local root = M.find_cfn_root()
-  local cwd = root or vim.fn.getcwd()
-  local engine = require("cumulus.util.engine")
-  local functions = {}
+    local file = resolve_cfn_target_file(root) or ""
+    local engine = require("cumulus.util.engine")
+    local functions = {}
 
-  if file ~= "" and engine.is_available() then
-    local info = engine.inspect_cfn_template(file, { silent = true })
-    if info and info.functions and #info.functions > 0 then
-      for _, fn in ipairs(info.functions) do
-        table.insert(functions, fn.logical_id)
+    if file ~= "" and engine.is_available() then
+      local info = engine.inspect_cfn_template(file, { silent = true })
+      if info and info.functions and #info.functions > 0 then
+        for _, fn in ipairs(info.functions) do
+          table.insert(functions, fn.logical_id)
+        end
       end
     end
-  end
 
-  local tmpl_flag = (file ~= "") and (" -t " .. vim.fn.shellescape(file)) or ""
+    local tmpl_flag = (file ~= "") and (" -t " .. vim.fn.shellescape(file)) or ""
 
-  if #functions > 1 then
-    vim.ui.select(functions, { prompt = "Select Lambda Function to Invoke:" }, function(choice)
-      if choice and choice ~= "" then
-        M.run_term("sam local invoke " .. vim.fn.shellescape(choice) .. tmpl_flag, { cwd = cwd })
-      end
-    end)
-  elseif #functions == 1 then
-    M.run_term("sam local invoke " .. vim.fn.shellescape(functions[1]) .. tmpl_flag, { cwd = cwd })
-  else
-    vim.ui.input({ prompt = "Lambda Function Logical ID (optional, Esc to cancel): " }, function(input)
-      if input == nil then
-        return
-      elseif input ~= "" then
-        M.run_term("sam local invoke " .. vim.fn.shellescape(input) .. tmpl_flag, { cwd = cwd })
-      else
-        M.run_term("sam local invoke" .. tmpl_flag, { cwd = cwd })
-      end
-    end)
-  end
+    if #functions > 1 then
+      vim.ui.select(functions, { prompt = "Select Lambda Function to Invoke:" }, function(choice)
+        if choice and choice ~= "" then
+          M.run_term("sam local invoke " .. vim.fn.shellescape(choice) .. tmpl_flag, { cwd = root })
+        end
+      end)
+    elseif #functions == 1 then
+      M.run_term("sam local invoke " .. vim.fn.shellescape(functions[1]) .. tmpl_flag, { cwd = root })
+    else
+      vim.ui.input({ prompt = "Lambda Function Logical ID (optional, Esc to cancel): " }, function(input)
+        if input == nil then
+          return
+        elseif input ~= "" then
+          M.run_term("sam local invoke " .. vim.fn.shellescape(input) .. tmpl_flag, { cwd = root })
+        else
+          M.run_term("sam local invoke" .. tmpl_flag, { cwd = root })
+        end
+      end)
+    end
+  end)
 end
 
 function M.sam_local_start_api()
-  local root = M.find_cfn_root() or vim.fn.getcwd()
-  if vim.fn.executable("sam") == 1 then
-    M.run_term("sam local start-api", { cwd = root })
-  else
-    vim.notify(
-      "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
-      vim.log.levels.WARN,
-      { title = "Cumulus DevOps" }
-    )
-  end
+  with_cfn(function(root)
+    if vim.fn.executable("sam") == 1 then
+      M.run_term("sam local start-api", { cwd = root })
+    else
+      vim.notify(
+        "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
+    end
+  end)
 end
 
 function M.cfn_guard_validate()
-  local root = M.find_cfn_root() or vim.fn.getcwd()
-  if vim.fn.executable("cfn-guard") == 1 then
-    local file = vim.fn.expand("%:p")
-    M.run_term("cfn-guard validate --template " .. vim.fn.shellescape(file), { cwd = root })
-  else
-    vim.notify(
-      "cfn-guard is not installed in PATH. Install CloudFormation Guard via cargo or homebrew ('brew install cloudformation-guard').",
-      vim.log.levels.WARN,
-      { title = "Cumulus DevOps" }
-    )
-  end
+  with_cfn(function(root)
+    if vim.fn.executable("cfn-guard") == 1 then
+      local file = resolve_cfn_target_file(root) or vim.fn.expand("%:p")
+      M.run_term("cfn-guard validate --template " .. vim.fn.shellescape(file), { cwd = root })
+    else
+      vim.notify(
+        "cfn-guard is not installed in PATH. Install CloudFormation Guard via cargo or homebrew ('brew install cloudformation-guard').",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
+    end
+  end)
 end
-
 
 -- =============================================================================
 -- Ansible Automation
@@ -554,100 +589,203 @@ function M.is_ansible_buffer(buf)
   return false
 end
 
-function M.ansible_syntax_check()
+local function with_ansible(callback)
+  with_root(M.find_ansible_root, "No Ansible configuration found in workspace", callback)
+end
+
+local function resolve_ansible_target_file(root)
   local file = vim.fn.expand("%:p")
-  local root = M.find_ansible_root() or vim.fn.getcwd()
-  if file == "" then
-    vim.notify("No file to check", vim.log.levels.WARN)
-    return
+  if file ~= "" and M.is_ansible_buffer() then
+    return file
   end
-  if vim.fn.executable("ansible-playbook") == 1 then
-    M.run_term("ansible-playbook --syntax-check " .. vim.fn.shellescape(file), { cwd = root })
-  else
-    vim.notify("ansible-playbook is not installed in PATH.", vim.log.levels.WARN)
+  if root then
+    if is_file(root .. "/site.yml") then
+      return root .. "/site.yml"
+    elseif is_file(root .. "/site.yaml") then
+      return root .. "/site.yaml"
+    elseif is_file(root .. "/playbook.yml") then
+      return root .. "/playbook.yml"
+    elseif is_file(root .. "/playbook.yaml") then
+      return root .. "/playbook.yaml"
+    end
   end
+  return file ~= "" and file or nil
+end
+
+function M.ansible_syntax_check()
+  with_ansible(function(root)
+    local file = resolve_ansible_target_file(root)
+    if not file then
+      vim.notify("No Ansible playbook found to check syntax.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      return
+    end
+    if vim.fn.executable("ansible-playbook") == 1 then
+      M.run_term("ansible-playbook --syntax-check " .. vim.fn.shellescape(file), { cwd = root })
+    else
+      vim.notify("ansible-playbook is not installed in PATH.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+  end)
 end
 
 function M.ansible_lint()
-  local file = vim.fn.expand("%:p")
-  local root = M.find_ansible_root() or vim.fn.getcwd()
-  if vim.fn.executable("ansible-lint") == 1 then
-    if file ~= "" then
-      M.run_term("ansible-lint " .. vim.fn.shellescape(file), { cwd = root })
+  with_ansible(function(root)
+    local file = resolve_ansible_target_file(root)
+    if vim.fn.executable("ansible-lint") == 1 then
+      if file and file ~= "" then
+        M.run_term("ansible-lint " .. vim.fn.shellescape(file), { cwd = root })
+      else
+        M.run_term("ansible-lint", { cwd = root })
+      end
     else
-      M.run_term("ansible-lint", { cwd = root })
+      vim.notify("ansible-lint is not installed in PATH. Install via Mason (:MasonInstall ansible-lint).", vim.log.levels.WARN, { title = "Cumulus DevOps" })
     end
-  else
-    vim.notify("ansible-lint is not installed in PATH. Install via Mason (:MasonInstall ansible-lint).", vim.log.levels.WARN)
-  end
+  end)
 end
 
 function M.ansible_dry_run()
-  local file = vim.fn.expand("%:p")
-  local root = M.find_ansible_root() or vim.fn.getcwd()
-  if file == "" then
-    vim.notify("No file to run", vim.log.levels.WARN)
-    return
-  end
-  if vim.fn.executable("ansible-playbook") == 1 then
-    M.run_term("ansible-playbook --check " .. vim.fn.shellescape(file), { cwd = root })
-  else
-    vim.notify("ansible-playbook is not installed in PATH.", vim.log.levels.WARN)
-  end
+  with_ansible(function(root)
+    local file = resolve_ansible_target_file(root)
+    if not file then
+      vim.notify("No Ansible playbook found to dry run.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      return
+    end
+    if vim.fn.executable("ansible-playbook") == 1 then
+      M.run_term("ansible-playbook --check " .. vim.fn.shellescape(file), { cwd = root })
+    else
+      vim.notify("ansible-playbook is not installed in PATH.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+  end)
 end
 
 function M.ansible_run_playbook()
-  local file = vim.fn.expand("%:p")
-  local root = M.find_ansible_root() or vim.fn.getcwd()
-  if file == "" then
-    vim.notify("No file to run", vim.log.levels.WARN)
-    return
-  end
-  if vim.fn.executable("ansible-playbook") == 1 then
-    M.run_term("ansible-playbook " .. vim.fn.shellescape(file), { cwd = root })
-  else
-    vim.notify("ansible-playbook is not installed in PATH.", vim.log.levels.WARN)
-  end
+  with_ansible(function(root)
+    local file = resolve_ansible_target_file(root)
+    if not file then
+      vim.notify("No Ansible playbook found to run.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      return
+    end
+    if vim.fn.executable("ansible-playbook") == 1 then
+      M.run_term("ansible-playbook " .. vim.fn.shellescape(file), { cwd = root })
+    else
+      vim.notify("ansible-playbook is not installed in PATH.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+  end)
 end
 
 function M.ansible_inventory_graph()
-  local root = M.find_ansible_root() or vim.fn.getcwd()
-  if vim.fn.executable("ansible-inventory") == 1 then
-    M.run_term("ansible-inventory --graph", { cwd = root })
-  else
-    vim.notify("ansible-inventory is not installed in PATH.", vim.log.levels.WARN)
-  end
+  with_ansible(function(root)
+    if vim.fn.executable("ansible-inventory") == 1 then
+      M.run_term("ansible-inventory --graph", { cwd = root })
+    else
+      vim.notify("ansible-inventory is not installed in PATH.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+  end)
 end
 
 function M.ansible_doc_lookup()
-  local root = M.find_ansible_root() or vim.fn.getcwd()
-  if vim.fn.executable("ansible-doc") == 1 then
-    vim.ui.input({ prompt = "Ansible Module / Plugin Doc: " }, function(input)
-      if input and input ~= "" then
-        M.run_term("ansible-doc " .. vim.fn.shellescape(input), { cwd = root })
-      end
-    end)
-  else
-    vim.notify("ansible-doc is not installed in PATH.", vim.log.levels.WARN)
-  end
+  with_ansible(function(root)
+    if vim.fn.executable("ansible-doc") == 1 then
+      vim.ui.input({ prompt = "Ansible Module / Plugin Doc: " }, function(input)
+        if input and input ~= "" then
+          M.run_term("ansible-doc " .. vim.fn.shellescape(input), { cwd = root })
+        end
+      end)
+    else
+      vim.notify("ansible-doc is not installed in PATH.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+  end)
 end
 
 function M.ansible_vault_action()
-  if vim.fn.executable("ansible-vault") ~= 1 then
-    vim.notify("ansible-vault is not installed in PATH.", vim.log.levels.WARN)
-    return
-  end
-  local file = vim.fn.expand("%:p")
-  local root = M.find_ansible_root() or vim.fn.getcwd()
-  if file == "" then
-    vim.notify("No active file for vault operation", vim.log.levels.WARN)
-    return
-  end
+  with_ansible(function(root)
+    if vim.fn.executable("ansible-vault") ~= 1 then
+      vim.notify("ansible-vault is not installed in PATH.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      return
+    end
+    local file = vim.fn.expand("%:p")
+    if file == "" then
+      vim.notify("No active file for vault operation", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      return
+    end
 
-  local actions = { "view", "encrypt", "decrypt", "edit" }
-  vim.ui.select(actions, { prompt = "Select Ansible Vault Action:" }, function(choice)
-    if choice then
-      M.run_term("ansible-vault " .. choice .. " " .. vim.fn.shellescape(file), { cwd = root })
+    local actions = { "view", "encrypt", "decrypt", "edit" }
+    vim.ui.select(actions, { prompt = "Select Ansible Vault Action:" }, function(choice)
+      if choice then
+        M.run_term("ansible-vault " .. choice .. " " .. vim.fn.shellescape(file), { cwd = root })
+      end
+    end)
+  end)
+end
+
+-- =============================================================================
+-- Docker & Container Automation
+-- =============================================================================
+
+local function with_docker(callback)
+  with_root(M.find_docker_root, "No Docker configuration found in workspace", callback)
+end
+
+local function resolve_docker_target_file(root)
+  local file = vim.fn.expand("%:p")
+  if file ~= "" and (vim.bo.filetype == "dockerfile" or file:match("Dockerfile") or file:match("Containerfile")) then
+    return file
+  end
+  if root then
+    if is_file(root .. "/Dockerfile") then
+      return root .. "/Dockerfile"
+    elseif is_file(root .. "/Containerfile") then
+      return root .. "/Containerfile"
+    end
+  end
+  return file ~= "" and file or nil
+end
+
+function M.docker_build()
+  with_docker(function(root)
+    local target_dir_name = vim.fs.normalize(root):match("([^/]+)$") or "app"
+    M.run_term("docker build -t " .. vim.fn.shellescape(target_dir_name) .. " .", { cwd = root })
+  end)
+end
+
+function M.docker_lint()
+  with_docker(function(root)
+    local file = resolve_docker_target_file(root)
+    if vim.fn.executable("hadolint") == 1 then
+      if file and file ~= "" then
+        M.run_term("hadolint " .. vim.fn.shellescape(file), { cwd = root })
+      else
+        M.run_term("hadolint Dockerfile", { cwd = root })
+      end
+    else
+      vim.notify("hadolint is not installed in PATH. Install via Mason (:MasonInstall hadolint).", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+  end)
+end
+
+-- =============================================================================
+-- Helm & Kubernetes Automation
+-- =============================================================================
+
+local function with_helm(callback)
+  with_root(M.find_helm_root, "No Helm configuration found in workspace", callback)
+end
+
+function M.helm_lint()
+  with_helm(function(root)
+    if vim.fn.executable("helm") == 1 then
+      M.run_term("helm lint .", { cwd = root })
+    else
+      vim.notify("helm CLI is not installed in PATH.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+  end)
+end
+
+function M.helm_template()
+  with_helm(function(root)
+    if vim.fn.executable("helm") == 1 then
+      M.run_term("helm template .", { cwd = root })
+    else
+      vim.notify("helm CLI is not installed in PATH.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
     end
   end)
 end

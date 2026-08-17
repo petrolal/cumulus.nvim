@@ -86,7 +86,7 @@ development_status:
 
   epic-9: in-progress
   9-1-devops-root-workspace-discovery-engine: done
-  9-2-global-devops-execution-with-root-awareness-smart-fallback: backlog
+  9-2-global-devops-execution-with-root-awareness-smart-fallback: review
   9-3-universal-keymap-registration-whichkey-scope-configuration: backlog
   epic-9-retrospective: optional
 
