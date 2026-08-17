@@ -51,7 +51,7 @@ function M.check()
       vim.health.ok(string.format("Cumulus Scala Engine ('cumulus-engine'): active (%s)", engine.get_bin()))
     end
   else
-    vim.health.warn("Cumulus Scala Engine ('cumulus-engine'): not compiled or not found. Build via 'cd engine && sbt graalvm-native-image:packageBin' or run ':CumulusInstallEngine'")
+    vim.health.warn("Cumulus Scala Engine ('cumulus-engine'): not compiled or not found. Build via 'cd engine && sbt nativeImage' or run ':CumulusInstallEngine'")
   end
 
   vim.health.start("Gradle Wrapper & Build Lock (SPEC-012)")

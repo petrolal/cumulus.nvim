@@ -29,9 +29,14 @@ function M.get_bin()
 
   -- 2. Search relative to Neovim runtimepath / workspace directory (local GraalVM build)
   local script_dir = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h:h")
+  local local_native_bin = script_dir .. "/engine/target/native-image/cumulus-engine"
   local local_graalvm_bin = script_dir .. "/engine/target/graalvm-native-image/cumulus-engine"
 
-  if vim.fn.executable(local_graalvm_bin) == 1 then
+  if vim.fn.executable(local_native_bin) == 1 then
+    cached_bin = local_native_bin
+    cache_expires_at = now + CACHE_TTL_MS
+    return cached_bin
+  elseif vim.fn.executable(local_graalvm_bin) == 1 then
     cached_bin = local_graalvm_bin
     cache_expires_at = now + CACHE_TTL_MS
     return cached_bin
@@ -102,6 +107,13 @@ function M.install(opts, callback)
   if not target_name then
     local msg = string.format("[cumulus] %s", err or "Unsupported platform")
     vim.notify(msg, vim.log.levels.WARN)
+    cb(false, msg)
+    return
+  end
+
+  if vim.fn.executable("curl") ~= 1 then
+    local msg = "[cumulus] 'curl' is required to download cumulus-engine but was not found in PATH"
+    vim.notify(msg, vim.log.levels.ERROR)
     cb(false, msg)
     return
   end
@@ -234,15 +246,15 @@ function M.install(opts, callback)
         local ok, _ = uv.fs_rename(temp_bin, dest_bin)
         if not ok then
           local src_f = io.open(temp_bin, "rb")
-          local dst_f = io.open(dest_bin, "wb")
-          if src_f and dst_f then
-            dst_f:write(src_f:read("*a"))
+          if src_f then
+            local data = src_f:read("*a")
             src_f:close()
-            dst_f:close()
-            ok = true
-          else
-            if src_f then src_f:close() end
-            if dst_f then dst_f:close() end
+            local dst_f = io.open(dest_bin, "wb")
+            if dst_f then
+              dst_f:write(data)
+              dst_f:close()
+              ok = true
+            end
           end
         end
 
@@ -257,10 +269,7 @@ function M.install(opts, callback)
           return
         end
 
-        pcall(uv.fs_chmod, dest_bin, 493) -- 0755 octal
-        if vim.fn.executable("chmod") == 1 then
-          vim.system({ "chmod", "+x", dest_bin }):wait()
-        end
+        pcall(uv.fs_chmod, dest_bin, 493) -- 0755 octal permissions
 
         M.invalidate_cache()
 

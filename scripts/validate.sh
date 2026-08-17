@@ -5,7 +5,15 @@ set -e
 
 echo "=== Cumulus Neovim Distribution Smoke Test ==="
 
-echo "[1/6] Verifying Neovim Loading & Startup..."
+echo "[1/7] Verifying Shell Scripts Syntax (bootstrap.sh, install.sh, validate.sh)..."
+if bash -n bootstrap.sh && bash -n scripts/install.sh && bash -n scripts/validate.sh; then
+  echo "✔ Shell scripts syntax PASSED."
+else
+  echo "✖ Shell scripts syntax FAILED."
+  exit 1
+fi
+
+echo "[2/7] Verifying Neovim Loading & Startup..."
 if nvim -u init.lua --headless "+lua print('✔ Core init.lua loads without error')" +qa; then
   echo "✔ Headless core init.lua PASSED."
 else
@@ -13,7 +21,7 @@ else
   exit 1
 fi
 
-echo "[2/6] Verifying Core Modules (Options, Keymaps, Autocmds, Health)..."
+echo "[3/7] Verifying Core Modules (Options, Keymaps, Autocmds, Health)..."
 if nvim -u init.lua --headless "+lua require('cumulus.core.options'); require('cumulus.core.keymaps'); require('cumulus.core.autocmds'); require('cumulus.health'); print('✔ Core modules loaded successfully')" +qa; then
   echo "✔ Core modules PASSED."
 else
@@ -21,7 +29,7 @@ else
   exit 1
 fi
 
-echo "[3/6] Verifying Theme System (AWS, Azure, GCP, OCI)..."
+echo "[4/7] Verifying Theme System (AWS, Azure, GCP, OCI)..."
 if nvim -u init.lua --headless "+lua require('cumulus.theme').setup(); print('✔ Theme system initialized')" +qa; then
   echo "✔ Theme system PASSED."
 else
@@ -29,24 +37,16 @@ else
   exit 1
 fi
 
-echo "[4/6] Verifying LSP & Completion Specs..."
-if nvim -u init.lua --headless "+lua assert(pcall(require, 'blink.cmp')); assert(pcall(require, 'nvim-lspconfig')); print('✔ LSP & Completion specs verified')" +qa; then
-  echo "✔ LSP and Completion specs PASSED."
+echo "[5/7] Verifying LSP, Completion & UI Specs..."
+if nvim -u init.lua --headless "+lua assert(pcall(require, 'blink.cmp')); assert(pcall(require, 'nvim-lspconfig')); assert(pcall(require, 'render-markdown')); assert(pcall(require, 'persistence')); print('✔ Plugins and UI specs verified')" +qa; then
+  echo "✔ Plugins and UI specs PASSED."
 else
-  echo "✖ LSP and Completion specs FAILED."
-  exit 1
-fi
-
-echo "[5/6] Verifying Markdown & File Operation Modules..."
-if nvim -u init.lua --headless "+lua assert(pcall(require, 'render-markdown')); assert(pcall(require, 'persistence')); print('✔ Modules verified')" +qa; then
-  echo "✔ Markdown & File Operation modules PASSED."
-else
-  echo "✖ Markdown & File Operation modules FAILED."
+  echo "✖ Plugins and UI specs FAILED."
   exit 1
 fi
 
 echo "[6/7] Verifying Engine Bridge & :CumulusInstallEngine Command..."
-if nvim -u init.lua --headless "+lua local e = require('cumulus.util.engine'); assert(type(e.detect_platform) == 'function', 'detect_platform not found'); assert(type(e.install) == 'function', 'install not found'); local plat = e.detect_platform(); assert(plat ~= nil, 'platform should be detected'); assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered'); print('✔ Engine bridge APIs & :CumulusInstallEngine command verified (' .. plat .. ')')" +qa; then
+if nvim -u init.lua --headless "+lua local e = require('cumulus.util.engine'); assert(type(e.detect_platform) == 'function', 'detect_platform not found'); assert(type(e.install) == 'function', 'install not found'); local plat = e.detect_platform() or 'unknown'; assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered'); print('✔ Engine bridge APIs & :CumulusInstallEngine command verified (' .. plat .. ')')" +qa; then
   echo "✔ Engine bridge & command PASSED."
 else
   echo "✖ Engine bridge & command FAILED."

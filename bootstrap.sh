@@ -87,6 +87,9 @@ install_packages() {
       brew install git curl ripgrep neovim openjdk@21 || {
         echo "  ⚠ Some packages could not be installed via brew. Continuing..."
       }
+      if [ -d "$(brew --prefix openjdk@21 2>/dev/null)/bin" ]; then
+        export PATH="$(brew --prefix openjdk@21)/bin:$PATH"
+      fi
       ;;
     *)
       echo "  ℹ No supported package manager detected or skipped. Ensuring manual prerequisites."
@@ -125,7 +128,7 @@ fi
 
 # 4. Invoke Neovim Distribution Installer
 echo "[4/4] Executing Neovim distribution setup..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
 if [ -f "$SCRIPT_DIR/scripts/install.sh" ]; then
   chmod +x "$SCRIPT_DIR/scripts/install.sh"
