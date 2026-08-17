@@ -71,40 +71,6 @@ map("n", "<leader>cl", "<cmd>checkhealth vim.lsp<cr>", { desc = "Lsp Info" })
 -- keymaps into a Python or Terraform buffer's popup. See lang-keymaps.lua.
 local lang_keymaps = require("cumulus.core.lang-keymaps")
 
-local function is_jvm_project(buf)
-  local ft = (buf and vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].filetype) or vim.bo.filetype
-  local jvm_fts = {
-    java = true,
-    kotlin = true,
-    scala = true,
-    groovy = true,
-    gradle = true,
-    sbt = true,
-    xml = true,
-    properties = true,
-    jproperties = true,
-  }
-  if jvm_fts[ft] then
-    return true
-  end
-
-  local maven = require("cumulus.util.maven")
-  local gradle = require("cumulus.util.gradle")
-  if maven.find_pom(buf) or gradle.find_gradle(buf) then
-    return true
-  end
-
-  local dir = (buf and vim.api.nvim_buf_is_valid(buf) and vim.fs.dirname(vim.api.nvim_buf_get_name(buf)))
-    or vim.fn.expand("%:p:h")
-  if dir == "" or not dir then
-    dir = vim.fn.getcwd()
-  end
-
-  local patterns = { "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "build.sbt", "mvnw", "gradlew" }
-  return vim.fs.root(dir, patterns) ~= nil
-    or vim.fs.root(vim.fn.getcwd(), patterns) ~= nil
-end
-
 -- ==============================================================================
 -- ⭐ JVM PLATFORM KEYMAP SUITE (<leader>j) - Flagship Group
 -- ==============================================================================
@@ -300,29 +266,6 @@ end, { desc = "Cumulus Engine: Status & Ping" })
 
 map("n", "<leader>jid", "<cmd>CumulusInstallEngine<cr>", { desc = "Cumulus Engine: Download Binary" })
 map("n", "<leader>jih", "<cmd>checkhealth cumulus<cr>", { desc = "Cumulus Health Check" })
-
--- Backward compatibility aliases under <leader>cj and <leader>cx
-map("n", "<leader>cjm", function() require("cumulus.util.maven").run_maven_goal() end, { desc = "Maven: Select Goal" })
-map("n", "<leader>cjg", function() require("cumulus.util.gradle").run_gradle_task() end, { desc = "Gradle: Select Task" })
-map("n", "<leader>cjc", function()
-  local maven = require("cumulus.util.maven")
-  local gradle = require("cumulus.util.gradle")
-  if maven.find_pom() then maven.run_maven_cmd(maven.get_mvn_cmd() .. " clean compile")
-  elseif gradle.find_gradle() then gradle.run_gradle_cmd(gradle.get_gradle_cmd() .. " clean compile") end
-end, { desc = "Build Project (Clean Compile)" })
-map("n", "<leader>cjta", function() require("cumulus.util.test-runner").run_test("all") end, { desc = "JVM Build: Run All Tests" })
-map("n", "<leader>cjtt", function() require("cumulus.util.test-runner").run_test("nearest") end, { desc = "Run Nearest Test Method" })
-map("n", "<leader>cjtc", function() require("cumulus.util.test-runner").run_test("class") end, { desc = "Run Current Test Class" })
-map("n", "<leader>cjtp", function() local ok, jdtls = pcall(require, "jdtls"); if ok then jdtls.pick_test() end end, { desc = "JDTLS: Pick Test" })
-map("n", "<leader>cjs", function()
-  local maven = require("cumulus.util.maven")
-  local gradle = require("cumulus.util.gradle")
-  if maven.find_pom() then maven.run_maven_cmd(maven.get_mvn_cmd() .. " spring-boot:run")
-  elseif gradle.find_gradle() then gradle.run_gradle_cmd(gradle.get_gradle_cmd() .. " bootRun") end
-end, { desc = "JVM: Run Spring Boot / Quarkus App" })
-map("n", "<leader>cxv", function() local ok, jdtls = pcall(require, "jdtls"); if ok then jdtls.extract_variable() end end, { desc = "JDTLS: Extract Variable" })
-map("n", "<leader>cxc", function() local ok, jdtls = pcall(require, "jdtls"); if ok then jdtls.extract_constant() end end, { desc = "JDTLS: Extract Constant" })
-map("v", "<leader>cxm", function() local ok, jdtls = pcall(require, "jdtls"); if ok then jdtls.extract_method(true) end end, { desc = "JDTLS: Extract Method" })
 
 -- ==============================================================================
 -- Non-JVM DevOps Language Scopes (Terraform, Ansible, Docker, Helm)
