@@ -81,21 +81,30 @@ if nvim -u init.lua --headless "+lua
   assert(groups['<leader>od'] == 'docker', '<leader>od missing in devops whichkey_spec')
   assert(groups['<leader>ok'] == 'helm/k8s', '<leader>ok missing in devops whichkey_spec')
 
-  -- Check global availability of DevOps keymaps across any buffer
+  -- Check global availability of all 26 DevOps keymaps across any buffer
   local global_maps = vim.api.nvim_get_keymap('n')
-  local found_oti, found_ocv, found_oys, found_odb, found_okl = false, false, false, false, false
-  for _, m in ipairs(global_maps) do
-    if m.lhs == '<Space>oti' or m.lhs:match('oti') then found_oti = true end
-    if m.lhs == '<Space>ocv' or m.lhs:match('ocv') then found_ocv = true end
-    if m.lhs == '<Space>oys' or m.lhs:match('oys') then found_oys = true end
-    if m.lhs == '<Space>odb' or m.lhs:match('odb') then found_odb = true end
-    if m.lhs == '<Space>okl' or m.lhs:match('okl') then found_okl = true end
+  local expected_subkeys = {
+    -- Terraform (<leader>ot)
+    'oti', 'otv', 'otp', 'ota', 'otf', 'otl', 'ots', 'oto',
+    -- AWS CloudFormation & SAM (<leader>oc)
+    'ocv', 'ocl', 'ocV', 'ocb', 'oci', 'ocr', 'ocg',
+    -- Ansible (<leader>oy)
+    'oys', 'oyl', 'oyc', 'oyr', 'oyi', 'oyd', 'oyv',
+    -- Docker (<leader>od)
+    'odb', 'odl',
+    -- Helm (<leader>ok)
+    'okl', 'okt',
+  }
+  for _, key in ipairs(expected_subkeys) do
+    local found = false
+    for _, m in ipairs(global_maps) do
+      if m.lhs == '<Space>' .. key or m.lhs:match(key .. '$') then
+        found = true
+        break
+      end
+    end
+    assert(found, '<leader>' .. key .. ' missing from global keymaps')
   end
-  assert(found_oti, '<leader>oti missing from global keymaps')
-  assert(found_ocv, '<leader>ocv missing from global keymaps')
-  assert(found_oys, '<leader>oys missing from global keymaps')
-  assert(found_odb, '<leader>odb missing from global keymaps')
-  assert(found_okl, '<leader>okl missing from global keymaps')
 
   -- Robust Mason spec lookup
   local mason_plugins = require('cumulus.plugins.tools-mason')

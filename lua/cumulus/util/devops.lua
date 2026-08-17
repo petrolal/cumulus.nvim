@@ -235,8 +235,9 @@ end
 function M.run_term(cmd, opts)
   opts = opts or {}
   local term_cwd = opts.cwd or vim.fn.getcwd()
-  if _G.Snacks and _G.Snacks.terminal then
-    Snacks.terminal(cmd, { cwd = term_cwd })
+  local snacks = _G.Snacks or package.loaded["snacks"]
+  if snacks and snacks.terminal then
+    snacks.terminal(cmd, { cwd = term_cwd })
   else
     vim.cmd("botright 15split")
     local win = vim.api.nvim_get_current_win()
@@ -328,9 +329,9 @@ function M.terraform_fmt()
     local file = vim.fn.expand("%:p")
     local is_tf_file = file ~= "" and (file:match("%.tf$") or file:match("%.tofu$") or file:match("%.tfvars$"))
     if is_tf_file then
-      vim.cmd("update")
+      pcall(vim.cmd, "update")
       local out = vim.fn.system({ tf, "fmt", file })
-      vim.cmd("edit!")
+      pcall(vim.cmd, "edit!")
       if vim.v.shell_error == 0 then
         vim.notify("Formatted with " .. tf .. " fmt", vim.log.levels.INFO)
       else
@@ -549,7 +550,11 @@ end
 function M.cfn_guard_validate()
   with_cfn(function(root)
     if vim.fn.executable("cfn-guard") == 1 then
-      local file = resolve_cfn_target_file(root) or vim.fn.expand("%:p")
+      local file = resolve_cfn_target_file(root) or (vim.fn.expand("%:p") ~= "" and vim.fn.expand("%:p") or nil)
+      if not file then
+        vim.notify("No CloudFormation template found to validate with cfn-guard.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+        return
+      end
       M.run_term("cfn-guard validate --template " .. vim.fn.shellescape(file), { cwd = root })
     else
       vim.notify(
@@ -703,17 +708,26 @@ function M.ansible_vault_action()
       return
     end
     local file = vim.fn.expand("%:p")
-    if file == "" then
-      vim.notify("No active file for vault operation", vim.log.levels.WARN, { title = "Cumulus DevOps" })
-      return
+    local actions = { "view", "encrypt", "decrypt", "edit" }
+
+    local function run_vault_on_file(target_file)
+      vim.ui.select(actions, { prompt = "Select Ansible Vault Action:" }, function(choice)
+        if choice then
+          M.run_term("ansible-vault " .. choice .. " " .. vim.fn.shellescape(target_file), { cwd = root })
+        end
+      end)
     end
 
-    local actions = { "view", "encrypt", "decrypt", "edit" }
-    vim.ui.select(actions, { prompt = "Select Ansible Vault Action:" }, function(choice)
-      if choice then
-        M.run_term("ansible-vault " .. choice .. " " .. vim.fn.shellescape(file), { cwd = root })
-      end
-    end)
+    if file and file ~= "" then
+      run_vault_on_file(file)
+    else
+      vim.ui.input({ prompt = "Ansible Vault File: " }, function(input)
+        if input and input ~= "" then
+          local full_target = vim.fs.normalize(root .. "/" .. input)
+          run_vault_on_file(full_target)
+        end
+      end)
+    end
   end)
 end
 
@@ -742,7 +756,11 @@ end
 
 function M.docker_build()
   with_docker(function(root)
-    local target_dir_name = vim.fs.normalize(root):match("([^/]+)$") or "app"
+    local raw_name = vim.fs.normalize(root):match("([^/]+)$") or "app"
+    local target_dir_name = raw_name:lower():gsub("[^%w%._%-]", "-"):gsub("^%-+", ""):gsub("%-+$", "")
+    if target_dir_name == "" then
+      target_dir_name = "app"
+    end
     M.run_term("docker build -t " .. vim.fn.shellescape(target_dir_name) .. " .", { cwd = root })
   end)
 end
@@ -754,7 +772,8 @@ function M.docker_lint()
       if file and file ~= "" then
         M.run_term("hadolint " .. vim.fn.shellescape(file), { cwd = root })
       else
-        M.run_term("hadolint Dockerfile", { cwd = root })
+        local fallback = is_file(root .. "/Containerfile") and "Containerfile" or "Dockerfile"
+        M.run_term("hadolint " .. fallback, { cwd = root })
       end
     else
       vim.notify("hadolint is not installed in PATH. Install via Mason (:MasonInstall hadolint).", vim.log.levels.WARN, { title = "Cumulus DevOps" })
@@ -807,8 +826,8 @@ function M.whichkey_spec()
   }
 end
 
-function M.setup_keymaps()
-  if M.keymaps_registered then
+function M.setup_keymaps(force)
+  if M.keymaps_registered and not force then
     return
   end
   M.keymaps_registered = true
@@ -816,40 +835,40 @@ function M.setup_keymaps()
   local map = vim.keymap.set
 
   -- Terraform & OpenTofu (<leader>ot)
-  map("n", "<leader>oti", M.terraform_init, { desc = "Terraform: Init" })
-  map("n", "<leader>otv", M.terraform_validate, { desc = "Terraform: Validate" })
-  map("n", "<leader>otp", M.terraform_plan, { desc = "Terraform: Plan" })
-  map("n", "<leader>ota", M.terraform_apply, { desc = "Terraform: Apply" })
-  map("n", "<leader>otf", M.terraform_fmt, { desc = "Terraform: Format" })
-  map("n", "<leader>otl", M.terraform_lint, { desc = "Terraform: Lint (tflint)" })
-  map("n", "<leader>ots", M.terraform_security, { desc = "Terraform: Security Scan (trivy/tfsec)" })
-  map("n", "<leader>oto", M.terraform_output, { desc = "Terraform: Output" })
+  map("n", "<leader>oti", M.terraform_init, { desc = "Terraform: Init", silent = true })
+  map("n", "<leader>otv", M.terraform_validate, { desc = "Terraform: Validate", silent = true })
+  map("n", "<leader>otp", M.terraform_plan, { desc = "Terraform: Plan", silent = true })
+  map("n", "<leader>ota", M.terraform_apply, { desc = "Terraform: Apply", silent = true })
+  map("n", "<leader>otf", M.terraform_fmt, { desc = "Terraform: Format", silent = true })
+  map("n", "<leader>otl", M.terraform_lint, { desc = "Terraform: Lint (tflint)", silent = true })
+  map("n", "<leader>ots", M.terraform_security, { desc = "Terraform: Security Scan (trivy/tfsec)", silent = true })
+  map("n", "<leader>oto", M.terraform_output, { desc = "Terraform: Output", silent = true })
 
   -- AWS CloudFormation & SAM (<leader>oc)
-  map("n", "<leader>ocv", M.cfn_validate, { desc = "CloudFormation: Validate Template" })
-  map("n", "<leader>ocl", M.cfn_lint, { desc = "CloudFormation: Lint (cfn-lint)" })
-  map("n", "<leader>ocV", M.sam_validate, { desc = "SAM: Validate" })
-  map("n", "<leader>ocb", M.sam_build, { desc = "SAM: Build" })
-  map("n", "<leader>oci", M.sam_local_invoke, { desc = "SAM: Local Invoke" })
-  map("n", "<leader>ocr", M.sam_local_start_api, { desc = "SAM: Local Start API" })
-  map("n", "<leader>ocg", M.cfn_guard_validate, { desc = "CloudFormation: Policy Check (cfn-guard)" })
+  map("n", "<leader>ocv", M.cfn_validate, { desc = "CloudFormation: Validate Template", silent = true })
+  map("n", "<leader>ocl", M.cfn_lint, { desc = "CloudFormation: Lint (cfn-lint)", silent = true })
+  map("n", "<leader>ocV", M.sam_validate, { desc = "SAM: Validate", silent = true })
+  map("n", "<leader>ocb", M.sam_build, { desc = "SAM: Build", silent = true })
+  map("n", "<leader>oci", M.sam_local_invoke, { desc = "SAM: Local Invoke", silent = true })
+  map("n", "<leader>ocr", M.sam_local_start_api, { desc = "SAM: Local Start API", silent = true })
+  map("n", "<leader>ocg", M.cfn_guard_validate, { desc = "CloudFormation: Policy Check (cfn-guard)", silent = true })
 
   -- Ansible Automation (<leader>oy)
-  map("n", "<leader>oys", M.ansible_syntax_check, { desc = "Ansible: Syntax Check" })
-  map("n", "<leader>oyl", M.ansible_lint, { desc = "Ansible: Lint Playbook" })
-  map("n", "<leader>oyc", M.ansible_dry_run, { desc = "Ansible: Dry Run (--check)" })
-  map("n", "<leader>oyr", M.ansible_run_playbook, { desc = "Ansible: Run Playbook" })
-  map("n", "<leader>oyi", M.ansible_inventory_graph, { desc = "Ansible: Inventory Graph" })
-  map("n", "<leader>oyd", M.ansible_doc_lookup, { desc = "Ansible: Module Documentation" })
-  map("n", "<leader>oyv", M.ansible_vault_action, { desc = "Ansible: Vault Action" })
+  map("n", "<leader>oys", M.ansible_syntax_check, { desc = "Ansible: Syntax Check", silent = true })
+  map("n", "<leader>oyl", M.ansible_lint, { desc = "Ansible: Lint Playbook", silent = true })
+  map("n", "<leader>oyc", M.ansible_dry_run, { desc = "Ansible: Dry Run (--check)", silent = true })
+  map("n", "<leader>oyr", M.ansible_run_playbook, { desc = "Ansible: Run Playbook", silent = true })
+  map("n", "<leader>oyi", M.ansible_inventory_graph, { desc = "Ansible: Inventory Graph", silent = true })
+  map("n", "<leader>oyd", M.ansible_doc_lookup, { desc = "Ansible: Module Documentation", silent = true })
+  map("n", "<leader>oyv", M.ansible_vault_action, { desc = "Ansible: Vault Action", silent = true })
 
   -- Docker & Containers (<leader>od)
-  map("n", "<leader>odb", M.docker_build, { desc = "Docker: Build Image" })
-  map("n", "<leader>odl", M.docker_lint, { desc = "Docker: Lint Dockerfile" })
+  map("n", "<leader>odb", M.docker_build, { desc = "Docker: Build Image", silent = true })
+  map("n", "<leader>odl", M.docker_lint, { desc = "Docker: Lint Dockerfile", silent = true })
 
   -- Helm & Kubernetes (<leader>ok)
-  map("n", "<leader>okl", M.helm_lint, { desc = "Helm: Lint Chart" })
-  map("n", "<leader>okt", M.helm_template, { desc = "Helm: Render Template" })
+  map("n", "<leader>okl", M.helm_lint, { desc = "Helm: Lint Chart", silent = true })
+  map("n", "<leader>okt", M.helm_template, { desc = "Helm: Render Template", silent = true })
 end
 
 return M
