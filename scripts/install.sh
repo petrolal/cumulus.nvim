@@ -12,6 +12,17 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Source SDKMAN if present and Java is not currently in PATH
+if ! has_cmd java; then
+  if [ -s "${SDKMAN_DIR:-$HOME/.sdkman}/bin/sdkman-init.sh" ]; then
+    # shellcheck source=/dev/null
+    source "${SDKMAN_DIR:-$HOME/.sdkman}/bin/sdkman-init.sh" 2>/dev/null || true
+  elif [ -d "${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/current/bin" ]; then
+    export PATH="${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/current/bin:$PATH"
+    export JAVA_HOME="${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/current"
+  fi
+fi
+
 MISSING=0
 
 if has_cmd nvim; then

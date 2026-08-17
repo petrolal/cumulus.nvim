@@ -9,6 +9,17 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Source SDKMAN if present and Java is not currently in PATH
+if ! has_cmd java; then
+  if [ -s "${SDKMAN_DIR:-$HOME/.sdkman}/bin/sdkman-init.sh" ]; then
+    # shellcheck source=/dev/null
+    source "${SDKMAN_DIR:-$HOME/.sdkman}/bin/sdkman-init.sh" 2>/dev/null || true
+  elif [ -d "${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/current/bin" ]; then
+    export PATH="${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/current/bin:$PATH"
+    export JAVA_HOME="${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/current"
+  fi
+fi
+
 # 1. Detect OS and Package Manager
 OS_TYPE="$(uname -s)"
 PKG_MGR=""
@@ -55,36 +66,87 @@ run_sudo() {
   fi
 }
 
-# 2. Install System Packages
-echo "[2/4] Ensuring core system tools are installed..."
+# 2. Identify missing system packages
+echo "[2/4] Checking system prerequisites (skipping existing tools)..."
+
+MISSING_PKGS=()
+
+case "$PKG_MGR" in
+  pacman)
+    has_cmd git || MISSING_PKGS+=("git")
+    has_cmd curl || MISSING_PKGS+=("curl")
+    has_cmd rg || MISSING_PKGS+=("ripgrep")
+    has_cmd nvim || MISSING_PKGS+=("neovim")
+    has_cmd java || MISSING_PKGS+=("jdk21-openjdk")
+    ;;
+  apt)
+    has_cmd git || MISSING_PKGS+=("git")
+    has_cmd curl || MISSING_PKGS+=("curl")
+    has_cmd rg || MISSING_PKGS+=("ripgrep")
+    has_cmd nvim || MISSING_PKGS+=("neovim")
+    has_cmd java || MISSING_PKGS+=("openjdk-21-jdk")
+    ;;
+  dnf|yum)
+    has_cmd git || MISSING_PKGS+=("git")
+    has_cmd curl || MISSING_PKGS+=("curl")
+    has_cmd rg || MISSING_PKGS+=("ripgrep")
+    has_cmd nvim || MISSING_PKGS+=("neovim")
+    has_cmd java || MISSING_PKGS+=("java-21-openjdk-devel")
+    ;;
+  brew)
+    has_cmd git || MISSING_PKGS+=("git")
+    has_cmd curl || MISSING_PKGS+=("curl")
+    has_cmd rg || MISSING_PKGS+=("ripgrep")
+    has_cmd nvim || MISSING_PKGS+=("neovim")
+    has_cmd java || MISSING_PKGS+=("openjdk@21")
+    ;;
+  *)
+    ;;
+esac
 
 install_packages() {
+  if [ ${#MISSING_PKGS[@]} -eq 0 ]; then
+    echo "  ✔ All core prerequisites already exist. Skipping package installation."
+    return 0
+  fi
+
+  echo "  → Missing packages detected: ${MISSING_PKGS[*]}"
+  
   case "$PKG_MGR" in
     pacman)
-      echo "  → Installing dependencies via pacman..."
-      run_sudo pacman -S --noconfirm --needed git curl ripgrep neovim jdk21-openjdk || {
+      echo "  → Installing ${MISSING_PKGS[*]} via pacman..."
+      run_sudo pacman -S --noconfirm --needed "${MISSING_PKGS[@]}" || {
         echo "  ⚠ Some packages could not be installed via pacman. Continuing..."
       }
       ;;
     apt)
-      echo "  → Installing dependencies via apt-get..."
+      echo "  → Installing ${MISSING_PKGS[*]} via apt-get..."
       run_sudo apt-get update -y || true
-      run_sudo apt-get install -y git curl ripgrep neovim openjdk-21-jdk || {
-        echo "  ⚠ Attempting fallback to default-jdk on older apt distributions..."
-        run_sudo apt-get install -y git curl ripgrep neovim default-jdk || {
-          echo "  ⚠ Some packages could not be installed via apt. Continuing..."
-        }
+      run_sudo apt-get install -y "${MISSING_PKGS[@]}" || {
+        # Fallback if openjdk-21-jdk is in MISSING_PKGS but unavailable on older distro
+        if [[ " ${MISSING_PKGS[*]} " =~ " openjdk-21-jdk " ]]; then
+          echo "  ⚠ Attempting fallback to default-jdk on older apt distributions..."
+          FALLBACK_PKGS=()
+          for p in "${MISSING_PKGS[@]}"; do
+            if [ "$p" = "openjdk-21-jdk" ]; then
+              FALLBACK_PKGS+=("default-jdk")
+            else
+              FALLBACK_PKGS+=("$p")
+            fi
+          done
+          run_sudo apt-get install -y "${FALLBACK_PKGS[@]}" || true
+        fi
       }
       ;;
     dnf|yum)
-      echo "  → Installing dependencies via $PKG_MGR..."
-      run_sudo "$PKG_MGR" install -y git curl ripgrep neovim java-21-openjdk-devel || {
+      echo "  → Installing ${MISSING_PKGS[*]} via $PKG_MGR..."
+      run_sudo "$PKG_MGR" install -y "${MISSING_PKGS[@]}" || {
         echo "  ⚠ Some packages could not be installed via $PKG_MGR. Continuing..."
       }
       ;;
     brew)
-      echo "  → Installing dependencies via Homebrew..."
-      brew install git curl ripgrep neovim openjdk@21 || {
+      echo "  → Installing ${MISSING_PKGS[*]} via Homebrew..."
+      brew install "${MISSING_PKGS[@]}" || {
         echo "  ⚠ Some packages could not be installed via brew. Continuing..."
       }
       if [ -d "$(brew --prefix openjdk@21 2>/dev/null)/bin" ]; then
@@ -92,7 +154,7 @@ install_packages() {
       fi
       ;;
     *)
-      echo "  ℹ No supported package manager detected or skipped. Ensuring manual prerequisites."
+      echo "  ℹ No supported package manager detected. Please ensure missing tools are installed manually: ${MISSING_PKGS[*]}"
       ;;
   esac
 }
