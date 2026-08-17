@@ -77,15 +77,15 @@ development_status:
   7-2-auto-download-binary-in-engine-bridge: done
   epic-7-retrospective: optional
 
-  epic-8: in-progress
+  epic-8: done
   8-1-terraform-opentofu-tooling-suite-leader-ot: done
   8-2-aws-cloudformation-sam-validation-compilation-local-testing: done
   8-3-ansible-playbook-syntax-checking-linting-execution-inventory: done
-  8-4-devops-language-scoped-buffers-mason-automation-whichkey-int: review
+  8-4-devops-language-scoped-buffers-mason-automation-whichkey-int: done
   epic-8-retrospective: optional
 
-  epic-9: backlog
-  9-1-devops-root-workspace-discovery-engine: backlog
+  epic-9: in-progress
+  9-1-devops-root-workspace-discovery-engine: done
   9-2-global-devops-execution-with-root-awareness-smart-fallback: backlog
   9-3-universal-keymap-registration-whichkey-scope-configuration: backlog
   epic-9-retrospective: optional

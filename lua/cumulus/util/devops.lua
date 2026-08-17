@@ -1,9 +1,229 @@
--- Cumulus DevOps & Infrastructure Tooling Suite (Story 8.1, Story 8.2, Story 8.3, Story 8.4)
+-- Cumulus DevOps & Infrastructure Tooling Suite (Story 8.1, Story 8.2, Story 8.3, Story 8.4, Story 9.1)
 --
 -- Interactive and non-blocking compilers, validators, linters, and runners
--- for Terraform/OpenTofu, AWS CloudFormation/SAM, and Ansible.
+-- for Terraform/OpenTofu, AWS CloudFormation/SAM, Ansible, Docker, and Helm.
 
 local M = {}
+
+local uv = vim.uv or vim.loop
+
+local function is_dir(path)
+  if not path or path == "" then return false end
+  local ok, stat = pcall(uv.fs_stat, path)
+  return ok and stat ~= nil and stat.type == "directory"
+end
+
+local function is_file(path)
+  if not path or path == "" then return false end
+  local ok, stat = pcall(uv.fs_stat, path)
+  return ok and stat ~= nil and (stat.type == "file" or stat.type == "link")
+end
+
+local function scan_dir_for_match(dir, matcher)
+  if not is_dir(dir) then return false end
+  local ok, handle = pcall(uv.fs_scandir, dir)
+  if not ok or not handle then return false end
+  while true do
+    local ok_next, name, entry_type = pcall(uv.fs_scandir_next, handle)
+    if not ok_next or not name then break end
+    if matcher(name, dir .. "/" .. name, entry_type) then
+      return true
+    end
+  end
+  return false
+end
+
+--- Resolves the starting search directory from a buffer number, file path, or directory path.
+--- Defaults gracefully to the active buffer or the current working directory.
+--- @param buf_or_path? number|string Buffer handle or directory/file path
+--- @return string canonical absolute directory path
+function M.resolve_search_dir(buf_or_path)
+  if not buf_or_path then
+    local ok_buf, buf = pcall(vim.api.nvim_get_current_buf)
+    if ok_buf and type(buf) == "number" and vim.api.nvim_buf_is_valid(buf) then
+      local ok_name, name = pcall(vim.api.nvim_buf_get_name, buf)
+      if ok_name and name and name ~= "" then
+        buf_or_path = name
+      end
+    end
+  elseif type(buf_or_path) == "number" then
+    if vim.api.nvim_buf_is_valid(buf_or_path) then
+      local ok_name, name = pcall(vim.api.nvim_buf_get_name, buf_or_path)
+      if ok_name and name and name ~= "" then
+        buf_or_path = name
+      else
+        buf_or_path = nil
+      end
+    else
+      buf_or_path = nil
+    end
+  end
+
+  if not buf_or_path or buf_or_path == "" then
+    return vim.fs.normalize(vim.fn.getcwd())
+  end
+
+  local abs_path = vim.fs.normalize(vim.fn.fnamemodify(tostring(buf_or_path), ":p"))
+  if is_dir(abs_path) then
+    return abs_path
+  elseif is_file(abs_path) then
+    return vim.fs.normalize(vim.fn.fnamemodify(abs_path, ":h"))
+  else
+    local parent = vim.fs.normalize(vim.fn.fnamemodify(abs_path, ":h"))
+    if is_dir(parent) then
+      return parent
+    end
+    return abs_path
+  end
+end
+
+--- Generic root discoverer using upward search via vim.fs.root followed by shallow convention scan.
+--- @param buf_or_path? number|string
+--- @param matcher fun(name: string, path: string, entry_type: string?): boolean
+--- @param convention_dirs? string[]
+--- @return string|nil
+local function discover_root(buf_or_path, matcher, convention_dirs)
+  local search_dir = M.resolve_search_dir(buf_or_path)
+  if not search_dir or search_dir == "" then
+    return nil
+  end
+
+  -- 1. Upward discovery using vim.fs.root
+  local ok, root = pcall(vim.fs.root, search_dir, function(name, path)
+    return matcher(name, path)
+  end)
+
+  if ok and root and root ~= "" then
+    return vim.fs.normalize(root)
+  end
+
+  -- 2. Shallow convention directory scan if upward discovery yielded nil
+  if convention_dirs and #convention_dirs > 0 then
+    for _, subdir in ipairs(convention_dirs) do
+      local cand = vim.fs.normalize(search_dir .. "/" .. subdir)
+      if is_dir(cand) then
+        if scan_dir_for_match(cand, matcher) then
+          return cand
+        end
+        -- Also scan 1 level deeper inside convention directory (e.g. charts/my-chart/Chart.yaml)
+        local ok_h, handle = pcall(uv.fs_scandir, cand)
+        if ok_h and handle then
+          while true do
+            local ok_n, name, entry_type = pcall(uv.fs_scandir_next, handle)
+            if not ok_n or not name then break end
+            if entry_type == "directory" then
+              local sub_cand = vim.fs.normalize(cand .. "/" .. name)
+              if scan_dir_for_match(sub_cand, matcher) then
+                return sub_cand
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  return nil
+end
+
+--- Discover Terraform / OpenTofu root directory
+--- @param buf_or_path? number|string
+--- @return string|nil
+function M.find_tf_root(buf_or_path)
+  local function matcher(name)
+    if name == "main.tf" or name == "terragrunt.hcl" or name == "versions.tf"
+       or name == "backend.tf" or name == "providers.tf" or name == "variables.tf"
+       or name == "outputs.tf" or name == ".terraform" then
+      return true
+    end
+    if name:match("%.tf$") or name:match("%.tofu$") or name:match("%.tfvars$") then
+      return true
+    end
+    return false
+  end
+
+  local conventions = { "terraform", "infra/terraform", "infra", "deploy/terraform", "deploy", "terragrunt" }
+  return discover_root(buf_or_path, matcher, conventions)
+end
+
+--- Discover AWS CloudFormation / SAM root directory
+--- @param buf_or_path? number|string
+--- @return string|nil
+function M.find_cfn_root(buf_or_path)
+  local function matcher(name)
+    if name == "template.yaml" or name == "template.yml" or name == "template.json"
+       or name == "samconfig.toml" or name == "samconfig.yaml" or name == "samconfig.yml" then
+      return true
+    end
+    if name:match("%.cfn%.ya?ml$") or name:match("%.cfn%.json$")
+       or name:match("%.sam%.ya?ml$") or name:match("%.sam%.json$")
+       or name:match("^cfn.*%.ya?ml$") or name:match("^sam.*%.ya?ml$") then
+      return true
+    end
+    return false
+  end
+
+  local conventions = { "sam", "cfn", "cloudformation", "infra/sam", "infra/cfn", "infra/cloudformation", "infra", "deploy/sam", "deploy/cfn", "deploy" }
+  return discover_root(buf_or_path, matcher, conventions)
+end
+
+--- Discover Ansible root directory
+--- @param buf_or_path? number|string
+--- @return string|nil
+function M.find_ansible_root(buf_or_path)
+  local function matcher(name)
+    if name == "ansible.cfg" or name == "site.yaml" or name == "site.yml"
+       or name == "playbook.yaml" or name == "playbook.yml" or name == "hosts"
+       or name == "inventory" or name == "inventory.ini" or name == "inventory.yaml"
+       or name == "inventory.yml" or name == "requirements.yml" or name == "requirements.yaml" then
+      return true
+    end
+    if name == "roles" or name == "playbooks" or name == "tasks" or name == "handlers" then
+      return true
+    end
+    return false
+  end
+
+  local conventions = { "ansible", "playbooks", "infra/ansible", "deploy/ansible", "infra/playbooks" }
+  return discover_root(buf_or_path, matcher, conventions)
+end
+
+--- Discover Docker / Compose root directory
+--- @param buf_or_path? number|string
+--- @return string|nil
+function M.find_docker_root(buf_or_path)
+  local function matcher(name)
+    if name == "Dockerfile" or name == "Containerfile" or name == "docker-compose.yaml"
+       or name == "docker-compose.yml" or name == "compose.yaml" or name == "compose.yml"
+       or name == ".dockerignore" then
+      return true
+    end
+    if name:match("^Dockerfile") or name:match("^Containerfile")
+       or name:match("%.Dockerfile$") or name:match("%.Containerfile$")
+       or name:match("^docker%-compose.*%.ya?ml$") or name:match("^compose.*%.ya?ml$") then
+      return true
+    end
+    return false
+  end
+
+  local conventions = { "docker", "deploy/docker", "infra/docker", "deploy", "containers", ".docker" }
+  return discover_root(buf_or_path, matcher, conventions)
+end
+
+--- Discover Helm root directory
+--- @param buf_or_path? number|string
+--- @return string|nil
+function M.find_helm_root(buf_or_path)
+  local function matcher(name)
+    if name == "Chart.yaml" or name == "Chart.yml" or name == "values.yaml" or name == "values.yml" then
+      return true
+    end
+    return false
+  end
+
+  local conventions = { "charts", "helm", "deploy/charts", "deploy/helm", "infra/helm", "infra/charts" }
+  return discover_root(buf_or_path, matcher, conventions)
+end
 
 --- Run a command in an interactive, non-blocking terminal
 --- Uses Snacks.terminal when available, otherwise falls back to a split buffer.

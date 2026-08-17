@@ -157,9 +157,89 @@ if nvim -u init.lua --headless "+lua
   assert(formatters_by_ft, 'conform formatters_by_ft not found')
   assert(formatters_by_ft.terraform[1] == 'terraform_fmt', 'terraform_fmt not mapped')
 
+  -- Story 9.1: DevOps Root & Workspace Discovery Engine
+  assert(type(devops.resolve_search_dir) == 'function', 'resolve_search_dir not found')
+  assert(type(devops.find_tf_root) == 'function', 'find_tf_root not found')
+  assert(type(devops.find_cfn_root) == 'function', 'find_cfn_root not found')
+  assert(type(devops.find_ansible_root) == 'function', 'find_ansible_root not found')
+  assert(type(devops.find_docker_root) == 'function', 'find_docker_root not found')
+  assert(type(devops.find_helm_root) == 'function', 'find_helm_root not found')
+
+  -- Mock workspace test setup
+  local tmp_root = vim.fs.normalize(vim.fn.tempname())
+  vim.fn.mkdir(tmp_root, 'p')
+
+  -- 1. Terraform discovery
+  local tf_proj = tmp_root .. '/tf_proj'
+  local tf_mod = tf_proj .. '/infra/terraform/modules/vpc'
+  vim.fn.mkdir(tf_mod, 'p')
+  vim.fn.writefile({'resource "vpc" {}'}, tf_mod .. '/vpc.tf')
+  vim.fn.writefile({'terraform {}'}, tf_proj .. '/infra/terraform/main.tf')
+  local tf_from_file = devops.find_tf_root(tf_mod .. '/vpc.tf')
+  assert(tf_from_file == tf_mod, 'Terraform root from child buffer mismatch: ' .. tostring(tf_from_file))
+  local tf_from_root = devops.find_tf_root(tf_proj)
+  assert(tf_from_root == tf_proj .. '/infra/terraform', 'Terraform root convention scan mismatch: ' .. tostring(tf_from_root))
+
+  -- 2. CloudFormation / SAM discovery
+  local cfn_proj = tmp_root .. '/cfn_proj'
+  vim.fn.mkdir(cfn_proj .. '/src', 'p')
+  vim.fn.writefile({'AWSTemplateFormatVersion: 2010-09-09'}, cfn_proj .. '/template.yaml')
+  vim.fn.writefile({'version = 0.1'}, cfn_proj .. '/samconfig.toml')
+  local cfn_from_root = devops.find_cfn_root(cfn_proj)
+  assert(cfn_from_root == cfn_proj, 'CFN root mismatch: ' .. tostring(cfn_from_root))
+  local cfn_from_child = devops.find_cfn_root(cfn_proj .. '/src/app.py')
+  assert(cfn_from_child == cfn_proj, 'CFN root from child mismatch: ' .. tostring(cfn_from_child))
+
+  -- 3. Ansible discovery
+  local ans_proj = tmp_root .. '/ans_proj'
+  local ans_pb = ans_proj .. '/playbooks'
+  vim.fn.mkdir(ans_pb, 'p')
+  vim.fn.writefile({'[defaults]'}, ans_proj .. '/ansible.cfg')
+  vim.fn.writefile({'- hosts: all'}, ans_pb .. '/site.yml')
+  local ans_from_root = devops.find_ansible_root(ans_proj)
+  assert(ans_from_root == ans_proj, 'Ansible root mismatch: ' .. tostring(ans_from_root))
+  local ans_from_pb = devops.find_ansible_root(ans_pb .. '/site.yml')
+  assert(ans_from_pb == ans_pb, 'Ansible root from playbook mismatch: ' .. tostring(ans_from_pb))
+
+  -- 4. Docker discovery
+  local doc_proj = tmp_root .. '/doc_proj'
+  vim.fn.mkdir(doc_proj .. '/src', 'p')
+  vim.fn.writefile({'FROM alpine'}, doc_proj .. '/Dockerfile')
+  vim.fn.writefile({'services: {}'}, doc_proj .. '/docker-compose.yml')
+  local doc_from_root = devops.find_docker_root(doc_proj)
+  assert(doc_from_root == doc_proj, 'Docker root mismatch: ' .. tostring(doc_from_root))
+  local doc_from_child = devops.find_docker_root(doc_proj .. '/src/main.go')
+  assert(doc_from_child == doc_proj, 'Docker root from child mismatch: ' .. tostring(doc_from_child))
+
+  -- 5. Helm discovery
+  local helm_proj = tmp_root .. '/helm_proj'
+  local helm_chart = helm_proj .. '/charts/web-service'
+  vim.fn.mkdir(helm_chart .. '/templates', 'p')
+  vim.fn.writefile({'apiVersion: v2', 'name: web-service'}, helm_chart .. '/Chart.yaml')
+  vim.fn.writefile({'replicaCount: 1'}, helm_chart .. '/values.yaml')
+  local helm_from_root = devops.find_helm_root(helm_proj)
+  assert(helm_from_root == helm_chart, 'Helm root from workspace mismatch: ' .. tostring(helm_from_root))
+  local helm_from_tpl = devops.find_helm_root(helm_chart .. '/templates/deployment.yaml')
+  assert(helm_from_tpl == helm_chart, 'Helm root from template mismatch: ' .. tostring(helm_from_tpl))
+
+  -- 6. Non-DevOps workspace & fallback
+  local empty_proj = tmp_root .. '/empty_proj'
+  vim.fn.mkdir(empty_proj, 'p')
+  vim.fn.writefile({'# Readme'}, empty_proj .. '/README.md')
+  assert(devops.find_tf_root(empty_proj) == nil, 'find_tf_root should be nil for empty workspace')
+  assert(devops.find_cfn_root(empty_proj) == nil, 'find_cfn_root should be nil for empty workspace')
+  assert(devops.find_ansible_root(empty_proj) == nil, 'find_ansible_root should be nil for empty workspace')
+  assert(devops.find_docker_root(empty_proj) == nil, 'find_docker_root should be nil for empty workspace')
+  assert(devops.find_helm_root(empty_proj) == nil, 'find_helm_root should be nil for empty workspace')
+  assert(devops.find_tf_root(999999) == nil or type(devops.find_tf_root(999999)) == 'string', 'find_tf_root invalid buffer must not error')
+
+  -- Cleanup mock workspace
+  vim.fn.delete(tmp_root, 'rf')
+
   local plat = e.detect_platform() or 'unknown'
   assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered')
-  print('✔ Engine bridge, DevOps WhichKey, scoped buffers & Mason tooling verified (' .. plat .. ')')
+  print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling & Workspace Root Discovery verified (' .. plat .. ')')
+
 " +qa; then
   echo "✔ Engine bridge & DevOps suite PASSED."
 else
