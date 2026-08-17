@@ -13,3 +13,9 @@ engine/project/target/
 .bsp/
 .metals/
 .bloop/
+
+# BMAD & AI agent configurations and outputs
+_bmad/
+_bmad-output/
+.agents/
+.claude/
