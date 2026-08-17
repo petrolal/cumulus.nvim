@@ -108,67 +108,22 @@ end
 lang_keymaps.register({
   filetypes = { "java", "kotlin", "scala", "groovy", "gradle", "sbt", "xml", "properties", "jproperties" },
   condition = is_jvm_project,
-  group = "<leader>cj",
-  label = "java/jvm build",
-  icon = "󰬷 ",
+  group = "<leader>j",
+  label = "jvm platform",
+  icon = "☕ ",
   subgroups = {
-    { group = "<leader>cjt", label = "test runner", icon = "󰙨 " },
+    { group = "<leader>jb", label = "build & tasks", icon = "󰒓 " },
+    { group = "<leader>jt", label = "test runner", icon = "󰙨 " },
+    { group = "<leader>jr", label = "run & execute", icon = "󰐊 " },
+    { group = "<leader>js", label = "spring & frameworks", icon = "󱎘 " },
+    { group = "<leader>jx", label = "refactor & jdtls", icon = "󰨞 " },
+    { group = "<leader>jd", label = "dependencies", icon = "📦 " },
+    { group = "<leader>ji", label = "engine & info", icon = "ℹ " },
   },
   keys = {
+    -- 1. Build & Tasks (<leader>jb)
     {
-      "<leader>cjm",
-      function()
-        require("cumulus.util.maven").run_maven_goal()
-      end,
-      "Maven: Select Goal",
-    },
-    {
-      "<leader>cjg",
-      function()
-        require("cumulus.util.gradle").run_gradle_task()
-      end,
-      "Gradle: Select Task",
-    },
-    {
-      "<leader>cjo",
-      function()
-        local maven = require("cumulus.util.maven")
-        local gradle = require("cumulus.util.gradle")
-        maven.toggle_offline_mode()
-        gradle.toggle_offline_mode()
-      end,
-      "Toggle Offline Mode (-o / --offline)",
-    },
-    {
-      "<leader>cje",
-      function()
-        require("cumulus.util.endpoints").select_endpoint()
-      end,
-      "Spring Boot: Select REST Endpoint",
-    },
-    {
-      "<leader>cjb",
-      function()
-        require("cumulus.util.beans").select_bean()
-      end,
-      "Spring Boot: Select Bean Dependency",
-    },
-    {
-      "<leader>cjv",
-      function()
-        require("cumulus.util.migrations").validate_migrations()
-      end,
-      "Flyway: Validate Migrations",
-    },
-    {
-      "<leader>co",
-      function()
-        require("cumulus.util.import-optimizer").run()
-      end,
-      "Optimize Java/Kotlin Imports",
-    },
-    {
-      "<leader>cjc",
+      "<leader>jbc",
       function()
         local maven = require("cumulus.util.maven")
         local gradle = require("cumulus.util.gradle")
@@ -180,31 +135,66 @@ lang_keymaps.register({
           vim.notify("No pom.xml or build.gradle found in project", vim.log.levels.WARN)
         end
       end,
-      "Build Project (Clean Compile)",
+      "Build: Clean Compile",
     },
     {
-      "<leader>cjta",
+      "<leader>jbg",
+      function()
+        require("cumulus.util.gradle").run_gradle_task()
+      end,
+      "Gradle: Select & Run Task",
+    },
+    {
+      "<leader>jbm",
+      function()
+        require("cumulus.util.maven").run_maven_goal()
+      end,
+      "Maven: Select & Run Goal",
+    },
+    {
+      "<leader>jbo",
+      function()
+        local maven = require("cumulus.util.maven")
+        local gradle = require("cumulus.util.gradle")
+        maven.toggle_offline_mode()
+        gradle.toggle_offline_mode()
+      end,
+      "Toggle Offline Mode (-o / --offline)",
+    },
+    {
+      "<leader>jbS",
+      function()
+        local sync_state = require("cumulus.util.build-sync-state")
+        sync_state.reset()
+        sync_state.run()
+      end,
+      "Resync Dependencies (Maven/Gradle)",
+    },
+
+    -- 2. Test Runner (<leader>jt)
+    {
+      "<leader>jta",
       function()
         require("cumulus.util.test-runner").run_test("all")
       end,
-      "JVM Build: Run All Tests",
+      "Run All Tests in Workspace",
     },
     {
-      "<leader>cjtt",
+      "<leader>jtt",
       function()
         require("cumulus.util.test-runner").run_test("nearest")
       end,
       "Run Nearest Test Method",
     },
     {
-      "<leader>cjtc",
+      "<leader>jtc",
       function()
         require("cumulus.util.test-runner").run_test("class")
       end,
       "Run Current Test Class",
     },
     {
-      "<leader>cjtp",
+      "<leader>jtp",
       function()
         local ok, jdtls = pcall(require, "jdtls")
         if ok then
@@ -213,10 +203,12 @@ lang_keymaps.register({
           vim.notify("jdtls is not loaded", vim.log.levels.WARN)
         end
       end,
-      "JDTLS: Pick Test",
+      "JDTLS: Pick & Run Test",
     },
+
+    -- 3. Run & Execute (<leader>jr)
     {
-      "<leader>cjs",
+      "<leader>jrs",
       function()
         local maven = require("cumulus.util.maven")
         local gradle = require("cumulus.util.gradle")
@@ -242,27 +234,94 @@ lang_keymaps.register({
           vim.notify("No pom.xml or build.gradle found in project", vim.log.levels.WARN)
         end
       end,
-      "JVM: Run Spring Boot / Quarkus App",
+      "Run Spring Boot / Quarkus App",
     },
     {
-      "<leader>cjr",
+      "<leader>jrg",
       function()
         vim.cmd("update")
         Snacks.terminal("groovy " .. vim.fn.shellescape(vim.fn.expand("%:p")))
       end,
-      "Groovy: Run Script",
+      "Groovy: Run Current Script",
     },
     {
-      "<leader>cjS",
+      "<leader>jrd",
       function()
-        local sync_state = require("cumulus.util.build-sync-state")
-        sync_state.reset()
-        sync_state.run()
+        require("cumulus.util.springboot-debug").launch_debug()
       end,
-      "Maven/Gradle: Resync Dependencies",
+      "Debug: Launch Spring Boot (DAP)",
+    },
+
+    -- 4. Spring Boot & Frameworks (<leader>js)
+    {
+      "<leader>jse",
+      function()
+        require("cumulus.util.endpoints").select_endpoint()
+      end,
+      "Spring: Select REST Endpoint",
     },
     {
-      "<leader>cjH",
+      "<leader>jsb",
+      function()
+        require("cumulus.util.beans").select_bean()
+      end,
+      "Spring: Select Bean Dependency",
+    },
+    {
+      "<leader>jsm",
+      function()
+        require("cumulus.util.migrations").validate_migrations()
+      end,
+      "Flyway: Validate Migrations",
+    },
+
+    -- 5. Refactoring & JDTLS (<leader>jx)
+    {
+      "<leader>jxv",
+      function()
+        local ok, jdtls = pcall(require, "jdtls")
+        if ok then
+          jdtls.extract_variable()
+        else
+          vim.notify("jdtls is not loaded", vim.log.levels.WARN)
+        end
+      end,
+      "JDTLS: Extract Variable",
+    },
+    {
+      "<leader>jxc",
+      function()
+        local ok, jdtls = pcall(require, "jdtls")
+        if ok then
+          jdtls.extract_constant()
+        else
+          vim.notify("jdtls is not loaded", vim.log.levels.WARN)
+        end
+      end,
+      "JDTLS: Extract Constant",
+    },
+    {
+      "<leader>jxm",
+      function()
+        local ok, jdtls = pcall(require, "jdtls")
+        if ok then
+          jdtls.extract_method(true)
+        else
+          vim.notify("jdtls is not loaded", vim.log.levels.WARN)
+        end
+      end,
+      "JDTLS: Extract Method",
+      mode = "v",
+    },
+    {
+      "<leader>jxo",
+      function()
+        require("cumulus.util.import-optimizer").run()
+      end,
+      "Optimize Java/Kotlin Imports",
+    },
+    {
+      "<leader>jxH",
       function()
         local engine = require("cumulus.util.engine")
         if not _G.cumulus_jdtls_start_time then
@@ -280,36 +339,12 @@ lang_keymaps.register({
           vim.notify("JDTLS classpath is in sync", vim.log.levels.INFO)
         end
       end,
-      "JDTLS: Check Sync Status",
+      "JDTLS: Check Classpath Sync",
     },
-  },
-})
 
-lang_keymaps.register({
-  filetypes = { "java", "kotlin", "scala", "groovy" },
-  condition = is_jvm_project,
-  group = "<leader>d",
-  label = "debug",
-  icon = "🐛 ",
-  keys = {
+    -- 6. Dependencies (<leader>jd)
     {
-      "<leader>ds",
-      function()
-        require("cumulus.util.springboot-debug").launch_debug()
-      end,
-      "Debug Spring Boot Application",
-    },
-  },
-})
-
-lang_keymaps.register({
-  filetypes = { "xml", "toml", "gradle" },
-  group = "<leader>cd",
-  label = "dependency",
-  icon = "📦 ",
-  keys = {
-    {
-      "<leader>cdu",
+      "<leader>jdu",
       function()
         local filepath = vim.api.nvim_buf_get_name(0)
         local engine = require("cumulus.util.engine")
@@ -324,53 +359,67 @@ lang_keymaps.register({
       end,
       "Check Dependency Versions",
     },
-  },
-})
+    {
+      "<leader>jds",
+      function()
+        local sync_state = require("cumulus.util.build-sync-state")
+        sync_state.reset()
+        sync_state.run()
+      end,
+      "Maven/Gradle: Resync Dependencies",
+    },
 
-lang_keymaps.register({
-  filetypes = { "java", "kotlin", "scala", "groovy" },
-  condition = is_jvm_project,
-  group = "<leader>cx",
-  label = "java refactor",
-  icon = "󰨞 ",
-  keys = {
+    -- 7. Engine & Info (<leader>ji)
     {
-      "<leader>cxv",
+      "<leader>jii",
       function()
-        local ok, jdtls = pcall(require, "jdtls")
-        if ok then
-          jdtls.extract_variable()
+        local engine = require("cumulus.util.engine")
+        local p = engine.ping()
+        if p then
+          vim.notify(
+            string.format("Cumulus Engine active\nVersion: %s\nScala: %s\nCommit: %s", p.version, p.scala, p.commit),
+            vim.log.levels.INFO
+          )
         else
-          vim.notify("jdtls is not loaded", vim.log.levels.WARN)
+          vim.notify("Cumulus Engine is not active", vim.log.levels.WARN)
         end
       end,
-      "JDTLS: Extract Variable",
+      "Cumulus Engine: Status & Ping",
     },
     {
-      "<leader>cxc",
-      function()
-        local ok, jdtls = pcall(require, "jdtls")
-        if ok then
-          jdtls.extract_constant()
-        else
-          vim.notify("jdtls is not loaded", vim.log.levels.WARN)
-        end
-      end,
-      "JDTLS: Extract Constant",
+      "<leader>jid",
+      "<cmd>CumulusInstallEngine<cr>",
+      "Cumulus Engine: Download & Install Binary",
     },
     {
-      "<leader>cxm",
-      function()
-        local ok, jdtls = pcall(require, "jdtls")
-        if ok then
-          jdtls.extract_method(true)
-        else
-          vim.notify("jdtls is not loaded", vim.log.levels.WARN)
-        end
-      end,
-      "JDTLS: Extract Method",
-      mode = "v",
+      "<leader>jih",
+      "<cmd>checkhealth cumulus<cr>",
+      "Cumulus Health Check",
     },
+
+    -- Backward compatibility aliases under <leader>cj
+    { "<leader>cjm", function() require("cumulus.util.maven").run_maven_goal() end, "Maven: Select Goal" },
+    { "<leader>cjg", function() require("cumulus.util.gradle").run_gradle_task() end, "Gradle: Select Task" },
+    { "<leader>cjc", function()
+        local maven = require("cumulus.util.maven")
+        local gradle = require("cumulus.util.gradle")
+        if maven.find_pom() then maven.run_maven_cmd(maven.get_mvn_cmd() .. " clean compile")
+        elseif gradle.find_gradle() then gradle.run_gradle_cmd(gradle.get_gradle_cmd() .. " clean compile")
+        end
+      end, "Build Project (Clean Compile)" },
+    { "<leader>cjta", function() require("cumulus.util.test-runner").run_test("all") end, "JVM Build: Run All Tests" },
+    { "<leader>cjtt", function() require("cumulus.util.test-runner").run_test("nearest") end, "Run Nearest Test Method" },
+    { "<leader>cjtc", function() require("cumulus.util.test-runner").run_test("class") end, "Run Current Test Class" },
+    { "<leader>cjtp", function() local ok, jdtls = pcall(require, "jdtls"); if ok then jdtls.pick_test() end end, "JDTLS: Pick Test" },
+    { "<leader>cjs", function()
+        local maven = require("cumulus.util.maven")
+        local gradle = require("cumulus.util.gradle")
+        if maven.find_pom() then maven.run_maven_cmd(maven.get_mvn_cmd() .. " spring-boot:run")
+        elseif gradle.find_gradle() then gradle.run_gradle_cmd(gradle.get_gradle_cmd() .. " bootRun") end
+      end, "JVM: Run Spring Boot / Quarkus App" },
+    { "<leader>cxv", function() local ok, jdtls = pcall(require, "jdtls"); if ok then jdtls.extract_variable() end end, "JDTLS: Extract Variable" },
+    { "<leader>cxc", function() local ok, jdtls = pcall(require, "jdtls"); if ok then jdtls.extract_constant() end end, "JDTLS: Extract Constant" },
+    { "<leader>cxm", function() local ok, jdtls = pcall(require, "jdtls"); if ok then jdtls.extract_method(true) end end, "JDTLS: Extract Method", mode = "v" },
   },
 })
 
