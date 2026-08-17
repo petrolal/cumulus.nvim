@@ -45,8 +45,122 @@ else
   exit 1
 fi
 
-echo "[6/7] Verifying Engine Bridge & DevOps Suite (<leader>ot, <leader>oc, <leader>oy, :CumulusInstallEngine)..."
-if nvim -u init.lua --headless "+lua local e = require('cumulus.util.engine'); assert(type(e.detect_platform) == 'function', 'detect_platform not found'); assert(type(e.install) == 'function', 'install not found'); assert(type(e.inspect_cfn_template) == 'function', 'inspect_cfn_template not found'); assert(type(e.validate_cfn_template) == 'function', 'validate_cfn_template not found'); assert(type(e.inspect_ansible_playbook) == 'function', 'inspect_ansible_playbook not found'); assert(type(e.validate_ansible_playbook) == 'function', 'validate_ansible_playbook not found'); assert(type(e.parse_ansible_inventory) == 'function', 'parse_ansible_inventory not found'); local devops = require('cumulus.util.devops'); assert(type(devops.cfn_validate) == 'function'); assert(type(devops.sam_local_invoke) == 'function'); assert(type(devops.ansible_syntax_check) == 'function'); assert(type(devops.ansible_lint) == 'function'); assert(type(devops.ansible_dry_run) == 'function'); assert(type(devops.ansible_run_playbook) == 'function'); assert(type(devops.ansible_inventory_graph) == 'function'); assert(type(devops.ansible_doc_lookup) == 'function'); assert(type(devops.ansible_vault_action) == 'function'); local plat = e.detect_platform() or 'unknown'; assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered'); print('✔ Engine bridge APIs & DevOps Terraform/CFN/Ansible suite verified (' .. plat .. ')')" +qa; then
+echo "[6/7] Verifying Engine Bridge & DevOps Suite (<leader>ot, <leader>oc, <leader>oy, WhichKey, Mason & Scoped Buffers)..."
+if nvim -u init.lua --headless "+lua
+  local e = require('cumulus.util.engine')
+  assert(type(e.detect_platform) == 'function', 'detect_platform not found')
+  assert(type(e.install) == 'function', 'install not found')
+  assert(type(e.inspect_cfn_template) == 'function', 'inspect_cfn_template not found')
+  assert(type(e.validate_cfn_template) == 'function', 'validate_cfn_template not found')
+  assert(type(e.inspect_ansible_playbook) == 'function', 'inspect_ansible_playbook not found')
+  assert(type(e.validate_ansible_playbook) == 'function', 'validate_ansible_playbook not found')
+  assert(type(e.parse_ansible_inventory) == 'function', 'parse_ansible_inventory not found')
+  local devops = require('cumulus.util.devops')
+  assert(type(devops.cfn_validate) == 'function')
+  assert(type(devops.sam_local_invoke) == 'function')
+  assert(type(devops.ansible_syntax_check) == 'function')
+  assert(type(devops.ansible_lint) == 'function')
+  assert(type(devops.ansible_dry_run) == 'function')
+  assert(type(devops.ansible_run_playbook) == 'function')
+  assert(type(devops.ansible_inventory_graph) == 'function')
+  assert(type(devops.ansible_doc_lookup) == 'function')
+  assert(type(devops.ansible_vault_action) == 'function')
+
+  -- Story 8.4: DevOps Language-Scoped Buffers & WhichKey Integration
+  local lk = require('cumulus.core.lang-keymaps')
+  local wk_spec = lk.whichkey_spec()
+  local groups = {}
+  for _, item in ipairs(wk_spec) do
+    groups[item[1]] = item.group
+  end
+  assert(groups['<leader>ot'] == 'terraform/opentofu', '<leader>ot missing in whichkey_spec')
+  assert(groups['<leader>oc'] == 'cloudformation/sam', '<leader>oc missing in whichkey_spec')
+  assert(groups['<leader>oy'] == 'ansible', '<leader>oy missing in whichkey_spec')
+
+  -- Check Terraform buffer scoping
+  local tf_buf = vim.api.nvim_create_buf(true, false)
+  vim.bo[tf_buf].filetype = 'terraform'
+  vim.api.nvim_set_current_buf(tf_buf)
+  vim.cmd('doautocmd FileType terraform')
+  local tf_maps = vim.api.nvim_buf_get_keymap(tf_buf, 'n')
+  local found_oti = false
+  for _, m in ipairs(tf_maps) do
+    if m.lhs:match('oti') then found_oti = true break end
+  end
+  assert(found_oti, '<leader>oti not mapped for terraform buffer')
+  pcall(vim.api.nvim_buf_delete, tf_buf, { force = true })
+
+  -- Check CloudFormation buffer scoping
+  local cfn_buf = vim.api.nvim_create_buf(true, false)
+  vim.bo[cfn_buf].filetype = 'yaml.cfn'
+  vim.api.nvim_set_current_buf(cfn_buf)
+  vim.cmd('doautocmd FileType yaml.cfn')
+  local cfn_maps = vim.api.nvim_buf_get_keymap(cfn_buf, 'n')
+  local found_ocv = false
+  for _, m in ipairs(cfn_maps) do
+    if m.lhs:match('ocv') then found_ocv = true break end
+  end
+  assert(found_ocv, '<leader>ocv not mapped for yaml.cfn buffer')
+  pcall(vim.api.nvim_buf_delete, cfn_buf, { force = true })
+
+  -- Check Ansible buffer scoping
+  local ans_buf = vim.api.nvim_create_buf(true, false)
+  vim.bo[ans_buf].filetype = 'yaml.ansible'
+  vim.api.nvim_set_current_buf(ans_buf)
+  vim.cmd('doautocmd FileType yaml.ansible')
+  local ans_maps = vim.api.nvim_buf_get_keymap(ans_buf, 'n')
+  local found_oys = false
+  for _, m in ipairs(ans_maps) do
+    if m.lhs:match('oys') then found_oys = true break end
+  end
+  assert(found_oys, '<leader>oys not mapped for yaml.ansible buffer')
+  pcall(vim.api.nvim_buf_delete, ans_buf, { force = true })
+
+  -- Check Non-DevOps (Java) buffer does not leak any DevOps keymaps
+  local java_buf = vim.api.nvim_create_buf(true, false)
+  vim.bo[java_buf].filetype = 'java'
+  vim.api.nvim_set_current_buf(java_buf)
+  vim.cmd('doautocmd FileType java')
+  local java_maps = vim.api.nvim_buf_get_keymap(java_buf, 'n')
+  for _, m in ipairs(java_maps) do
+    assert(not m.lhs:match('oti') and not m.lhs:match('ocv') and not m.lhs:match('oys'), 'devops keymap leaked into java buffer: ' .. m.lhs)
+  end
+  pcall(vim.api.nvim_buf_delete, java_buf, { force = true })
+
+  -- Robust Mason spec lookup
+  local mason_plugins = require('cumulus.plugins.tools-mason')
+  local ensure_installed = nil
+  for _, plugin in ipairs(mason_plugins) do
+    if plugin.opts and plugin.opts.ensure_installed then
+      ensure_installed = plugin.opts.ensure_installed
+      break
+    end
+  end
+  assert(ensure_installed, 'mason ensure_installed not found')
+  local ensure_set = {}
+  for _, pkg in ipairs(ensure_installed) do
+    ensure_set[pkg] = true
+  end
+  for _, req in ipairs({'terraform-ls', 'tflint', 'cfn-lint', 'ansible-language-server', 'ansible-lint', 'yaml-language-server'}) do
+    assert(ensure_set[req], 'Missing Mason package: ' .. req)
+  end
+
+  -- Robust Conform spec lookup
+  local conform_plugins = require('cumulus.plugins.tools-formatting')
+  local formatters_by_ft = nil
+  for _, plugin in ipairs(conform_plugins) do
+    if plugin.opts and plugin.opts.formatters_by_ft then
+      formatters_by_ft = plugin.opts.formatters_by_ft
+      break
+    end
+  end
+  assert(formatters_by_ft, 'conform formatters_by_ft not found')
+  assert(formatters_by_ft.terraform[1] == 'terraform_fmt', 'terraform_fmt not mapped')
+
+  local plat = e.detect_platform() or 'unknown'
+  assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered')
+  print('✔ Engine bridge, DevOps WhichKey, scoped buffers & Mason tooling verified (' .. plat .. ')')
+" +qa; then
   echo "✔ Engine bridge & DevOps suite PASSED."
 else
   echo "✖ Engine bridge & DevOps suite FAILED."

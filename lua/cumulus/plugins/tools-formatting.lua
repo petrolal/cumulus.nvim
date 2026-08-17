@@ -9,6 +9,7 @@ return {
         terraform = { "terraform_fmt" },
         tf = { "terraform_fmt" },
         hcl = { "terraform_fmt" },
+        ["terraform-vars"] = { "terraform_fmt" },
         kotlin = { "ktlint" },
         java = { "google-java-format" },
         groovy = { "npm-groovy-lint" },
@@ -17,6 +18,13 @@ return {
         lua = { "stylua" },
         sh = { "shfmt" },
         bash = { "shfmt" },
+        yaml = { "prettier", "yamlfmt", stop_after_first = true },
+        ["yaml.ansible"] = {},
+        ["yaml.cfn"] = {},
+        ["yaml.sam"] = {},
+        ansible = {},
+        cloudformation = {},
+        sam = {},
       },
       format_on_save = function(bufnr)
         if not require("cumulus.util.format").enabled(bufnr) then

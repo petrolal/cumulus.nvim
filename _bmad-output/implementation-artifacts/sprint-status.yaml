@@ -1,0 +1,114 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: '2026-08-17'
+last_updated: '2026-08-17'
+project: cumulus.nvim
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+development_status:
+  epic-1: done
+  1-1-sbt-scala-3-engine-project-initialization: done
+  1-2-protocol-envelope-cumulusresponse-t-cli-router-with-ping: done
+  epic-1-retrospective: optional
+
+  epic-2: done
+  2-1-maven-goals-submodule-parser-scala-xml: done
+  2-2-gradle-task-submodule-parser: done
+  2-3-multi-module-topological-build-order-solver-kahn-s-dag: done
+  2-4-jdk-discovery-build-tool-detection-workspace-discovery: done
+  epic-2-retrospective: optional
+
+  epic-3: done
+  3-1-java-kotlin-codelens-extractor: done
+  3-2-spring-boot-debug-config-bean-dependency-graph: done
+  3-3-rest-endpoint-extractor-import-optimizer-java-header-generat: done
+  epic-3-retrospective: optional
+
+  epic-4: done
+  4-1-test-context-detector-test-output-parser: done
+  4-2-build-log-diagnostic-parser-stacktrace-drill-down: done
+  4-3-high-speed-log-file-indexer: done
+  4-4-test-command-assembly: done
+  epic-4-retrospective: optional
+
+  epic-5: done
+  5-1-jacoco-coverage-checkstyle-report-parsers-scala-xml: done
+  5-2-flyway-migration-kubernetes-manifest-git-conflict-validators: done
+  5-3-session-sanitizer-gradle-wrapper-verifier-network-checker-de: done
+  5-4-cloud-theme-state-management: done
+  epic-5-retrospective: optional
+
+  epic-6: done
+  6-1-lua-integration-layer-engine-lua-util-file-refactoring: done
+  6-2-purge-legacy-rust-engine-crates-cumulus-core: done
+  epic-6-retrospective: optional
+
+  epic-7: done
+  7-1-github-actions-graalvm-native-build-matrix: done
+  7-2-auto-download-binary-in-engine-bridge: done
+  epic-7-retrospective: optional
+
+  epic-8: in-progress
+  8-1-terraform-opentofu-tooling-suite-leader-ot: done
+  8-2-aws-cloudformation-sam-validation-compilation-local-testing: done
+  8-3-ansible-playbook-syntax-checking-linting-execution-inventory: done
+  8-4-devops-language-scoped-buffers-mason-automation-whichkey-int: review
+  epic-8-retrospective: optional
+
+  epic-9: backlog
+  9-1-devops-root-workspace-discovery-engine: backlog
+  9-2-global-devops-execution-with-root-awareness-smart-fallback: backlog
+  9-3-universal-keymap-registration-whichkey-scope-configuration: backlog
+  epic-9-retrospective: optional
+
+  epic-10: backlog
+  10-1-native-terraform-opentofu-parser-resource-graph-security-aud: backlog
+  10-2-native-ansible-playbook-role-syntax-inventory-graph-parser: backlog
+  10-3-native-dockerfile-multi-stage-analyzer-container-validator: backlog
+  10-4-native-helm-chart-kubernetes-value-hierarchy-engine: backlog
+  epic-10-retrospective: optional
+
+  epic-11: backlog
+  11-1-scala-3-universal-project-classifier-workspace-topology-scan: backlog
+  11-2-native-devops-root-workspace-multi-project-discoverer: backlog
+  11-3-lua-workspace-root-engine-integration-heuristic-loop-removal: backlog
+  epic-11-retrospective: optional
+
+  epic-12: backlog
+  12-1-native-build-devops-cli-command-assembler: backlog
+  12-2-native-spring-boot-jvm-dap-debug-configuration-generator: backlog
+  epic-12-retrospective: optional
+
+  epic-13: backlog
+  13-1-obsolete-stub-purge-thin-wrapper-consolidation-into-engine-l: backlog
+  13-2-universal-ui-terminal-notification-bridge-standardization: backlog
+  epic-13-retrospective: optional
