@@ -119,6 +119,7 @@ object ThemeManager:
     try
       val content = os.read(path)
       val values = mutable.Map[String, String]()
+      var singleLineTheme: Option[String] = None
 
       for line <- content.linesIterator do
         val trimmed = line.trim
@@ -128,18 +129,22 @@ object ThemeManager:
             val k = trimmed.substring(0, eqIdx).trim
             val v = unquote(trimmed.substring(eqIdx + 1).trim)
             values(k) = v
-          else if values.isEmpty then
+          else if values.isEmpty && singleLineTheme.isEmpty then
             // Single line format e.g. "azure" or "azure-theme"
             val t = unquote(trimmed).stripSuffix("-theme").trim.toLowerCase
-            return Some(ThemeState(theme = t, variant = Some(DefaultVariant)))
+            singleLineTheme = Some(t)
 
-      val themeOpt = values.get("FLAVOR")
-        .orElse(values.get("NVIM_COLORSCHEME").map(_.stripSuffix("-theme")))
-        .map(_.toLowerCase)
+      singleLineTheme match
+        case Some(t) =>
+          Some(ThemeState(theme = t, variant = Some(DefaultVariant)))
+        case None =>
+          val themeOpt = values.get("FLAVOR")
+            .orElse(values.get("NVIM_COLORSCHEME").map(_.stripSuffix("-theme")))
+            .map(_.toLowerCase)
 
-      val variant = values.get("MODE").orElse(values.get("VARIANT")).map(_.toLowerCase).getOrElse(DefaultVariant)
+          val variant = values.get("MODE").orElse(values.get("VARIANT")).map(_.toLowerCase).getOrElse(DefaultVariant)
 
-      themeOpt.map(t => ThemeState(theme = t, variant = Some(variant)))
+          themeOpt.map(t => ThemeState(theme = t, variant = Some(variant)))
     catch
       case _: Exception => None
 

@@ -71,26 +71,23 @@ object SpringBootDetector:
    */
   private def findSpringBootApp(dir: Path): Option[(String, String)] =
     val candidateDirs = Seq(dir / "src" / "main" / "java", dir / "src" / "main" / "kotlin")
-    for d <- candidateDirs if os.exists(d) && os.isDir(d) do
-      val found = searchForSpringBootApp(d)
-      if found.isDefined then
-        return found
-    None
+    candidateDirs.filter(d => os.exists(d) && os.isDir(d)).flatMap(searchForSpringBootApp).headOption
 
   /**
    * Recursively search for @SpringBootApplication in a directory
    * Returns (fully-qualified class name, file path)
    */
   private def searchForSpringBootApp(dir: Path): Option[(String, String)] =
-    if !os.isDir(dir) then return None
-
-    val files = os.walk(dir).filter(f => os.isFile(f) && (f.last.endsWith(".java") || f.last.endsWith(".kt")))
-    for file <- files do
-      val (pkg, className, hasSpringBootApp) = parseSourceFile(file.toString)
-      if hasSpringBootApp && pkg.nonEmpty && className.nonEmpty then
-        return Some((s"$pkg.$className", file.toString))
-
-    None
+    if !os.isDir(dir) then None
+    else
+      val files = os.walk(dir).filter(f => os.isFile(f) && (f.last.endsWith(".java") || f.last.endsWith(".kt")))
+      files.iterator.map { file =>
+        val (pkg, className, hasSpringBootApp) = parseSourceFile(file.toString)
+        (pkg, className, hasSpringBootApp, file)
+      }.collectFirst {
+        case (pkg, className, true, file) if pkg.nonEmpty && className.nonEmpty =>
+          (s"$pkg.$className", file.toString)
+      }
 
   /**
    * Parse a source file for package, class name, and @SpringBootApplication annotation
@@ -183,15 +180,14 @@ object SpringBootDetector:
 
       // Look for maven-surefire-plugin or maven-failsafe-plugin
       val plugins = pom \\ "plugin"
-      for plugin <- plugins do
+      plugins.iterator.map { plugin =>
         val artifactId = (plugin \ "artifactId").text.trim
-        if artifactId == "maven-surefire-plugin" || artifactId == "maven-failsafe-plugin" then
-          val config = plugin \ "configuration"
-          val argLine = (config \ "argLine").text.trim
-          if argLine.nonEmpty then
-            return Some(argLine)
-
-      None
+        val argLine = ((plugin \ "configuration") \ "argLine").text.trim
+        (artifactId, argLine)
+      }.collectFirst {
+        case (artifactId, argLine) if (artifactId == "maven-surefire-plugin" || artifactId == "maven-failsafe-plugin") && argLine.nonEmpty =>
+          argLine
+      }
     catch
       case _: Exception => None
 

@@ -214,15 +214,7 @@ object Main:
         // Map ordered names back to paths
         val nameToPath = modules.map(m => m.name -> m.path).toMap
         val steps = orderedNames.zipWithIndex.map { case (name, idx) =>
-          val path = nameToPath.get(name) match
-            case Some(p) => p
-            case None =>
-              return CumulusResponse(
-                success = false,
-                data = None,
-                error = Some(s"Module $name from build order not found in module list"),
-                error_code = Some("INTERNAL_ERROR")
-              )
+          val path = nameToPath.getOrElse(name, name)
           ModuleBuildStep(
             step = idx + 1,
             name = name,

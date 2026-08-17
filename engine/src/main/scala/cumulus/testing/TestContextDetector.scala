@@ -54,48 +54,31 @@ object TestContextDetector:
    * Extract the class name from the source file by finding the first class or record declaration.
    */
   private def extractClassName(lines: List[String]): Option[String] =
-    lines.foreach { line =>
-      val trimmed = line.trim
-      if !trimmed.startsWith("//") && !trimmed.startsWith("/*") then
-        classPattern.findFirstMatchIn(line).foreach { m =>
-          return Some(m.group(1))
-        }
-    }
-    None
+    lines.iterator
+      .filterNot(l => l.trim.startsWith("//") || l.trim.startsWith("/*"))
+      .flatMap(l => classPattern.findFirstMatchIn(l).map(_.group(1)))
+      .nextOption()
 
   /**
    * Scan backward from a given line index to find the nearest test method.
    * Returns the method name if found.
    */
   private def scanBackwardForTestMethod(lines: List[String], startIdx: Int): Option[String] =
-    // Scan backward to find the nearest @Test annotation
-    for i <- startIdx to 0 by -1 do
-      val line = lines(i)
-      val trimmed = line.trim
-      if !trimmed.startsWith("//") && !trimmed.startsWith("/*") then
-        if testAnnotationPattern.findFirstIn(line).isDefined then
-          // Found annotation, now scan forward to find the method declaration
-          val methodNameOpt = scanForwardForMethod(lines, i)
-          if methodNameOpt.isDefined then
-            return methodNameOpt
-
-    // If we didn't find a test annotation above the cursor, return None
-    None
+    (startIdx to 0 by -1).iterator
+      .filter { i =>
+        val trimmed = lines(i).trim
+        !trimmed.startsWith("//") && !trimmed.startsWith("/*") && testAnnotationPattern.findFirstIn(trimmed).isDefined
+      }
+      .flatMap(i => scanForwardForMethod(lines, i))
+      .nextOption()
 
   /**
    * Scan forward from a given annotation line to find the method declaration.
    * Handles multi-line method signatures.
    */
   private def scanForwardForMethod(lines: List[String], annotationIdx: Int): Option[String] =
-    // Scan forward up to 10 lines to find the method signature
-    for i <- (annotationIdx + 1) until Math.min(annotationIdx + 10, lines.length) do
-      val line = lines(i)
-      val trimmed = line.trim
-      // Skip comment lines
-      if !trimmed.startsWith("//") && !trimmed.startsWith("/*") then
-        methodPattern.findFirstMatchIn(line).foreach { m =>
-          return Some(m.group(1))
-        }
-
-    None
+    ((annotationIdx + 1) until Math.min(annotationIdx + 10, lines.length)).iterator
+      .filterNot(i => lines(i).trim.startsWith("//") || lines(i).trim.startsWith("/*"))
+      .flatMap(i => methodPattern.findFirstMatchIn(lines(i)).map(_.group(1)))
+      .nextOption()
 

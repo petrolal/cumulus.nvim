@@ -28,10 +28,15 @@ ThisBuild / sonatypeRepository := "https://central.sonatype.com/api/v1/publisher
 ThisBuild / publishTo := sonatypePublishToBundle.value
 ThisBuild / versionScheme := Some("early-semver")
 
+// PGP signing - reads from GPG keyring
+usePgpKeyHex("C7A30CAF507B01B9F4BED6C3D79966B7698B8A7D")
+
 lazy val root = (project in file("."))
   .enablePlugins(BuildInfoPlugin, NativeImagePlugin)
   .settings(
     name := "cumulus-engine",
+    publishMavenStyle := true,
+    pomIncludeRepository := { _ => false },
     Compile / mainClass := Some("cumulus.Main"),
     nativeImageOptions ++= Seq(
       "--no-fallback",

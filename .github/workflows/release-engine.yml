@@ -2,8 +2,10 @@ name: Release Engine
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
     tags: [ 'v*' ]
+  pull_request:
+    branches: [ '**' ]
   workflow_dispatch:
 
 permissions:
@@ -109,6 +111,19 @@ jobs:
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
+
+      - name: Import GPG Key
+        env:
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+        run: |
+          if [ -n "$PGP_SECRET" ]; then
+            echo "Importing PGP private key into GPG keyring..."
+            echo "$PGP_SECRET" | base64 --decode | gpg --batch --yes --import 2>/dev/null || echo "$PGP_SECRET" | gpg --batch --yes --import || true
+            gpg --list-secret-keys || true
+          else
+            echo "::warning ::PGP_SECRET is not set in repository secrets."
+          fi
 
       - name: Publish Artifacts to Maven Central via sbt-ci-release
         env:

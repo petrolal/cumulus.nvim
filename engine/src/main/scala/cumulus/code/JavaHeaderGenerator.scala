@@ -55,14 +55,14 @@ object JavaHeaderGenerator:
       "/src/"
     )
 
-    for root <- sourceRoots do
-      if path.contains(root) then
+    sourceRoots.collectFirst {
+      case root if path.contains(root) =>
         val startIdx = path.lastIndexOf(root) + root.length
         val endIdx = path.lastIndexOf('/')
         if startIdx <= endIdx then
           val packagePath = path.substring(startIdx, endIdx)
-          val cleanPkg = packagePath.replace('/', '.').stripPrefix(".").stripSuffix(".")
-          return cleanPkg
-
-    ""
+          packagePath.replace('/', '.').stripPrefix(".").stripSuffix(".")
+        else
+          ""
+    }.getOrElse("")
 
