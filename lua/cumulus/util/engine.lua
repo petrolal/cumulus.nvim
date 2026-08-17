@@ -286,25 +286,29 @@ end
 --- Safely decode JSON from Engine output and check success flag.
 ---@param json_str string
 ---@param context? string Optional context for error messages
----@param opts? { debug: boolean } Optional options
+---@param opts? { debug?: boolean, silent?: boolean } Optional options
 ---@return table|nil Decoded data field, or nil if decode fails or success is false
 local function safe_json_decode(json_str, context, opts)
   opts = opts or {}
   local ok, parsed = pcall(vim.json.decode, json_str)
   if not ok or type(parsed) ~= "table" then
-    local msg = string.format("[cumulus] JSON decode failed%s: %s",
-      context and " (" .. context .. ")" or "",
-      tostring(parsed))
-    vim.notify(msg, vim.log.levels.WARN)
+    if not opts.silent then
+      local msg = string.format("[cumulus] JSON decode failed%s: %s",
+        context and " (" .. context .. ")" or "",
+        tostring(parsed))
+      vim.notify(msg, vim.log.levels.WARN)
+    end
     return nil
   end
 
   -- Check success flag in envelope
   if parsed.success == false then
-    local error_msg = parsed.error or "Unknown error"
-    local msg = string.format("[cumulus] %s%s", error_msg,
-      parsed.error_code and (" (" .. parsed.error_code .. ")") or "")
-    vim.notify(msg, vim.log.levels.WARN)
+    if not opts.silent then
+      local error_msg = parsed.error or "Unknown error"
+      local msg = string.format("[cumulus] %s%s", error_msg,
+        parsed.error_code and (" (" .. parsed.error_code .. ")") or "")
+      vim.notify(msg, vim.log.levels.WARN)
+    end
     return nil
   end
 
@@ -323,9 +327,10 @@ end
 ---@param args string[] Command and arguments (e.g., { "parse-build-log", "--tool", "maven" })
 ---@param stdin? string Optional stdin content
 ---@param context? string Optional context for error logging
----@param opts? { debug: boolean } Optional options
+---@param opts? { debug?: boolean, silent?: boolean } Optional options
 ---@return table|nil Decoded JSON output or nil
 local function call_engine_command(args, stdin, context, opts)
+  opts = opts or {}
   local bin = M.get_bin()
   if not bin then
     return nil
@@ -338,7 +343,7 @@ local function call_engine_command(args, stdin, context, opts)
 
   local res = vim.system(cmd_args, { stdin = stdin, text = true }):wait()
   if res.code ~= 0 or not res.stdout or res.stdout == "" then
-    if res.code ~= 0 then
+    if res.code ~= 0 and not opts.silent then
       vim.notify(
         string.format("[cumulus] engine command failed with exit code %d", res.code),
         vim.log.levels.WARN
@@ -553,25 +558,37 @@ function M.check_dep_versions(file_path)
 end
 
 --- Discover installed JDKs on the host
----@return { jdks: table[], default_jdk: table|nil }|nil
-function M.discover_jdk()
-  return call_engine_command({ "discover-jdk" }, nil, "discover-jdk")
+---@param version? string|number
+---@param opts? { silent?: boolean }
+---@return { java_home: string, version: string }|nil
+function M.discover_jdk(version, opts)
+  opts = opts or {}
+  local args = { "discover-jdk" }
+  if version then
+    table.insert(args, "--version")
+    table.insert(args, tostring(version))
+  end
+  return call_engine_command(args, nil, "discover-jdk", opts)
 end
 
 --- Discover build tool for a directory (maven, gradle, sbt)
 ---@param dir_path? string
+---@param opts? { silent?: boolean }
 ---@return { tool: string, root: string, config_file: string, wrapper_available: boolean }|nil
-function M.discover_build_tool(dir_path)
+function M.discover_build_tool(dir_path, opts)
   dir_path = dir_path or "."
-  return call_engine_command({ "discover-build-tool", "--dir", dir_path }, nil, "discover-build-tool")
+  opts = vim.tbl_extend("force", { silent = true }, opts or {})
+  return call_engine_command({ "discover-build-tool", "--dir", dir_path }, nil, "discover-build-tool", opts)
 end
 
 --- Discover workspace metadata
 ---@param dir_path? string
+---@param opts? { silent?: boolean }
 ---@return { root: string, build_tool: string, modules: string[], is_multi_module: boolean }|nil
-function M.discover_workspace(dir_path)
+function M.discover_workspace(dir_path, opts)
   dir_path = dir_path or "."
-  return call_engine_command({ "discover-workspace", "--dir", dir_path }, nil, "discover-workspace")
+  opts = vim.tbl_extend("force", { silent = true }, opts or {})
+  return call_engine_command({ "discover-workspace", "--dir", dir_path }, nil, "discover-workspace", opts)
 end
 
 --- Assemble test CLI command for Maven, Gradle, or SBT
