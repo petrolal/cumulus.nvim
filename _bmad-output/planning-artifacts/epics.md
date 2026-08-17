@@ -25,6 +25,12 @@ FR9: Migrate Neovim Lua integration layer from `rust.lua` to `engine.lua`, refac
 FR10: Purge all Rust codebase (`crates/cumulus-core/`), Cargo configuration files, and references.
 FR11: Implement GitHub Actions CI/CD pipeline for cross-platform GraalVM native-image compilation (x86_64-linux, aarch64-linux, darwin-arm64) with automated release binary publishing.
 FR12: Implement auto-download mechanism in `engine.lua` to fetch pre-built platform binaries from GitHub Releases with SHA-256 verification.
+FR13: Implement Terraform & OpenTofu Tooling Suite (`<leader>ot`) with init, validate, plan, apply, fmt, tflint, security audits (trivy/tfsec), and state outputs in non-blocking interactive terminals.
+FR14: Implement AWS CloudFormation & SAM Suite (`<leader>oc`) with template validation, cfn-lint diagnostics, sam validate, sam build, sam local invoke, sam local start-api, and cfn-guard.
+FR15: Implement Ansible Automation Suite (`<leader>oy`) with playbook syntax checking (--syntax-check), ansible-lint, dry-run checks (--check), interactive execution, inventory graph inspection, vault management, and ansible-doc.
+FR16: Implement DevOps Buffer-Scoped Dynamic Keymaps and Which-Key Registration (`<leader>o` hierarchy with `<leader>ot`, `<leader>oc`, `<leader>oy`, `<leader>od`, `<leader>ok`).
+FR17: Integrate DevOps Mason Tool Provisioning, Diagnostics Linting (`nvim-lint`), and Autoformatting (`conform.nvim`).
+FR18: Interactive non-blocking terminal execution (`Snacks.terminal` / split buffers) for all DevOps CLI tools.
 
 ### NonFunctional Requirements
 
@@ -68,6 +74,12 @@ FR9: Epic 6 (Story 6.1) — engine.lua bridge + util/ refactoring
 FR10: Epic 6 (Story 6.2) — Complete Rust purge
 FR11: Epic 7 (Story 7.1) — GitHub Actions CI/CD pipeline
 FR12: Epic 7 (Story 7.2) — Auto-download binary mechanism
+FR13: Epic 8 (Story 8.1) — Terraform/OpenTofu CLI, linter & security suite
+FR14: Epic 8 (Story 8.2) — AWS CloudFormation & SAM validation & local test suite
+FR15: Epic 8 (Story 8.3) — Ansible syntax, lint, execution & inventory suite
+FR16: Epic 8 (Story 8.4) — DevOps buffer-scoped dynamic keymaps & WhichKey registration
+FR17: Epic 8 (Story 8.4) — Mason tool provisioning, nvim-lint & conform integration
+FR18: Epic 8 (Story 8.1, 8.2, 8.3) — Non-blocking terminal execution
 
 ## Epic List
 
@@ -98,6 +110,10 @@ Neovim connects to `cumulus-engine` via the new `engine.lua` bridge. All `util/`
 ### Epic 7: CI/CD Pipeline & Cross-Platform Distribution
 Pre-built native binaries are automatically compiled for x86_64-linux, aarch64-linux, and darwin-arm64 via GitHub Actions. End users can auto-download the correct binary without installing SBT or GraalVM.
 **FRs covered:** FR11, FR12
+
+### Epic 8: DevOps & Infrastructure Platform Suite (<leader>o)
+DevOps and Cloud engineers have access to a complete compiler, validator, linter, test, and execution toolchain for Terraform/OpenTofu, AWS CloudFormation/SAM, and Ansible under `<leader>o`, with buffer-local keymap scoping, Mason package provisioning, and non-blocking interactive terminals.
+**FRs covered:** FR13, FR14, FR15, FR16, FR17, FR18
 
 ---
 
@@ -470,3 +486,83 @@ So that I never need to install SBT or GraalVM manually.
 **And** subsequent `:checkhealth cumulus` reports the engine as active
 **And** the health check output suggests running `:CumulusInstallEngine` when the binary is missing
 **And** download progress is reported via `vim.notify` during the fetch
+
+---
+
+## Epic 8: DevOps & Infrastructure Platform Suite (<leader>o)
+
+DevOps and Cloud engineers have access to a complete compiler, validator, linter, test, and execution toolchain for Terraform/OpenTofu, AWS CloudFormation/SAM, and Ansible under `<leader>o`, with buffer-local keymap scoping, Mason package provisioning, and non-blocking interactive terminals.
+
+### Story 8.1: Terraform & OpenTofu Tooling Suite (<leader>ot)
+
+As a DevOps / Cloud Engineer,
+I want dedicated buffer-scoped commands under `<leader>ot` for Terraform and OpenTofu (`init`, `validate`, `plan`, `apply`, `fmt`, `tflint`, security audit with `trivy`/`tfsec`, and `output`),
+So that I can write, test, validate, and apply infrastructure as code interactively and safely from within Neovim.
+
+**Acceptance Criteria:**
+
+**Given** an open buffer with filetype `terraform`, `terraform-vars`, or `hcl`
+**When** the user presses `<leader>oti`
+**Then** `terraform init` (or `tofu init` if tofu is detected) is executed in a non-blocking interactive terminal
+**And** `<leader>otv` executes `terraform validate`
+**And** `<leader>otp` executes `terraform plan` in an interactive terminal
+**And** `<leader>ota` executes `terraform apply` in an interactive terminal with prompt support
+**And** `<leader>otf` formats the buffer using `terraform fmt`
+**And** `<leader>otl` triggers `tflint` diagnostic linting on the current workspace/file
+**And** `<leader>ots` runs a security audit using `trivy config .` or `tfsec`
+**And** `<leader>oto` displays Terraform output values in a float/terminal
+**And** if neither `terraform` nor `tofu` is installed in PATH, a clear warning notification is displayed
+
+### Story 8.2: AWS CloudFormation & SAM Validation, Compilation & Local Testing Suite (<leader>oc)
+
+As a Cloud Engineer developing on AWS,
+I want dedicated buffer-scoped commands under `<leader>oc` for AWS CloudFormation and SAM (`cfn-lint`, `validate-template`, `sam validate`, `sam build`, `sam local invoke`, `sam local start-api`, and `cfn-guard`),
+So that I can validate, build, and locally test CloudFormation and SAM serverless stacks with instantaneous feedback.
+
+**Acceptance Criteria:**
+
+**Given** an open CloudFormation or SAM template buffer (`yaml.cfn`, `yaml.sam`, or YAML buffer matching CloudFormation schema)
+**When** the user presses `<leader>ocv`
+**Then** `aws cloudformation validate-template --template-body file://<current_file>` is executed with output displayed
+**And** `<leader>ocl` runs `cfn-lint` on the current template with diagnostics populated
+**And** `<leader>ocV` runs `sam validate`
+**And** `<leader>ocb` executes `sam build` in a non-blocking terminal
+**And** `<leader>oci` runs `sam local invoke` in an interactive terminal
+**And** `<leader>ocr` launches `sam local start-api` in an interactive terminal session
+**And** `<leader>ocg` triggers `cfn-guard validate` for policy-as-code rules if configured
+**And** if AWS CLI or SAM CLI is missing, a helpful notification directs the user to install them
+
+### Story 8.3: Ansible Playbook Syntax Checking, Linting, Execution & Inventory Suite (<leader>oy)
+
+As an Infrastructure Engineer,
+I want dedicated buffer-scoped commands under `<leader>oy` for Ansible (`--syntax-check`, `ansible-lint`, dry-run `--check`, execution, `ansible-inventory --graph`, `ansible-doc`, and Ansible Vault),
+So that I can verify, lint, dry-run, execute, and secure Ansible automation playbooks and roles without switching out of my editor.
+
+**Acceptance Criteria:**
+
+**Given** an open buffer with filetype `yaml.ansible` or `ansible`
+**When** the user presses `<leader>oys`
+**Then** `ansible-playbook --syntax-check <current_file>` runs and reports syntax errors or success
+**And** `<leader>oyl` runs `ansible-lint <current_file>` on the active playbook
+**And** `<leader>oyc` executes `ansible-playbook --check <current_file>` (dry-run check mode) in a non-blocking terminal
+**And** `<leader>oyr` executes `ansible-playbook <current_file>` in an interactive terminal
+**And** `<leader>oyi` runs `ansible-inventory --graph` to inspect inventory host topology
+**And** `<leader>oyd` prompts for a module name and displays `ansible-doc` documentation
+**And** `<leader>oyv` provides Ansible Vault actions (view, encrypt, decrypt)
+
+### Story 8.4: DevOps Language-Scoped Buffers, Mason Automation & WhichKey Integration
+
+As a polyglot engineer using Cumulus,
+I want the `<leader>o` DevOps keymap groups and tools to be dynamically scoped to relevant buffer filetypes, automatically provisioned via Mason, and cleanly organized in WhichKey,
+So that DevOps keymaps only appear when editing relevant files, all necessary binaries are managed seamlessly, and the keymap hierarchy is self-documenting.
+
+**Acceptance Criteria:**
+
+**Given** Neovim started with `cumulus.nvim`
+**When** opening a Terraform buffer, `<leader>ot` appears in WhichKey with icon `󱁢 ` and label `terraform/opentofu`
+**And** opening a CloudFormation/SAM buffer, `<leader>oc` appears in WhichKey with icon `󰅟 ` and label `cloudformation/sam`
+**And** opening an Ansible buffer, `<leader>oy` appears in WhichKey with icon `󰚰 ` and label `ansible`
+**And** opening an unrelated filetype (e.g. Java, Python, Markdown), `<leader>ot`, `<leader>oc`, and `<leader>oy` do not appear in WhichKey
+**And** `tools-mason.lua` declares `terraform-ls`, `tflint`, `cfn-lint`, `ansible-language-server`, `ansible-lint`, and `yaml-language-server` in `ensure_installed`
+**And** `tools-linting.lua` (`nvim-lint`) binds `tflint` to `terraform`, `cfn_lint` to CloudFormation, and `ansible_lint` to Ansible buffers
+**And** `tools-formatting.lua` (`conform.nvim`) formats `terraform` with `terraform_fmt` and YAML with appropriate formatters
