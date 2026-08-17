@@ -15,24 +15,25 @@ function M.toggle_offline_mode()
   )
 end
 
-function M.find_pom()
+function M.find_pom(buf)
+  local dir = (buf and vim.api.nvim_buf_is_valid(buf) and vim.fs.dirname(vim.api.nvim_buf_get_name(buf)))
+    or vim.fn.expand("%:p:h")
+  if dir == "" or not dir then
+    dir = vim.fn.getcwd()
+  end
+
   local engine = require("cumulus.util.engine")
   if engine.is_available() then
-    local res = engine.discover_build_tool(vim.fn.getcwd())
-    if res and res.tool == "maven" then
+    local res = engine.discover_build_tool(dir) or engine.discover_build_tool(vim.fn.getcwd())
+    if res and (res.tool == "maven" or res.build_tool == "maven") then
       return true
     end
   end
 
-  local cwd = vim.fn.getcwd()
-  local pom = vim.fn.findfile("pom.xml", cwd .. ";")
-  if pom == "" then
-    local current_file = vim.fn.expand("%:p:h")
-    if current_file ~= "" then
-      pom = vim.fn.findfile("pom.xml", current_file .. ";")
-    end
+  if vim.fs.root(dir, { "pom.xml", "mvnw" }) then
+    return true
   end
-  return pom ~= ""
+  return vim.fn.findfile("pom.xml", dir .. ";") ~= "" or vim.fn.findfile("pom.xml", vim.fn.getcwd() .. ";") ~= ""
 end
 
 function M.get_mvn_cmd()

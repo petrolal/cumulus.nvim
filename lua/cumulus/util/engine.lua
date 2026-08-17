@@ -402,7 +402,32 @@ end
 ---@param file_path string
 ---@return string[]|nil Array of lines
 function M.generate_java_header(file_path)
-  return call_engine_command({ "generate-java-header", "--file", file_path }, nil, "generate-java-header")
+  local res = call_engine_command({ "generate-java-header", "--file", file_path }, nil, "generate-java-header")
+  if not res then
+    return nil
+  end
+  if type(res) == "table" and res.class_declaration then
+    local lines = {}
+    if res.package_name and res.package_name ~= "" then
+      table.insert(lines, "package " .. res.package_name .. ";")
+      table.insert(lines, "")
+    end
+    local decl = res.class_declaration
+    if decl:match("{\\s*}$") or decl:match("%s*{%s*}") then
+      local base_decl = decl:gsub("%s*{%s*}", "")
+      table.insert(lines, base_decl .. " {")
+      table.insert(lines, "    ")
+      table.insert(lines, "}")
+    else
+      for l in decl:gmatch("[^\r\n]+") do
+        table.insert(lines, l)
+      end
+    end
+    return lines
+  elseif type(res) == "table" and #res > 0 then
+    return res
+  end
+  return nil
 end
 
 --- Parse test log output using Scala engine
@@ -574,21 +599,31 @@ end
 --- Discover build tool for a directory (maven, gradle, sbt)
 ---@param dir_path? string
 ---@param opts? { silent?: boolean }
----@return { tool: string, root: string, config_file: string, wrapper_available: boolean }|nil
+---@return { tool: string, build_tool: string, root: string, config_file: string, wrapper_available: boolean }|nil
 function M.discover_build_tool(dir_path, opts)
   dir_path = dir_path or "."
   opts = vim.tbl_extend("force", { silent = true }, opts or {})
-  return call_engine_command({ "discover-build-tool", "--dir", dir_path }, nil, "discover-build-tool", opts)
+  local res = call_engine_command({ "discover-build-tool", "--dir", dir_path }, nil, "discover-build-tool", opts)
+  if res then
+    res.tool = res.tool or res.build_tool
+    res.build_tool = res.build_tool or res.tool
+  end
+  return res
 end
 
 --- Discover workspace metadata
 ---@param dir_path? string
 ---@param opts? { silent?: boolean }
----@return { root: string, build_tool: string, modules: string[], is_multi_module: boolean }|nil
+---@return { root: string, tool: string, build_tool: string, modules: string[], is_multi_module: boolean }|nil
 function M.discover_workspace(dir_path, opts)
   dir_path = dir_path or "."
   opts = vim.tbl_extend("force", { silent = true }, opts or {})
-  return call_engine_command({ "discover-workspace", "--dir", dir_path }, nil, "discover-workspace", opts)
+  local res = call_engine_command({ "discover-workspace", "--dir", dir_path }, nil, "discover-workspace", opts)
+  if res then
+    res.tool = res.tool or res.build_tool
+    res.build_tool = res.build_tool or res.tool
+  end
+  return res
 end
 
 --- Assemble test CLI command for Maven, Gradle, or SBT

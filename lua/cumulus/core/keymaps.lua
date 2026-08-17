@@ -71,14 +71,43 @@ map("n", "<leader>cl", "<cmd>checkhealth vim.lsp<cr>", { desc = "Lsp Info" })
 -- keymaps into a Python or Terraform buffer's popup. See lang-keymaps.lua.
 local lang_keymaps = require("cumulus.core.lang-keymaps")
 
+local function is_jvm_project(buf)
+  local ft = (buf and vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].filetype) or vim.bo.filetype
+  local jvm_fts = {
+    java = true,
+    kotlin = true,
+    scala = true,
+    groovy = true,
+    gradle = true,
+    sbt = true,
+    xml = true,
+    properties = true,
+    jproperties = true,
+  }
+  if jvm_fts[ft] then
+    return true
+  end
+
+  local maven = require("cumulus.util.maven")
+  local gradle = require("cumulus.util.gradle")
+  if maven.find_pom(buf) or gradle.find_gradle(buf) then
+    return true
+  end
+
+  local dir = (buf and vim.api.nvim_buf_is_valid(buf) and vim.fs.dirname(vim.api.nvim_buf_get_name(buf)))
+    or vim.fn.expand("%:p:h")
+  if dir == "" or not dir then
+    dir = vim.fn.getcwd()
+  end
+
+  local patterns = { "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "build.sbt", "mvnw", "gradlew" }
+  return vim.fs.root(dir, patterns) ~= nil
+    or vim.fs.root(vim.fn.getcwd(), patterns) ~= nil
+end
+
 lang_keymaps.register({
-  filetypes = { "java", "kotlin", "groovy", "xml" },
-  ready_gate = true,
-  condition = function()
-    local maven = require("cumulus.util.maven")
-    local gradle = require("cumulus.util.gradle")
-    return maven.find_pom() or gradle.find_gradle()
-  end,
+  filetypes = { "java", "kotlin", "scala", "groovy", "gradle", "sbt", "xml", "properties", "jproperties" },
+  condition = is_jvm_project,
   group = "<leader>cj",
   label = "java/jvm build",
   icon = "󰬷 ",
@@ -257,7 +286,8 @@ lang_keymaps.register({
 })
 
 lang_keymaps.register({
-  filetypes = { "java", "kotlin" },
+  filetypes = { "java", "kotlin", "scala", "groovy" },
+  condition = is_jvm_project,
   group = "<leader>d",
   label = "debug",
   icon = "🐛 ",
@@ -298,13 +328,8 @@ lang_keymaps.register({
 })
 
 lang_keymaps.register({
-  filetypes = { "java", "kotlin", "groovy" },
-  ready_gate = true,
-  condition = function()
-    local maven = require("cumulus.util.maven")
-    local gradle = require("cumulus.util.gradle")
-    return maven.find_pom() or gradle.find_gradle()
-  end,
+  filetypes = { "java", "kotlin", "scala", "groovy" },
+  condition = is_jvm_project,
   group = "<leader>cx",
   label = "java refactor",
   icon = "󰨞 ",

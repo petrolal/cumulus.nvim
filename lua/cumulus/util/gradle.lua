@@ -15,18 +15,32 @@ function M.toggle_offline_mode()
   )
 end
 
-function M.find_gradle()
+function M.find_gradle(buf)
+  local dir = (buf and vim.api.nvim_buf_is_valid(buf) and vim.fs.dirname(vim.api.nvim_buf_get_name(buf)))
+    or vim.fn.expand("%:p:h")
+  if dir == "" or not dir then
+    dir = vim.fn.getcwd()
+  end
+
   local engine = require("cumulus.util.engine")
   if engine.is_available() then
-    local res = engine.discover_build_tool(vim.fn.getcwd())
-    if res and res.tool == "gradle" then
+    local res = engine.discover_build_tool(dir) or engine.discover_build_tool(vim.fn.getcwd())
+    if res and (res.tool == "gradle" or res.build_tool == "gradle") then
       return true
     end
   end
 
-  local cwd = vim.fn.getcwd()
-  return vim.fn.findfile("build.gradle", cwd .. ";") ~= ""
-    or vim.fn.findfile("build.gradle.kts", cwd .. ";") ~= ""
+  local patterns = { "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradlew" }
+  if vim.fs.root(dir, patterns) then
+    return true
+  end
+
+  return vim.fn.findfile("build.gradle", dir .. ";") ~= ""
+    or vim.fn.findfile("build.gradle.kts", dir .. ";") ~= ""
+    or vim.fn.findfile("settings.gradle", dir .. ";") ~= ""
+    or vim.fn.findfile("settings.gradle.kts", dir .. ";") ~= ""
+    or vim.fn.findfile("build.gradle", vim.fn.getcwd() .. ";") ~= ""
+    or vim.fn.findfile("build.gradle.kts", vim.fn.getcwd() .. ";") ~= ""
 end
 
 function M.get_gradle_cmd()
