@@ -36,6 +36,7 @@ return {
         { "<leader>g", group = "git control", icon = "󰊢 " },
         { "<leader>o", group = "devops/infra", icon = "󱁢 " },
         { "<leader>ot", group = "terraform/opentofu", icon = "󱁢 " },
+        { "<leader>oc", group = "cloudformation/sam", icon = "󰅟 " },
         { "<leader>oy", group = "ansible", icon = "󰚰 " },
         { "<leader>od", group = "docker", icon = "󰡨 " },
         { "<leader>ok", group = "helm/k8s", icon = "󱃾 " },

@@ -270,26 +270,56 @@ map("n", "<leader>jih", "<cmd>checkhealth cumulus<cr>", { desc = "Cumulus Health
 -- ==============================================================================
 -- 󱁢 Infrastructure & DevOps Language Scopes (<leader>o)
 -- ==============================================================================
+local devops = require("cumulus.util.devops")
+
 lang_keymaps.register({
   filetypes = { "terraform", "terraform-vars", "hcl" },
   group = "<leader>ot",
   label = "terraform/opentofu",
   icon = "󱁢 ",
   keys = {
-    { "<leader>otv", "<cmd>!terraform validate<cr>", "Terraform: Validate" },
-    { "<leader>otp", "<cmd>!terraform plan<cr>", "Terraform: Plan" },
-    { "<leader>otf", "<cmd>!terraform fmt<cr>", "Terraform: Format" },
+    { "<leader>oti", devops.terraform_init, "Terraform: Init" },
+    { "<leader>otv", devops.terraform_validate, "Terraform: Validate" },
+    { "<leader>otp", devops.terraform_plan, "Terraform: Plan" },
+    { "<leader>ota", devops.terraform_apply, "Terraform: Apply" },
+    { "<leader>otf", devops.terraform_fmt, "Terraform: Format" },
+    { "<leader>otl", devops.terraform_lint, "Terraform: Lint (tflint)" },
+    { "<leader>ots", devops.terraform_security, "Terraform: Security Scan (trivy/tfsec)" },
+    { "<leader>oto", devops.terraform_output, "Terraform: Output" },
   },
 })
 
 lang_keymaps.register({
-  filetypes = { "yaml.ansible", "ansible" },
+  filetypes = { "yaml", "yaml.cfn", "yaml.sam", "cloudformation", "sam" },
+  condition = devops.is_cloudformation_buffer,
+  group = "<leader>oc",
+  label = "cloudformation/sam",
+  icon = "󰅟 ",
+  keys = {
+    { "<leader>ocv", devops.cfn_validate, "CloudFormation: Validate Template" },
+    { "<leader>ocl", devops.cfn_lint, "CloudFormation: Lint (cfn-lint)" },
+    { "<leader>ocV", devops.sam_validate, "SAM: Validate" },
+    { "<leader>ocb", devops.sam_build, "SAM: Build" },
+    { "<leader>oci", devops.sam_local_invoke, "SAM: Local Invoke" },
+    { "<leader>ocr", devops.sam_local_start_api, "SAM: Local Start API" },
+    { "<leader>ocg", devops.cfn_guard_validate, "CloudFormation: Policy Check (cfn-guard)" },
+  },
+})
+
+lang_keymaps.register({
+  filetypes = { "yaml", "yaml.ansible", "ansible" },
+  condition = devops.is_ansible_buffer,
   group = "<leader>oy",
   label = "ansible",
   icon = "󰚰 ",
   keys = {
-    { "<leader>oya", "<cmd>!ansible-lint %<cr>", "Ansible: Lint Playbook" },
-    { "<leader>oys", "<cmd>!ansible-playbook --syntax-check %<cr>", "Ansible: Syntax Check" },
+    { "<leader>oys", devops.ansible_syntax_check, "Ansible: Syntax Check" },
+    { "<leader>oyl", devops.ansible_lint, "Ansible: Lint Playbook" },
+    { "<leader>oyc", devops.ansible_dry_run, "Ansible: Dry Run (--check)" },
+    { "<leader>oyr", devops.ansible_run_playbook, "Ansible: Run Playbook" },
+    { "<leader>oyi", devops.ansible_inventory_graph, "Ansible: Inventory Graph" },
+    { "<leader>oyd", devops.ansible_doc_lookup, "Ansible: Module Documentation" },
+    { "<leader>oyv", devops.ansible_vault_action, "Ansible: Vault Action" },
   },
 })
 
