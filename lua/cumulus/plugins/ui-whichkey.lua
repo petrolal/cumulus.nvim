@@ -19,14 +19,6 @@ return {
       }
       opts.spec = opts.spec or {}
       vim.list_extend(opts.spec, {
-        { "<leader>j", group = "jvm platform", icon = "☕ " },
-        { "<leader>jb", group = "build & tasks", icon = "󰒓 " },
-        { "<leader>jt", group = "test runner", icon = "󰙨 " },
-        { "<leader>jr", group = "run & execute", icon = "󰐊 " },
-        { "<leader>js", group = "spring & frameworks", icon = "󱎘 " },
-        { "<leader>jx", group = "refactor & jdtls", icon = "󰨞 " },
-        { "<leader>jd", group = "dependencies", icon = "📦 " },
-        { "<leader>ji", group = "engine & info", icon = "ℹ " },
         { "<leader>c", group = "code/lsp", icon = "󰅍 " },
         { "<leader>f", group = "file/find", icon = "󰈞 " },
         { "<leader>s", group = "search", icon = "󰍉 " },
@@ -52,6 +44,11 @@ return {
       -- filetype actually owns matching buffer-local keymaps -- see
       -- lua/cumulus/core/lang-keymaps.lua.
       vim.list_extend(opts.spec, require("cumulus.core.lang-keymaps").whichkey_spec())
+
+      local jvm = require("cumulus.util.jvm")
+      if jvm.is_jvm_project() then
+        vim.list_extend(opts.spec, jvm.whichkey_spec())
+      end
       return opts
     end,
   },

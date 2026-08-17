@@ -105,20 +105,44 @@ function M.sync_dependencies()
 end
 
 --- Get Gradle tasks for the current project.
---- Task output parsing is done entirely by the cumulus-engine Scala binary (parse-gradle-tasks).
+--- Task output parsing is done by the cumulus-engine Scala binary (parse-gradle-tasks) with fallback.
 function M.get_gradle_tasks()
   local base_cmd = M.get_gradle_cmd()
   local output = vim.fn.system(base_cmd .. " tasks --all")
 
-  if vim.v.shell_error ~= 0 then
+  if vim.v.shell_error ~= 0 or not output or output == "" then
     vim.notify("Failed to fetch Gradle tasks", vim.log.levels.ERROR)
     return {}
   end
 
   local engine = require("cumulus.util.engine")
-  local tasks = engine.parse_gradle_tasks(output)
-  if tasks and #tasks > 0 then
-    return tasks
+  if engine.is_available() then
+    local tasks = engine.parse_gradle_tasks(output)
+    if tasks and #tasks > 0 then
+      return tasks
+    end
+  end
+
+  -- Fallback task extraction from `./gradlew tasks` output
+  local fallback_tasks = {}
+  local seen = {}
+  for line in output:gmatch("[^\r\n]+") do
+    local trimmed = vim.trim(line)
+    if trimmed ~= "" and not trimmed:match("^%-+$") and not trimmed:match("^//") and not trimmed:match("^#") then
+      local task_name = trimmed:match("^([%a%d_%-:]+)%s+%-")
+      if not task_name and not trimmed:match("%s") and not trimmed:match(":") and not trimmed:match("tasks$") then
+        task_name = trimmed:match("^([%a%d_%-]+)$")
+      end
+      if task_name and not seen[task_name] and not task_name:match("tasks$") and not task_name:match("Tasks$") then
+        seen[task_name] = true
+        table.insert(fallback_tasks, task_name)
+      end
+    end
+  end
+
+  if #fallback_tasks > 0 then
+    table.sort(fallback_tasks)
+    return fallback_tasks
   end
 
   vim.notify("cumulus-engine: failed to parse Gradle tasks", vim.log.levels.ERROR)

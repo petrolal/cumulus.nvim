@@ -114,14 +114,31 @@ function M.get_maven_goals()
   end
 
   local engine = require("cumulus.util.engine")
-  local goals = engine.parse_pom_goals(vim.fn.fnamemodify(pom_path, ":p"))
-  if goals and #goals > 0 then
-    return goals
+  if engine.is_available() then
+    local goals = engine.parse_pom_goals(vim.fn.fnamemodify(pom_path, ":p"))
+    if goals and #goals > 0 then
+      return goals
+    end
   end
 
-  -- Binary missing or returned empty — surface the error
-  vim.notify("cumulus-engine: failed to parse Maven goals from pom.xml", vim.log.levels.ERROR)
-  return {}
+  -- Fallback default lifecycle and common plugin goals
+  local default_goals = {
+    "clean",
+    "validate",
+    "compile",
+    "test",
+    "package",
+    "verify",
+    "install",
+    "deploy",
+    "clean compile",
+    "clean test",
+    "clean package",
+    "clean install",
+    "spring-boot:run",
+    "quarkus:dev",
+  }
+  return default_goals
 end
 
 function M.run_maven_goal()

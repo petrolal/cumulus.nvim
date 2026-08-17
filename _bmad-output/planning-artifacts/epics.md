@@ -31,6 +31,11 @@ FR15: Implement Ansible Automation Suite (`<leader>oy`) with playbook syntax che
 FR16: Implement DevOps Buffer-Scoped Dynamic Keymaps and Which-Key Registration (`<leader>o` hierarchy with `<leader>ot`, `<leader>oc`, `<leader>oy`, `<leader>od`, `<leader>ok`).
 FR17: Integrate DevOps Mason Tool Provisioning, Diagnostics Linting (`nvim-lint`), and Autoformatting (`conform.nvim`).
 FR18: Interactive non-blocking terminal execution (`Snacks.terminal` / split buffers) for all DevOps CLI tools.
+FR19: Implement DevOps Workspace Root Discovery for Terraform/OpenTofu, AWS CloudFormation/SAM, Ansible, Docker, and Helm/Kubernetes across project directories.
+FR20: Implement Global DevOps Platform Execution without requiring an active buffer, running workspace-level tools in the detected root directory.
+FR21: Implement Smart File vs Workspace Fallbacks for single-file operations (format, lint) when invoked from non-DevOps buffers.
+FR22: Implement Proactive Workspace Diagnostics and warning toasts when DevOps commands are invoked in workspaces lacking the target tool's configuration.
+FR23: Ensure WhichKey registers and displays `<leader>o` and all DevOps sub-groups (`<leader>ot`, `<leader>oc`, `<leader>oy`, `<leader>od`, `<leader>ok`) with icons and descriptions globally.
 
 ### NonFunctional Requirements
 
@@ -41,6 +46,9 @@ NFR4: Graceful fallback and clear health check diagnostics in Neovim when binary
 NFR5: Scala codebase must be the dominant portion of the project — Lua files reduced to pure Neovim UI glue (keymaps, pickers, plugin specs) with zero business logic.
 NFR6: All XML parsing (POM, JaCoCo, Checkstyle) must use `scala-xml` with XPath-like node selectors (`\` and `\\`) — no regex-based XML parsing or SAX event streaming.
 NFR7: Filesystem operations must use `os-lib` for clean, zero-reflection directory traversal and file I/O.
+NFR8: All DevOps execution must run in interactive, non-blocking terminal sessions (`Snacks.terminal` or split buffers) without locking Neovim UI.
+NFR9: Project root marker discovery must execute in < 5ms using Neovim's `vim.fs.root()`.
+NFR10: The developer experience and error feedback of `<leader>o` must strictly mirror the UX conventions of the JVM platform suite (`<leader>j`).
 
 ### Additional Requirements
 
@@ -58,7 +66,7 @@ NFR7: Filesystem operations must use `os-lib` for clean, zero-reflection directo
 
 ### UX Design Requirements
 
-N/A (Backend Engine Migration)
+N/A (Backend Engine & Platform Tooling)
 
 ### FR Coverage Map
 
@@ -80,6 +88,11 @@ FR15: Epic 8 (Story 8.3) — Ansible syntax, lint, execution & inventory suite
 FR16: Epic 8 (Story 8.4) — DevOps buffer-scoped dynamic keymaps & WhichKey registration
 FR17: Epic 8 (Story 8.4) — Mason tool provisioning, nvim-lint & conform integration
 FR18: Epic 8 (Story 8.1, 8.2, 8.3) — Non-blocking terminal execution
+FR19: Epic 9 (Story 9.1) — DevOps workspace root discovery
+FR20: Epic 9 (Story 9.1, 9.2) — Global DevOps platform execution without active buffer
+FR21: Epic 9 (Story 9.2) — Smart file vs workspace fallback for lint and format
+FR22: Epic 9 (Story 9.1, 9.2) — Proactive workspace diagnostics for missing configurations
+FR23: Epic 9 (Story 9.3) — WhichKey global group consistency & keymap scoping
 
 ## Epic List
 
@@ -114,6 +127,10 @@ Pre-built native binaries are automatically compiled for x86_64-linux, aarch64-l
 ### Epic 8: DevOps & Infrastructure Platform Suite (<leader>o)
 DevOps and Cloud engineers have access to a complete compiler, validator, linter, test, and execution toolchain for Terraform/OpenTofu, AWS CloudFormation/SAM, and Ansible under `<leader>o`, with buffer-local keymap scoping, Mason package provisioning, and non-blocking interactive terminals.
 **FRs covered:** FR13, FR14, FR15, FR16, FR17, FR18
+
+### Epic 9: DevOps Project-Root Discovery & Global Platform Suite (<leader>o)
+DevOps and Cloud engineers can execute infrastructure and cloud automation tools from any open buffer in Neovim, with automatic root directory detection, non-blocking execution, smart fallbacks for single-file tools, and proactive diagnostics.
+**FRs covered:** FR19, FR20, FR21, FR22, FR23
 
 ---
 
@@ -566,3 +583,53 @@ So that DevOps keymaps only appear when editing relevant files, all necessary bi
 **And** `tools-mason.lua` declares `terraform-ls`, `tflint`, `cfn-lint`, `ansible-language-server`, `ansible-lint`, and `yaml-language-server` in `ensure_installed`
 **And** `tools-linting.lua` (`nvim-lint`) binds `tflint` to `terraform`, `cfn_lint` to CloudFormation, and `ansible_lint` to Ansible buffers
 **And** `tools-formatting.lua` (`conform.nvim`) formats `terraform` with `terraform_fmt` and YAML with appropriate formatters
+
+---
+
+## Epic 9: DevOps Project-Root Discovery & Global Platform Suite (<leader>o)
+
+DevOps and Cloud engineers can execute infrastructure and cloud automation tools (Terraform/OpenTofu, CloudFormation/SAM, Ansible, Docker, Helm/K8s) from any open buffer in Neovim, with automatic root directory detection, non-blocking execution, smart fallbacks for single-file tools, and proactive diagnostics.
+
+### Story 9.1: DevOps Root & Workspace Discovery Engine
+
+As a DevOps / Cloud Engineer,
+I want Cumulus to automatically detect project and tool root directories for Terraform, CloudFormation/SAM, Ansible, Docker, and Helm,
+So that tooling commands know where infrastructure configurations live regardless of which buffer is currently active.
+
+**Acceptance Criteria:**
+
+**Given** a Neovim session in a project containing `main.tf`, `terragrunt.hcl`, or `*.tf`
+**When** calling `devops.find_tf_root()`
+**Then** the absolute path to the directory containing Terraform files is returned
+**And** root discovery functions for CloudFormation (`find_cfn_root`), Ansible (`find_ansible_root`), Docker (`find_docker_root`), and Helm (`find_helm_root`) locate their respective configuration roots
+**And** if no matching configuration exists in the workspace, `nil` is returned safely without errors
+
+### Story 9.2: Global DevOps Execution with Root Awareness & Smart Fallback
+
+As a DevOps / Cloud Engineer,
+I want `<leader>o` commands to execute against the detected tool root directory and provide smart fallbacks for file-level operations,
+So that I can plan, build, test, and apply infrastructure from any buffer without manually navigating to specific files.
+
+**Acceptance Criteria:**
+
+**Given** any open buffer (e.g. `README.md`, `Main.java`) in a workspace with Terraform configuration
+**When** the user executes `<leader>otp` (`terraform plan`)
+**Then** the command runs inside the detected Terraform root directory in a non-blocking `Snacks.terminal`
+**And** when executed in a workspace lacking Terraform files, a warning toast is displayed: "No Terraform/OpenTofu configuration found in workspace"
+**And** file-scoped actions like `terraform fmt` format the active buffer when editing `.tf` files, or format the detected root directory when invoked from a non-DevOps buffer
+**And** CloudFormation (`<leader>oc`), Ansible (`<leader>oy`), Docker (`<leader>od`), and Helm (`<leader>ok`) commands exhibit the same root-aware behavior
+
+### Story 9.3: Universal Keymap Registration & WhichKey Scope Configuration
+
+As a polyglot engineer using Cumulus,
+I want `<leader>o` keymaps to be globally registered (mirroring `<leader>j`) and cleanly organized in WhichKey,
+So that all DevOps tools are immediately discoverable and accessible with consistent visual hierarchy across the entire editor.
+
+**Acceptance Criteria:**
+
+**Given** Neovim started with `cumulus.nvim`
+**When** the user presses `<leader>o` in any buffer
+**Then** WhichKey surfaces all DevOps sub-groups (`<leader>ot`, `<leader>oc`, `<leader>oy`, `<leader>od`, `<leader>ok`) with their respective icons and descriptions
+**And** pressing any DevOps shortcut executes the root-aware command seamlessly
+**And** buffer-specific LSP linting (`nvim-lint`) and autoformatting (`conform.nvim`) continue to work seamlessly when editing specific DevOps files
+

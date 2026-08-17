@@ -365,14 +365,46 @@ end
 ---@param pom_path string
 ---@return string[]|nil
 function M.parse_pom_goals(pom_path)
-  return call_engine_command({ "parse-pom", "--file", pom_path }, nil, "parse-pom")
+  local res = call_engine_command({ "parse-pom", "--file", pom_path }, nil, "parse-pom")
+  if not res then
+    return nil
+  end
+  local raw = res.goals or res
+  if type(raw) == "table" then
+    local list = {}
+    for _, g in ipairs(raw) do
+      if type(g) == "table" and g.name then
+        table.insert(list, g.name)
+      elseif type(g) == "string" then
+        table.insert(list, g)
+      end
+    end
+    return list
+  end
+  return nil
 end
 
 --- Parse Gradle task list from stdout using Scala engine
 ---@param content string
 ---@return string[]|nil
 function M.parse_gradle_tasks(content)
-  return call_engine_command({ "parse-gradle-tasks" }, content, "parse-gradle-tasks")
+  local res = call_engine_command({ "parse-gradle-tasks" }, content, "parse-gradle-tasks")
+  if not res then
+    return nil
+  end
+  local raw = res.tasks or res
+  if type(raw) == "table" then
+    local list = {}
+    for _, t in ipairs(raw) do
+      if type(t) == "table" and t.name then
+        table.insert(list, t.name)
+      elseif type(t) == "string" then
+        table.insert(list, t)
+      end
+    end
+    return list
+  end
+  return nil
 end
 
 --- Parse build log content using Scala engine
@@ -388,7 +420,11 @@ end
 ---@param file_path string
 ---@return table[]|nil Array of { name = string, path = string }
 function M.parse_modules(tool, file_path)
-  return call_engine_command({ "parse-modules", "--tool", tool, "--file", file_path }, nil, "parse-modules")
+  local res = call_engine_command({ "parse-modules", "--tool", tool, "--file", file_path }, nil, "parse-modules")
+  if not res then
+    return nil
+  end
+  return res.modules or res
 end
 
 --- Parse stacktrace log content using Scala engine
@@ -457,7 +493,11 @@ end
 ---@param dir_path string
 ---@return table[]|nil Array of { file = string, line = number, http_method = string, path = string, class_name = string, handler_name = string }
 function M.extract_endpoints(dir_path)
-  return call_engine_command({ "extract-endpoints", "--dir", dir_path }, nil, "extract-endpoints")
+  local res = call_engine_command({ "extract-endpoints", "--dir", dir_path }, nil, "extract-endpoints")
+  if not res then
+    return nil
+  end
+  return res.endpoints or res
 end
 
 --- Parse JaCoCo coverage XML file using Scala engine
@@ -478,7 +518,11 @@ end
 ---@param dir_path string
 ---@return table[]|nil Array of { class_name = string, bean_name = string, file = string, line = number, injected_deps = string[] }
 function M.parse_spring_beans(dir_path)
-  return call_engine_command({ "parse-spring-beans", "--dir", dir_path }, nil, "parse-spring-beans")
+  local res = call_engine_command({ "parse-spring-beans", "--dir", dir_path }, nil, "parse-spring-beans")
+  if not res then
+    return nil
+  end
+  return res.beans or res
 end
 
 --- Index log content using Scala engine
@@ -492,7 +536,11 @@ end
 ---@param code_content string
 ---@return string[]|nil Array of formatted lines
 function M.optimize_imports(code_content)
-  return call_engine_command({ "optimize-imports" }, code_content, "optimize-imports")
+  local res = call_engine_command({ "optimize-imports" }, code_content, "optimize-imports")
+  if not res then
+    return nil
+  end
+  return res.imports or res
 end
 
 --- Validate K8s manifest content using Scala engine
@@ -528,7 +576,11 @@ end
 ---@param file_path string Path to Java or Kotlin source file
 ---@return table[]|nil Array of { line = number, title = string, command = string, args = string[] }
 function M.extract_codelens(file_path)
-  return call_engine_command({ "extract-codelens", "--file", file_path }, nil, "extract-codelens")
+  local res = call_engine_command({ "extract-codelens", "--file", file_path }, nil, "extract-codelens")
+  if not res then
+    return nil
+  end
+  return res.items or res
 end
 
 --- Solve multi-module topological build order & DAG using Scala engine
