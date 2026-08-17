@@ -520,6 +520,14 @@ class MainTest extends FunSuite:
       tempFile.delete()
   }
 
+  test("DistroInstaller: fails gracefully when target is invalid") {
+    val result = cumulus.workspace.DistroInstaller.runInstall(
+      targetDirOpt = Some("/nonexistent/readonly/path/cumulus"),
+      skipSystemPackages = true
+    )
+    assert(result.isLeft)
+  }
+
 
 
 

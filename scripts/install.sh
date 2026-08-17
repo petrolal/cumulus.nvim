@@ -46,19 +46,60 @@ if [ "$MISSING" -eq 1 ]; then
   exit 1
 fi
 
-# 2. Build Scala Native Core Engine (if sbt is available)
+# 2. Build or Download Scala Native Core Engine
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "[2/4] Building Scala native engine (cumulus-engine)..."
-if has_cmd sbt && [ -d "$REPO_DIR/engine" ]; then
+echo "[2/4] Ensuring Scala native engine (cumulus-engine) is installed..."
+DATA_BIN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nvim/cumulus/bin"
+DATA_BIN="$DATA_BIN_DIR/cumulus-engine"
+
+if has_cmd cumulus-engine || [ -x "$DATA_BIN" ]; then
+  echo "  ✔ cumulus-engine binary is already installed and ready."
+elif has_cmd sbt && [ -d "$REPO_DIR/engine" ]; then
+  echo "  → Compiling native engine locally via sbt..."
   if (cd "$REPO_DIR/engine" && sbt test); then
     echo "  ✔ cumulus-engine verified with unit test suite!"
   else
-    echo "  ⚠ Failed to run engine tests via sbt."
+    echo "  ⚠ Failed to build via sbt, attempting pre-built binary download fallback..."
   fi
-else
-  echo "  ℹ Skipping native engine local compilation (run :CumulusInstallEngine inside Neovim to download pre-built binary)."
+fi
+
+# If binary is still not installed, download the pre-built binary
+if ! has_cmd cumulus-engine && [ ! -x "$DATA_BIN" ]; then
+  echo "  → Downloading pre-built cumulus-engine binary from GitHub Releases..."
+  OS="$(uname -s)"
+  ARCH="$(uname -m)"
+  TARGET=""
+  
+  if [ "$OS" = "Linux" ]; then
+    if [ "$ARCH" = "x86_64" ]; then
+      TARGET="cumulus-engine-linux-x86_64"
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+      TARGET="cumulus-engine-linux-aarch64"
+    fi
+  elif [ "$OS" = "Darwin" ]; then
+    if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
+      TARGET="cumulus-engine-darwin-arm64"
+    fi
+  fi
+
+  if [ -n "$TARGET" ] && has_cmd curl; then
+    mkdir -p "$DATA_BIN_DIR"
+    TMP_DIR="$(mktemp -d)"
+    BASE_URL="https://github.com/petrolal/cumulus.nvim/releases/latest/download"
+    
+    if curl -fsSL "$BASE_URL/$TARGET" -o "$TMP_DIR/$TARGET" 2>/dev/null; then
+      mv "$TMP_DIR/$TARGET" "$DATA_BIN"
+      chmod +x "$DATA_BIN"
+      echo "  ✔ cumulus-engine downloaded and installed to $DATA_BIN"
+    else
+      echo "  ℹ Pre-built binary release download skipped or unavailable. You can compile via 'cd engine && sbt test' or run ':CumulusInstallEngine' inside Neovim."
+    fi
+    rm -rf "$TMP_DIR"
+  else
+    echo "  ℹ Automatic download skipped for platform ($OS $ARCH). Use ':CumulusInstallEngine' inside Neovim or build with sbt."
+  fi
 fi
 
 # 3. Sync lazy.nvim Plugins
@@ -69,17 +110,46 @@ else
   echo "  ⚠ Lazy sync encountered warnings or non-zero exit code."
 fi
 
-# 4. Verification
-echo "[4/4] Running installation health check..."
+# 4. Configure 'cn' Alias and Launcher
+echo "[4/5] Setting up 'cn' command launcher and shell alias..."
+LOCAL_BIN="${HOME}/.local/bin"
+mkdir -p "$LOCAL_BIN"
+
+CN_LAUNCHER="$LOCAL_BIN/cn"
+cat << 'EOF' > "$CN_LAUNCHER"
+#!/usr/bin/env bash
+if [ -d "${XDG_CONFIG_HOME:-$HOME/.config}/cumulus" ]; then
+  exec env NVIM_APPNAME=cumulus nvim "$@"
+else
+  exec nvim "$@"
+fi
+EOF
+chmod +x "$CN_LAUNCHER"
+echo "  ✔ Created launcher script at $CN_LAUNCHER"
+
+# Add alias to shell rc files if not already present
+for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  if [ -f "$RC" ]; then
+    if ! grep -q "alias cn=" "$RC"; then
+      echo "" >> "$RC"
+      echo "# Cumulus Neovim alias" >> "$RC"
+      echo "alias cn='[ -d \"\${XDG_CONFIG_HOME:-\$HOME/.config}/cumulus\" ] && NVIM_APPNAME=cumulus nvim || nvim'" >> "$RC"
+      echo "  ✔ Added 'cn' alias to $(basename "$RC")"
+    fi
+  fi
+done
+
+# 5. Verification
+echo "[5/5] Running installation health check..."
 if bash "$REPO_DIR/scripts/validate.sh"; then
   echo "=================================================="
   echo " 🎉 Cumulus Neovim installed and verified! 🎉 "
   echo "=================================================="
   echo ""
   echo "Quick Start:"
-  echo "  1. Primary config: Launch 'nvim'"
-  echo "  2. Custom appname: NVIM_APPNAME=cumulus nvim"
-  echo "  3. In Neovim, run ':checkhealth cumulus' to verify health."
+  echo "  1. Launcher command: 'cn' or 'nvim'"
+  echo "  2. Custom appname  : NVIM_APPNAME=cumulus nvim"
+  echo "  3. In Neovim, run  : ':checkhealth cumulus' to verify health."
 else
   echo "  ⚠ Health check reported warnings/failures. Please inspect output above."
 fi

@@ -2,7 +2,7 @@ package cumulus
 
 import cumulus.protocol.{CumulusResponse, CumulusError}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor}
-import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo}
+import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult}
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
@@ -741,6 +741,19 @@ object Main:
             case other =>
               errorEnvelope[ThemeState](s"Unknown action '$other'. Expected 'get' or 'set'", CumulusError.INVALID_INPUT)
           serializeResponse(result)
+
+        case "install" | "bootstrap" =>
+          given ReadWriter[InstallResult] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val targetDirOpt = argMap.get("target").orElse(argMap.get("dir"))
+          val appnameOpt = argMap.get("appname")
+          val repoUrlOpt = argMap.get("repo")
+          val skipSys = argMap.contains("skip-system-packages") || argMap.contains("no-sudo")
+          DistroInstaller.runInstall(targetDirOpt, appnameOpt, repoUrlOpt, skipSys) match
+            case Right(res) =>
+              serializeResponse(successEnvelope[InstallResult](Some(res)))
+            case Left(err) =>
+              serializeResponse(errorEnvelope[InstallResult](err, CumulusError.INTERNAL_ERROR))
 
         case _ =>
           import CumulusResponse.unitRW
