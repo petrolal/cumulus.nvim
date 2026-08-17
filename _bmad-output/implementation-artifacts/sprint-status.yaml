@@ -84,10 +84,10 @@ development_status:
   8-4-devops-language-scoped-buffers-mason-automation-whichkey-int: done
   epic-8-retrospective: optional
 
-  epic-9: in-progress
+  epic-9: done
   9-1-devops-root-workspace-discovery-engine: done
-  9-2-global-devops-execution-with-root-awareness-smart-fallback: review
-  9-3-universal-keymap-registration-whichkey-scope-configuration: backlog
+  9-2-global-devops-execution-with-root-awareness-smart-fallback: done
+  9-3-universal-keymap-registration-whichkey-scope-configuration: review
   epic-9-retrospective: optional
 
   epic-10: backlog
