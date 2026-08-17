@@ -129,8 +129,12 @@ mkdir -p "$LOCAL_BIN"
 CN_LAUNCHER="$LOCAL_BIN/cn"
 cat << 'EOF' > "$CN_LAUNCHER"
 #!/usr/bin/env bash
-if [ -d "${XDG_CONFIG_HOME:-$HOME/.config}/cumulus" ]; then
+if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/cumulus/init.lua" ]; then
   exec env NVIM_APPNAME=cumulus nvim "$@"
+elif [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua" ]; then
+  exec nvim "$@"
+elif [ -f "$PWD/init.lua" ] && [ -d "$PWD/lua/cumulus" ]; then
+  exec nvim -u "$PWD/init.lua" "$@"
 else
   exec nvim "$@"
 fi
@@ -141,12 +145,11 @@ echo "  ✔ Created launcher script at $CN_LAUNCHER"
 # Add alias to shell rc files if not already present
 for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
   if [ -f "$RC" ]; then
-    if ! grep -q "alias cn=" "$RC"; then
-      echo "" >> "$RC"
-      echo "# Cumulus Neovim alias" >> "$RC"
-      echo "alias cn='[ -d \"\${XDG_CONFIG_HOME:-\$HOME/.config}/cumulus\" ] && NVIM_APPNAME=cumulus nvim || nvim'" >> "$RC"
-      echo "  ✔ Added 'cn' alias to $(basename "$RC")"
-    fi
+    sed -i '/alias cn=/d' "$RC" 2>/dev/null || true
+    echo "" >> "$RC"
+    echo "# Cumulus Neovim alias" >> "$RC"
+    echo "alias cn='[ -f \"\${XDG_CONFIG_HOME:-\$HOME/.config}/cumulus/init.lua\" ] && NVIM_APPNAME=cumulus nvim || nvim'" >> "$RC"
+    echo "  ✔ Configured 'cn' alias in $(basename "$RC")"
   fi
 done
 
