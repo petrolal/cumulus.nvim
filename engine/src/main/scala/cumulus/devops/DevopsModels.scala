@@ -237,3 +237,86 @@ case class AnsibleInventoryGroup(
   vars: Map[String, String] = Map.empty
 ) derives ReadWriter
 
+/**
+ * Represents a Terraform / OpenTofu resource or data source block.
+ */
+case class TerraformResource(
+  resource_type: String,
+  name: String,
+  file: String,
+  line: Int,
+  is_data: Boolean = false,
+  attributes: Map[String, String] = Map.empty,
+  dependencies: Seq[String] = Seq.empty
+) derives ReadWriter
+
+/**
+ * Represents an input variable in Terraform / OpenTofu.
+ */
+case class TerraformVariable(
+  name: String,
+  file: String,
+  line: Int,
+  var_type: Option[String] = None,
+  default_value: Option[String] = None,
+  description: Option[String] = None,
+  sensitive: Boolean = false
+) derives ReadWriter
+
+/**
+ * Represents an output value in Terraform / OpenTofu.
+ */
+case class TerraformOutput(
+  name: String,
+  file: String,
+  line: Int,
+  value: Option[String] = None,
+  description: Option[String] = None,
+  sensitive: Boolean = false
+) derives ReadWriter
+
+/**
+ * Represents a provider block or requirement in Terraform / OpenTofu.
+ */
+case class TerraformProvider(
+  name: String,
+  file: String,
+  line: Int,
+  alias: Option[String] = None,
+  version: Option[String] = None,
+  source: Option[String] = None
+) derives ReadWriter
+
+/**
+ * Directed edge in Terraform local resource dependency graph.
+ */
+case class TfDependencyEdge(
+  from: String,
+  to: String
+) derives ReadWriter
+
+/**
+ * Aggregated Terraform / OpenTofu inspection information for file or directory.
+ */
+case class TerraformInfo(
+  resources: Seq[TerraformResource] = Seq.empty,
+  variables: Seq[TerraformVariable] = Seq.empty,
+  outputs: Seq[TerraformOutput] = Seq.empty,
+  providers: Seq[TerraformProvider] = Seq.empty,
+  dependency_graph: Seq[TfDependencyEdge] = Seq.empty
+) derives ReadWriter
+
+/**
+ * Standardized security finding from Trivy or tfsec scans.
+ */
+case class SecurityFinding(
+  rule_id: String,
+  title: String,
+  severity: String,
+  file: String,
+  line: Int,
+  end_line: Option[Int] = None,
+  message: String,
+  resolution: Option[String] = None
+) derives ReadWriter
+

@@ -528,6 +528,33 @@ class MainTest extends FunSuite:
     assert(result.isLeft)
   }
 
+  test("CLI: tf-inspect with valid file returns success response") {
+    val file = Files.createTempFile("main", ".tf").toFile
+    try
+      Files.writeString(file.toPath, "resource \"aws_s3_bucket\" \"demo\" { bucket = \"my-bucket\" }")
+      val result = cumulus.devops.TerraformParser.inspectPath(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.resources.length, 1)
+      assertEquals(result.data.get.resources.head.name, "demo")
+    finally
+      file.delete()
+  }
+
+  test("CLI: tf-security-parse with valid report returns findings") {
+    val file = Files.createTempFile("trivy", ".json").toFile
+    try
+      val json = """{"Results":[{"Target":"main.tf","Misconfigurations":[{"ID":"AVD-001","Title":"Test","Severity":"HIGH"}]}]}"""
+      Files.writeString(file.toPath, json)
+      val result = cumulus.devops.TfSecurityParser.parseSecurityFile(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.length, 1)
+      assertEquals(result.data.get.head.rule_id, "AVD-001")
+    finally
+      file.delete()
+  }
+
 
 
 
