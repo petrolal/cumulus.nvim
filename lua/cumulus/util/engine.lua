@@ -62,6 +62,218 @@ function M.invalidate_cache()
   cache_expires_at = nil
 end
 
+--- Detects the host platform OS and architecture for cumulus-engine binary.
+---@return string|nil target_name Target binary name (e.g., 'cumulus-engine-linux-x86_64') or nil
+---@return string|nil error Error message if platform is unsupported
+function M.detect_platform()
+  local uv = vim.uv or vim.loop
+  local uname = uv.os_uname()
+  local sysname = uname.sysname
+  local machine = uname.machine
+
+  if sysname == "Linux" then
+    if machine == "x86_64" then
+      return "cumulus-engine-linux-x86_64", nil
+    elseif machine == "aarch64" or machine == "arm64" then
+      return "cumulus-engine-linux-aarch64", nil
+    end
+  elseif sysname == "Darwin" then
+    if machine == "arm64" or machine == "aarch64" then
+      return "cumulus-engine-darwin-arm64", nil
+    end
+  end
+
+  return nil, string.format("Unsupported OS/architecture: %s %s", sysname, machine)
+end
+
+--- Downloads and installs the pre-built cumulus-engine binary from GitHub Releases.
+--- Verifies the SHA-256 checksum against checksums.sha256 before installing and making executable.
+---@param opts? { url?: string, callback?: fun(success: boolean, err_or_path: string) }
+---@param callback? fun(success: boolean, err_or_path: string)
+function M.install(opts, callback)
+  if type(opts) == "function" then
+    callback = opts
+    opts = {}
+  end
+  opts = opts or {}
+  local cb = callback or opts.callback or function() end
+
+  local target_name, err = M.detect_platform()
+  if not target_name then
+    local msg = string.format("[cumulus] %s", err or "Unsupported platform")
+    vim.notify(msg, vim.log.levels.WARN)
+    cb(false, msg)
+    return
+  end
+
+  local base_url = opts.url or "https://github.com/petrolal/cumulus.nvim/releases/latest/download/"
+  if not base_url:match("/$") then
+    base_url = base_url .. "/"
+  end
+
+  local bin_url = base_url .. target_name
+  local checksums_url = base_url .. "checksums.sha256"
+
+  vim.notify(string.format("[cumulus] Downloading %s...", target_name), vim.log.levels.INFO)
+
+  local temp_dir = vim.fn.tempname()
+  vim.fn.mkdir(temp_dir, "p")
+  local temp_bin = temp_dir .. "/" .. target_name
+  local temp_checksums = temp_dir .. "/checksums.sha256"
+
+  local function cleanup()
+    pcall(vim.fn.delete, temp_dir, "rf")
+  end
+
+  -- Step 1: Download checksums.sha256 manifest
+  vim.system({ "curl", "-fsSL", checksums_url, "-o", temp_checksums }, {}, function(res_sum)
+    if res_sum.code ~= 0 then
+      cleanup()
+      local err_msg = string.format("Failed to download checksums manifest from %s", checksums_url)
+      vim.schedule(function()
+        vim.notify("[cumulus] " .. err_msg, vim.log.levels.ERROR)
+        cb(false, err_msg)
+      end)
+      return
+    end
+
+    -- Step 2: Download platform binary
+    vim.system({ "curl", "-fsSL", bin_url, "-o", temp_bin }, {}, function(res_bin)
+      if res_bin.code ~= 0 then
+        cleanup()
+        local err_msg = string.format("Failed to download binary from %s", bin_url)
+        vim.schedule(function()
+          vim.notify("[cumulus] " .. err_msg, vim.log.levels.ERROR)
+          cb(false, err_msg)
+        end)
+        return
+      end
+
+      -- Step 3: Parse expected hash from checksums.sha256
+      local checksum_content = ""
+      local f = io.open(temp_checksums, "r")
+      if f then
+        checksum_content = f:read("*a") or ""
+        f:close()
+      end
+
+      local expected_hash = nil
+      for line in checksum_content:gmatch("[^\r\n]+") do
+        local hash, fname = line:match("^%s*([a-fA-F0-9]+)%s+%*?([%w%.%-_]+)")
+        if fname == target_name and hash then
+          expected_hash = hash:lower()
+          break
+        end
+      end
+
+      if not expected_hash then
+        cleanup()
+        local err_msg = string.format("No checksum found for %s in checksums.sha256", target_name)
+        vim.schedule(function()
+          vim.notify("[cumulus] " .. err_msg, vim.log.levels.ERROR)
+          cb(false, err_msg)
+        end)
+        return
+      end
+
+      -- Step 4: Compute actual hash of downloaded binary
+      local hash_cmd
+      if vim.fn.executable("sha256sum") == 1 then
+        hash_cmd = { "sha256sum", temp_bin }
+      elseif vim.fn.executable("shasum") == 1 then
+        hash_cmd = { "shasum", "-a", "256", temp_bin }
+      else
+        cleanup()
+        local err_msg = "Neither 'sha256sum' nor 'shasum' is available to verify binary integrity"
+        vim.schedule(function()
+          vim.notify("[cumulus] " .. err_msg, vim.log.levels.ERROR)
+          cb(false, err_msg)
+        end)
+        return
+      end
+
+      vim.system(hash_cmd, { text = true }, function(res_hash)
+        if res_hash.code ~= 0 or not res_hash.stdout then
+          cleanup()
+          local err_msg = "Failed to calculate SHA-256 checksum of downloaded binary"
+          vim.schedule(function()
+            vim.notify("[cumulus] " .. err_msg, vim.log.levels.ERROR)
+            cb(false, err_msg)
+          end)
+          return
+        end
+
+        local actual_hash = res_hash.stdout:match("^%s*([a-fA-F0-9]+)")
+        if actual_hash then
+          actual_hash = actual_hash:lower()
+        end
+
+        if actual_hash ~= expected_hash then
+          cleanup()
+          local err_msg = string.format(
+            "SHA-256 checksum verification failed for %s (expected: %s, got: %s)",
+            target_name,
+            expected_hash,
+            actual_hash or "nil"
+          )
+          vim.schedule(function()
+            vim.notify("[cumulus] SHA-256 checksum verification failed", vim.log.levels.ERROR)
+            cb(false, err_msg)
+          end)
+          return
+        end
+
+        -- Step 5: Install verified binary to stdpath("data")/cumulus/bin/cumulus-engine
+        local dest_dir = vim.fn.stdpath("data") .. "/cumulus/bin"
+        vim.fn.mkdir(dest_dir, "p")
+        local dest_bin = dest_dir .. "/cumulus-engine"
+
+        pcall(vim.fn.delete, dest_bin)
+
+        local uv = vim.uv or vim.loop
+        local ok, _ = uv.fs_rename(temp_bin, dest_bin)
+        if not ok then
+          local src_f = io.open(temp_bin, "rb")
+          local dst_f = io.open(dest_bin, "wb")
+          if src_f and dst_f then
+            dst_f:write(src_f:read("*a"))
+            src_f:close()
+            dst_f:close()
+            ok = true
+          else
+            if src_f then src_f:close() end
+            if dst_f then dst_f:close() end
+          end
+        end
+
+        cleanup()
+
+        if not ok then
+          local err_msg = "Failed to install binary to " .. dest_bin
+          vim.schedule(function()
+            vim.notify("[cumulus] " .. err_msg, vim.log.levels.ERROR)
+            cb(false, err_msg)
+          end)
+          return
+        end
+
+        pcall(uv.fs_chmod, dest_bin, 493) -- 0755 octal
+        if vim.fn.executable("chmod") == 1 then
+          vim.system({ "chmod", "+x", dest_bin }):wait()
+        end
+
+        M.invalidate_cache()
+
+        vim.schedule(function()
+          local succ_msg = string.format("[cumulus] Successfully installed cumulus-engine to %s", dest_bin)
+          vim.notify(succ_msg, vim.log.levels.INFO)
+          cb(true, dest_bin)
+        end)
+      end)
+    end)
+  end)
+end
+
 --- Safely decode JSON from Engine output and check success flag.
 ---@param json_str string
 ---@param context? string Optional context for error messages

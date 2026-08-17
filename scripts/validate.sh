@@ -45,7 +45,15 @@ else
   exit 1
 fi
 
-echo "[6/6] Verifying Native Helper Engine (cumulus-engine)..."
+echo "[6/7] Verifying Engine Bridge & :CumulusInstallEngine Command..."
+if nvim -u init.lua --headless "+lua local e = require('cumulus.util.engine'); assert(type(e.detect_platform) == 'function', 'detect_platform not found'); assert(type(e.install) == 'function', 'install not found'); local plat = e.detect_platform(); assert(plat ~= nil, 'platform should be detected'); assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered'); print('✔ Engine bridge APIs & :CumulusInstallEngine command verified (' .. plat .. ')')" +qa; then
+  echo "✔ Engine bridge & command PASSED."
+else
+  echo "✖ Engine bridge & command FAILED."
+  exit 1
+fi
+
+echo "[7/7] Verifying Native Helper Engine (cumulus-engine)..."
 if command -v sbt >/dev/null 2>&1 && [ -d engine ]; then
   if (cd engine && sbt test); then
     echo "✔ Scala native helper build & unit tests PASSED."
@@ -58,5 +66,6 @@ else
 fi
 
 echo "=========================================="
-echo " ALL 6 VALIDATIONS PASSED SUCCESSFULLY!"
+echo " ALL 7 VALIDATIONS PASSED SUCCESSFULLY!"
 echo "=========================================="
+
