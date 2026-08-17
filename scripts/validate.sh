@@ -82,6 +82,7 @@ if nvim -u init.lua --headless "+lua
   assert(groups['<leader>ok'] == 'helm/k8s', '<leader>ok missing in devops whichkey_spec')
 
   -- Check global availability of all 26 DevOps keymaps across any buffer
+  -- Story 9.3: Keymaps are now GLOBALLY registered (not buffer-scoped)
   local global_maps = vim.api.nvim_get_keymap('n')
   local expected_subkeys = {
     -- Terraform (<leader>ot)
@@ -95,16 +96,19 @@ if nvim -u init.lua --headless "+lua
     -- Helm (<leader>ok)
     'okl', 'okt',
   }
+  local found_keymaps = 0
   for _, key in ipairs(expected_subkeys) do
     local found = false
     for _, m in ipairs(global_maps) do
       if m.lhs == '<Space>' .. key or m.lhs:match(key .. '$') then
         found = true
+        found_keymaps = found_keymaps + 1
         break
       end
     end
     assert(found, '<leader>' .. key .. ' missing from global keymaps')
   end
+  assert(found_keymaps >= 26, 'DevOps keymap count mismatch: found ' .. found_keymaps .. ' of 26')
 
   -- Robust Mason spec lookup
   local mason_plugins = require('cumulus.plugins.tools-mason')
