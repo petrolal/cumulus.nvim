@@ -40,6 +40,9 @@ return {
       -- lua/cumulus/core/lang-keymaps.lua.
       vim.list_extend(opts.spec, require("cumulus.core.lang-keymaps").whichkey_spec())
 
+      local devops = require("cumulus.util.devops")
+      vim.list_extend(opts.spec, devops.whichkey_spec())
+
       local jvm = require("cumulus.util.jvm")
       if jvm.is_jvm_project() then
         vim.list_extend(opts.spec, jvm.whichkey_spec())

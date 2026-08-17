@@ -790,4 +790,66 @@ function M.helm_template()
   end)
 end
 
+-- =============================================================================
+-- Global Keymaps & WhichKey Registration
+-- =============================================================================
+
+M.keymaps_registered = false
+
+function M.whichkey_spec()
+  return {
+    { "<leader>o", group = "devops/infra", icon = "󱁢 " },
+    { "<leader>ot", group = "terraform/opentofu", icon = "󱁢 " },
+    { "<leader>oc", group = "cloudformation/sam", icon = "󰅟 " },
+    { "<leader>oy", group = "ansible", icon = "󰚰 " },
+    { "<leader>od", group = "docker", icon = "󰡨 " },
+    { "<leader>ok", group = "helm/k8s", icon = "󱃾 " },
+  }
+end
+
+function M.setup_keymaps()
+  if M.keymaps_registered then
+    return
+  end
+  M.keymaps_registered = true
+
+  local map = vim.keymap.set
+
+  -- Terraform & OpenTofu (<leader>ot)
+  map("n", "<leader>oti", M.terraform_init, { desc = "Terraform: Init" })
+  map("n", "<leader>otv", M.terraform_validate, { desc = "Terraform: Validate" })
+  map("n", "<leader>otp", M.terraform_plan, { desc = "Terraform: Plan" })
+  map("n", "<leader>ota", M.terraform_apply, { desc = "Terraform: Apply" })
+  map("n", "<leader>otf", M.terraform_fmt, { desc = "Terraform: Format" })
+  map("n", "<leader>otl", M.terraform_lint, { desc = "Terraform: Lint (tflint)" })
+  map("n", "<leader>ots", M.terraform_security, { desc = "Terraform: Security Scan (trivy/tfsec)" })
+  map("n", "<leader>oto", M.terraform_output, { desc = "Terraform: Output" })
+
+  -- AWS CloudFormation & SAM (<leader>oc)
+  map("n", "<leader>ocv", M.cfn_validate, { desc = "CloudFormation: Validate Template" })
+  map("n", "<leader>ocl", M.cfn_lint, { desc = "CloudFormation: Lint (cfn-lint)" })
+  map("n", "<leader>ocV", M.sam_validate, { desc = "SAM: Validate" })
+  map("n", "<leader>ocb", M.sam_build, { desc = "SAM: Build" })
+  map("n", "<leader>oci", M.sam_local_invoke, { desc = "SAM: Local Invoke" })
+  map("n", "<leader>ocr", M.sam_local_start_api, { desc = "SAM: Local Start API" })
+  map("n", "<leader>ocg", M.cfn_guard_validate, { desc = "CloudFormation: Policy Check (cfn-guard)" })
+
+  -- Ansible Automation (<leader>oy)
+  map("n", "<leader>oys", M.ansible_syntax_check, { desc = "Ansible: Syntax Check" })
+  map("n", "<leader>oyl", M.ansible_lint, { desc = "Ansible: Lint Playbook" })
+  map("n", "<leader>oyc", M.ansible_dry_run, { desc = "Ansible: Dry Run (--check)" })
+  map("n", "<leader>oyr", M.ansible_run_playbook, { desc = "Ansible: Run Playbook" })
+  map("n", "<leader>oyi", M.ansible_inventory_graph, { desc = "Ansible: Inventory Graph" })
+  map("n", "<leader>oyd", M.ansible_doc_lookup, { desc = "Ansible: Module Documentation" })
+  map("n", "<leader>oyv", M.ansible_vault_action, { desc = "Ansible: Vault Action" })
+
+  -- Docker & Containers (<leader>od)
+  map("n", "<leader>odb", M.docker_build, { desc = "Docker: Build Image" })
+  map("n", "<leader>odl", M.docker_lint, { desc = "Docker: Lint Dockerfile" })
+
+  -- Helm & Kubernetes (<leader>ok)
+  map("n", "<leader>okl", M.helm_lint, { desc = "Helm: Lint Chart" })
+  map("n", "<leader>okt", M.helm_template, { desc = "Helm: Render Template" })
+end
+
 return M

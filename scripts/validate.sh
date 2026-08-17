@@ -66,66 +66,36 @@ if nvim -u init.lua --headless "+lua
   assert(type(devops.ansible_doc_lookup) == 'function')
   assert(type(devops.ansible_vault_action) == 'function')
 
-  -- Story 8.4: DevOps Language-Scoped Buffers & WhichKey Integration
-  local lk = require('cumulus.core.lang-keymaps')
-  local wk_spec = lk.whichkey_spec()
+  -- Story 9.3: Universal Keymap Registration & WhichKey Scope Configuration
+  assert(type(devops.setup_keymaps) == 'function', 'setup_keymaps not found')
+  assert(type(devops.whichkey_spec) == 'function', 'whichkey_spec not found')
+  local wk_spec = devops.whichkey_spec()
   local groups = {}
   for _, item in ipairs(wk_spec) do
     groups[item[1]] = item.group
   end
-  assert(groups['<leader>ot'] == 'terraform/opentofu', '<leader>ot missing in whichkey_spec')
-  assert(groups['<leader>oc'] == 'cloudformation/sam', '<leader>oc missing in whichkey_spec')
-  assert(groups['<leader>oy'] == 'ansible', '<leader>oy missing in whichkey_spec')
+  assert(groups['<leader>o'] == 'devops/infra', '<leader>o missing in devops whichkey_spec')
+  assert(groups['<leader>ot'] == 'terraform/opentofu', '<leader>ot missing in devops whichkey_spec')
+  assert(groups['<leader>oc'] == 'cloudformation/sam', '<leader>oc missing in devops whichkey_spec')
+  assert(groups['<leader>oy'] == 'ansible', '<leader>oy missing in devops whichkey_spec')
+  assert(groups['<leader>od'] == 'docker', '<leader>od missing in devops whichkey_spec')
+  assert(groups['<leader>ok'] == 'helm/k8s', '<leader>ok missing in devops whichkey_spec')
 
-  -- Check Terraform buffer scoping
-  local tf_buf = vim.api.nvim_create_buf(true, false)
-  vim.bo[tf_buf].filetype = 'terraform'
-  vim.api.nvim_set_current_buf(tf_buf)
-  vim.cmd('doautocmd FileType terraform')
-  local tf_maps = vim.api.nvim_buf_get_keymap(tf_buf, 'n')
-  local found_oti = false
-  for _, m in ipairs(tf_maps) do
-    if m.lhs:match('oti') then found_oti = true break end
+  -- Check global availability of DevOps keymaps across any buffer
+  local global_maps = vim.api.nvim_get_keymap('n')
+  local found_oti, found_ocv, found_oys, found_odb, found_okl = false, false, false, false, false
+  for _, m in ipairs(global_maps) do
+    if m.lhs == '<Space>oti' or m.lhs:match('oti') then found_oti = true end
+    if m.lhs == '<Space>ocv' or m.lhs:match('ocv') then found_ocv = true end
+    if m.lhs == '<Space>oys' or m.lhs:match('oys') then found_oys = true end
+    if m.lhs == '<Space>odb' or m.lhs:match('odb') then found_odb = true end
+    if m.lhs == '<Space>okl' or m.lhs:match('okl') then found_okl = true end
   end
-  assert(found_oti, '<leader>oti not mapped for terraform buffer')
-  pcall(vim.api.nvim_buf_delete, tf_buf, { force = true })
-
-  -- Check CloudFormation buffer scoping
-  local cfn_buf = vim.api.nvim_create_buf(true, false)
-  vim.bo[cfn_buf].filetype = 'yaml.cfn'
-  vim.api.nvim_set_current_buf(cfn_buf)
-  vim.cmd('doautocmd FileType yaml.cfn')
-  local cfn_maps = vim.api.nvim_buf_get_keymap(cfn_buf, 'n')
-  local found_ocv = false
-  for _, m in ipairs(cfn_maps) do
-    if m.lhs:match('ocv') then found_ocv = true break end
-  end
-  assert(found_ocv, '<leader>ocv not mapped for yaml.cfn buffer')
-  pcall(vim.api.nvim_buf_delete, cfn_buf, { force = true })
-
-  -- Check Ansible buffer scoping
-  local ans_buf = vim.api.nvim_create_buf(true, false)
-  vim.bo[ans_buf].filetype = 'yaml.ansible'
-  vim.api.nvim_set_current_buf(ans_buf)
-  vim.cmd('doautocmd FileType yaml.ansible')
-  local ans_maps = vim.api.nvim_buf_get_keymap(ans_buf, 'n')
-  local found_oys = false
-  for _, m in ipairs(ans_maps) do
-    if m.lhs:match('oys') then found_oys = true break end
-  end
-  assert(found_oys, '<leader>oys not mapped for yaml.ansible buffer')
-  pcall(vim.api.nvim_buf_delete, ans_buf, { force = true })
-
-  -- Check Non-DevOps (Java) buffer does not leak any DevOps keymaps
-  local java_buf = vim.api.nvim_create_buf(true, false)
-  vim.bo[java_buf].filetype = 'java'
-  vim.api.nvim_set_current_buf(java_buf)
-  vim.cmd('doautocmd FileType java')
-  local java_maps = vim.api.nvim_buf_get_keymap(java_buf, 'n')
-  for _, m in ipairs(java_maps) do
-    assert(not m.lhs:match('oti') and not m.lhs:match('ocv') and not m.lhs:match('oys'), 'devops keymap leaked into java buffer: ' .. m.lhs)
-  end
-  pcall(vim.api.nvim_buf_delete, java_buf, { force = true })
+  assert(found_oti, '<leader>oti missing from global keymaps')
+  assert(found_ocv, '<leader>ocv missing from global keymaps')
+  assert(found_oys, '<leader>oys missing from global keymaps')
+  assert(found_odb, '<leader>odb missing from global keymaps')
+  assert(found_okl, '<leader>okl missing from global keymaps')
 
   -- Robust Mason spec lookup
   local mason_plugins = require('cumulus.plugins.tools-mason')
