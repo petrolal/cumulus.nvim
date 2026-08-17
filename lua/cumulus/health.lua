@@ -93,7 +93,25 @@ function M.check()
     vim.health.info("Gradle project not detected (gradle-wrapper.properties not found)")
   end
 
+  vim.health.start("AWS CloudFormation & SAM DevOps Tooling (Story 8.2)")
+
+  local cfn_tools = {
+    { name = "aws", desc = "AWS CLI (required for 'aws cloudformation validate-template')", install = "Install via https://aws.amazon.com/cli/" },
+    { name = "sam", desc = "AWS SAM CLI (required for 'sam build', 'sam local invoke', 'sam validate')", install = "Install via https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html" },
+    { name = "cfn-lint", desc = "CloudFormation Linter (cfn-lint)", install = ":MasonInstall cfn-lint or pip install cfn-lint" },
+    { name = "cfn-guard", desc = "CloudFormation Guard Policy Evaluator (cfn-guard)", install = "Install via brew install cloudformation-guard or cargo install cfn-guard" },
+  }
+
+  for _, tool in ipairs(cfn_tools) do
+    if vim.fn.executable(tool.name) == 1 then
+      vim.health.ok(string.format("%s: installed and executable", tool.name))
+    else
+      vim.health.info(string.format("%s: NOT found on $PATH (%s. Suggestion: %s)", tool.name, tool.desc, tool.install))
+    end
+  end
+
   vim.health.start("Cumulus Signature Cloud Themes")
+
 
   local themes = { "aws-theme", "azure-theme", "gcp-theme", "oci-theme" }
   for _, theme in ipairs(themes) do

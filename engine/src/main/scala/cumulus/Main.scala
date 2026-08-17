@@ -6,7 +6,7 @@ import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, Jd
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
-import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState}
+import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue}
 import cumulus.git.{ConflictParser, ConflictBlock}
 import cumulus.util.{SessionSanitizer, NetworkChecker}
 import cumulus.gradle.WrapperVerifier
@@ -732,6 +732,36 @@ object Main:
                   errorEnvelope[ThemeState]("Missing --theme argument for set action", CumulusError.INVALID_INPUT)
             case other =>
               errorEnvelope[ThemeState](s"Unknown action '$other'. Expected 'get' or 'set'", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
+
+        case "cfn-inspect" | "--cfn-inspect" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val filePath = argMap.get("file").orElse(args.lift(1).filter(!_.startsWith("--")))
+          val result = filePath match
+            case Some(path) =>
+              CfnSamParser.inspectTemplateFile(path)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                successEnvelope(Some(CfnSamParser.inspectTemplate(stdinInput)))
+              catch
+                case e: Exception =>
+                  errorEnvelope[CfnTemplateInfo](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "cfn-validate" | "--cfn-validate" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val filePath = argMap.get("file").orElse(args.lift(1).filter(!_.startsWith("--")))
+          val result = filePath match
+            case Some(path) =>
+              CfnSamParser.validateTemplateFile(path)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                successEnvelope(Some(CfnSamParser.validateTemplate(stdinInput)))
+              catch
+                case e: Exception =>
+                  errorEnvelope[Seq[CfnValidationIssue]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
           serializeResponse(result)
 
         case "install" | "bootstrap" =>

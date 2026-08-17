@@ -148,7 +148,7 @@ end
 function M.cfn_validate()
   local file = vim.fn.expand("%:p")
   if file == "" then
-    vim.notify("No file to validate", vim.log.levels.WARN)
+    vim.notify("No file to validate", vim.log.levels.WARN, { title = "Cumulus DevOps" })
     return
   end
   if vim.fn.executable("aws") == 1 then
@@ -156,7 +156,11 @@ function M.cfn_validate()
   elseif vim.fn.executable("cfn-lint") == 1 then
     M.run_term("cfn-lint " .. vim.fn.shellescape(file))
   else
-    vim.notify("Neither 'aws' CLI nor 'cfn-lint' was found in PATH.", vim.log.levels.WARN)
+    vim.notify(
+      "Neither 'aws' CLI nor 'cfn-lint' was found in PATH. Please install the AWS CLI or cfn-lint (:MasonInstall cfn-lint).",
+      vim.log.levels.WARN,
+      { title = "Cumulus DevOps" }
+    )
   end
 end
 
@@ -169,7 +173,11 @@ function M.cfn_lint()
       M.run_term("cfn-lint")
     end
   else
-    vim.notify("cfn-lint is not installed in PATH. Install via Mason (:MasonInstall cfn-lint).", vim.log.levels.WARN)
+    vim.notify(
+      "cfn-lint is not installed in PATH. Install via Mason (:MasonInstall cfn-lint) or pip ('pip install cfn-lint').",
+      vim.log.levels.WARN,
+      { title = "Cumulus DevOps" }
+    )
   end
 end
 
@@ -177,7 +185,11 @@ function M.sam_validate()
   if vim.fn.executable("sam") == 1 then
     M.run_term("sam validate")
   else
-    vim.notify("AWS SAM CLI ('sam') is not installed in PATH.", vim.log.levels.WARN)
+    vim.notify(
+      "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
+      vim.log.levels.WARN,
+      { title = "Cumulus DevOps" }
+    )
   end
 end
 
@@ -185,15 +197,57 @@ function M.sam_build()
   if vim.fn.executable("sam") == 1 then
     M.run_term("sam build")
   else
-    vim.notify("AWS SAM CLI ('sam') is not installed in PATH.", vim.log.levels.WARN)
+    vim.notify(
+      "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
+      vim.log.levels.WARN,
+      { title = "Cumulus DevOps" }
+    )
   end
 end
 
 function M.sam_local_invoke()
-  if vim.fn.executable("sam") == 1 then
-    M.run_term("sam local invoke")
+  if vim.fn.executable("sam") ~= 1 then
+    vim.notify(
+      "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
+      vim.log.levels.WARN,
+      { title = "Cumulus DevOps" }
+    )
+    return
+  end
+
+  local file = vim.fn.expand("%:p")
+  local engine = require("cumulus.util.engine")
+  local functions = {}
+
+  if file ~= "" and engine.is_available() then
+    local info = engine.inspect_cfn_template(file, { silent = true })
+    if info and info.functions and #info.functions > 0 then
+      for _, fn in ipairs(info.functions) do
+        table.insert(functions, fn.logical_id)
+      end
+    end
+  end
+
+  local tmpl_flag = (file ~= "") and (" -t " .. vim.fn.shellescape(file)) or ""
+
+  if #functions > 1 then
+    vim.ui.select(functions, { prompt = "Select Lambda Function to Invoke:" }, function(choice)
+      if choice and choice ~= "" then
+        M.run_term("sam local invoke " .. vim.fn.shellescape(choice) .. tmpl_flag)
+      end
+    end)
+  elseif #functions == 1 then
+    M.run_term("sam local invoke " .. vim.fn.shellescape(functions[1]) .. tmpl_flag)
   else
-    vim.notify("AWS SAM CLI ('sam') is not installed in PATH.", vim.log.levels.WARN)
+    vim.ui.input({ prompt = "Lambda Function Logical ID (optional, Esc to cancel): " }, function(input)
+      if input == nil then
+        return
+      elseif input ~= "" then
+        M.run_term("sam local invoke " .. vim.fn.shellescape(input) .. tmpl_flag)
+      else
+        M.run_term("sam local invoke" .. tmpl_flag)
+      end
+    end)
   end
 end
 
@@ -201,7 +255,11 @@ function M.sam_local_start_api()
   if vim.fn.executable("sam") == 1 then
     M.run_term("sam local start-api")
   else
-    vim.notify("AWS SAM CLI ('sam') is not installed in PATH.", vim.log.levels.WARN)
+    vim.notify(
+      "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
+      vim.log.levels.WARN,
+      { title = "Cumulus DevOps" }
+    )
   end
 end
 
@@ -210,9 +268,14 @@ function M.cfn_guard_validate()
     local file = vim.fn.expand("%:p")
     M.run_term("cfn-guard validate --template " .. vim.fn.shellescape(file))
   else
-    vim.notify("cfn-guard is not installed in PATH.", vim.log.levels.WARN)
+    vim.notify(
+      "cfn-guard is not installed in PATH. Install CloudFormation Guard via cargo or homebrew ('brew install cloudformation-guard').",
+      vim.log.levels.WARN,
+      { title = "Cumulus DevOps" }
+    )
   end
 end
+
 
 -- =============================================================================
 -- Ansible Automation

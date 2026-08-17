@@ -130,5 +130,58 @@ case class ThemeState(
   variant: Option[String] = Some("dark")
 ) derives ReadWriter
 
+/**
+ * Information about a CloudFormation parameter.
+ */
+case class CfnParameter(
+  name: String,
+  param_type: String = "String",
+  default_value: Option[String] = None,
+  description: Option[String] = None
+) derives ReadWriter
 
+/**
+ * Information about a CloudFormation resource.
+ */
+case class CfnResource(
+  logical_id: String,
+  resource_type: String,
+  line: Option[Int] = None,
+  properties: Map[String, String] = Map.empty
+) derives ReadWriter
 
+/**
+ * Information about a Serverless/Lambda function in a template.
+ */
+case class SamFunctionInfo(
+  logical_id: String,
+  handler: Option[String] = None,
+  runtime: Option[String] = None,
+  code_uri: Option[String] = None,
+  line: Option[Int] = None
+) derives ReadWriter
+
+/**
+ * Inspected CloudFormation/SAM template metadata.
+ */
+case class CfnTemplateInfo(
+  format_version: Option[String] = None,
+  transform: Option[String] = None,
+  description: Option[String] = None,
+  is_sam: Boolean = false,
+  parameters: Seq[CfnParameter] = Seq.empty,
+  resources: Seq[CfnResource] = Seq.empty,
+  functions: Seq[SamFunctionInfo] = Seq.empty,
+  outputs: Seq[String] = Seq.empty
+) derives ReadWriter
+
+/**
+ * Issue detected during offline CloudFormation/SAM template validation.
+ */
+case class CfnValidationIssue(
+  line: Int,
+  col: Option[Int] = None,
+  severity: String = "ERROR",
+  message: String,
+  logical_id: Option[String] = None
+) derives ReadWriter

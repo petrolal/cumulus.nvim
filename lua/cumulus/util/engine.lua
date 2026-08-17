@@ -704,4 +704,29 @@ function M.manage_theme(action, opts)
   return call_engine_command(args, nil, "manage-theme")
 end
 
+--- Inspect CloudFormation / SAM template via Scala engine
+---@param file_path string Path to template YAML/JSON
+---@param opts? { silent?: boolean }
+---@return { format_version: string|nil, transform: string|nil, description: string|nil, is_sam: boolean, parameters: table[], resources: table[], functions: table[], outputs: string[] }|nil
+function M.inspect_cfn_template(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "cfn-inspect", "--file", file_path }, nil, "cfn-inspect", opts)
+end
+
+--- Validate CloudFormation / SAM template offline via Scala engine
+---@param file_path string Path to template YAML/JSON
+---@param opts? { silent?: boolean }
+---@return { line: number, col: number|nil, severity: string, message: string, logical_id: string|nil }[]|nil
+function M.validate_cfn_template(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "cfn-validate", "--file", file_path }, nil, "cfn-validate", opts)
+end
+
 return M
+
