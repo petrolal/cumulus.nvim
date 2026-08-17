@@ -26,7 +26,8 @@ local function scan_dir_for_match(dir, matcher)
   while true do
     local ok_next, name, entry_type = pcall(uv.fs_scandir_next, handle)
     if not ok_next or not name then break end
-    if matcher(name, dir .. "/" .. name, entry_type) then
+    local full_path = vim.fs.normalize(dir .. "/" .. name)
+    if matcher(name, full_path, entry_type) then
       return true
     end
   end
@@ -73,11 +74,11 @@ function M.resolve_search_dir(buf_or_path)
     if is_dir(parent) then
       return parent
     end
-    return abs_path
+    return vim.fs.normalize(vim.fn.getcwd())
   end
 end
 
---- Generic root discoverer using upward search via vim.fs.root followed by shallow convention scan.
+--- Generic root discoverer using upward search via vim.fs.root followed by convention scan.
 --- @param buf_or_path? number|string
 --- @param matcher fun(name: string, path: string, entry_type: string?): boolean
 --- @param convention_dirs? string[]
@@ -93,11 +94,11 @@ local function discover_root(buf_or_path, matcher, convention_dirs)
     return matcher(name, path)
   end)
 
-  if ok and root and root ~= "" then
+  if ok and root and root ~= "" and root ~= "/" then
     return vim.fs.normalize(root)
   end
 
-  -- 2. Shallow convention directory scan if upward discovery yielded nil
+  -- 2. Convention directory scan if upward discovery yielded nil
   if convention_dirs and #convention_dirs > 0 then
     for _, subdir in ipairs(convention_dirs) do
       local cand = vim.fs.normalize(search_dir .. "/" .. subdir)
@@ -105,7 +106,7 @@ local function discover_root(buf_or_path, matcher, convention_dirs)
         if scan_dir_for_match(cand, matcher) then
           return cand
         end
-        -- Also scan 1 level deeper inside convention directory (e.g. charts/my-chart/Chart.yaml)
+        -- Also scan nested folders inside convention directory (e.g. charts/my-chart/Chart.yaml)
         local ok_h, handle = pcall(uv.fs_scandir, cand)
         if ok_h and handle then
           while true do
@@ -171,7 +172,7 @@ end
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_ansible_root(buf_or_path)
-  local function matcher(name)
+  local function matcher(name, path)
     if name == "ansible.cfg" or name == "site.yaml" or name == "site.yml"
        or name == "playbook.yaml" or name == "playbook.yml" or name == "hosts"
        or name == "inventory" or name == "inventory.ini" or name == "inventory.yaml"
@@ -179,6 +180,10 @@ function M.find_ansible_root(buf_or_path)
       return true
     end
     if name == "roles" or name == "playbooks" or name == "tasks" or name == "handlers" then
+      -- If checking directory name, check if it contains Ansible structure
+      if path and is_dir(path) then
+        return is_file(path .. "/main.yml") or is_file(path .. "/main.yaml") or is_dir(path .. "/tasks")
+      end
       return true
     end
     return false
@@ -229,18 +234,22 @@ end
 --- Uses Snacks.terminal when available, otherwise falls back to a split buffer.
 function M.run_term(cmd, opts)
   opts = opts or {}
+  local term_cwd = opts.cwd or vim.fn.getcwd()
   if _G.Snacks and _G.Snacks.terminal then
-    Snacks.terminal(cmd, opts)
+    Snacks.terminal(cmd, { cwd = term_cwd })
   else
     vim.cmd("botright 15split")
     local win = vim.api.nvim_get_current_win()
     local buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_win_set_buf(win, buf)
     vim.fn.termopen(cmd, {
-      cwd = opts.cwd or vim.fn.getcwd(),
+      cwd = term_cwd,
       on_exit = function(_, code)
-        local level = (code == 0) and vim.log.levels.INFO or vim.log.levels.ERROR
-        vim.notify("Process exited with code " .. code, level)
+        if code == 0 or code == 130 then
+          vim.notify("Process finished (exit code " .. code .. ")", vim.log.levels.INFO)
+        else
+          vim.notify("Process exited with code " .. code, vim.log.levels.ERROR)
+        end
       end,
     })
     vim.keymap.set("n", "q", "<cmd>q<cr>", { buffer = buf, silent = true })
@@ -272,35 +281,36 @@ local function with_tf(callback)
     )
     return
   end
-  callback(tf)
+  local root = M.find_tf_root() or vim.fn.getcwd()
+  callback(tf, root)
 end
 
 function M.terraform_init()
-  with_tf(function(tf)
-    M.run_term(tf .. " init")
+  with_tf(function(tf, root)
+    M.run_term(tf .. " init", { cwd = root })
   end)
 end
 
 function M.terraform_validate()
-  with_tf(function(tf)
-    M.run_term(tf .. " validate")
+  with_tf(function(tf, root)
+    M.run_term(tf .. " validate", { cwd = root })
   end)
 end
 
 function M.terraform_plan()
-  with_tf(function(tf)
-    M.run_term(tf .. " plan")
+  with_tf(function(tf, root)
+    M.run_term(tf .. " plan", { cwd = root })
   end)
 end
 
 function M.terraform_apply()
-  with_tf(function(tf)
-    M.run_term(tf .. " apply")
+  with_tf(function(tf, root)
+    M.run_term(tf .. " apply", { cwd = root })
   end)
 end
 
 function M.terraform_fmt()
-  with_tf(function(tf)
+  with_tf(function(tf, root)
     local file = vim.fn.expand("%:p")
     if file ~= "" then
       vim.cmd("update")
@@ -312,32 +322,34 @@ function M.terraform_fmt()
         vim.notify("Formatting error: " .. out, vim.log.levels.ERROR)
       end
     else
-      M.run_term(tf .. " fmt")
+      M.run_term(tf .. " fmt", { cwd = root })
     end
   end)
 end
 
 function M.terraform_lint()
+  local root = M.find_tf_root() or vim.fn.getcwd()
   if vim.fn.executable("tflint") == 1 then
-    M.run_term("tflint")
+    M.run_term("tflint", { cwd = root })
   else
     vim.notify("tflint is not installed in PATH. Install via Mason (:MasonInstall tflint).", vim.log.levels.WARN)
   end
 end
 
 function M.terraform_security()
+  local root = M.find_tf_root() or vim.fn.getcwd()
   if vim.fn.executable("trivy") == 1 then
-    M.run_term("trivy config .")
+    M.run_term("trivy config .", { cwd = root })
   elseif vim.fn.executable("tfsec") == 1 then
-    M.run_term("tfsec .")
+    M.run_term("tfsec .", { cwd = root })
   else
     vim.notify("Neither 'trivy' nor 'tfsec' is installed in PATH.", vim.log.levels.WARN)
   end
 end
 
 function M.terraform_output()
-  with_tf(function(tf)
-    M.run_term(tf .. " output")
+  with_tf(function(tf, root)
+    M.run_term(tf .. " output", { cwd = root })
   end)
 end
 
@@ -367,14 +379,23 @@ end
 
 function M.cfn_validate()
   local file = vim.fn.expand("%:p")
+  local root = M.find_cfn_root()
+  if file == "" and root then
+    if is_file(root .. "/template.yaml") then
+      file = root .. "/template.yaml"
+    elseif is_file(root .. "/template.yml") then
+      file = root .. "/template.yml"
+    end
+  end
   if file == "" then
     vim.notify("No file to validate", vim.log.levels.WARN, { title = "Cumulus DevOps" })
     return
   end
+  local cwd = root or vim.fs.normalize(vim.fn.fnamemodify(file, ":h"))
   if vim.fn.executable("aws") == 1 then
-    M.run_term("aws cloudformation validate-template --template-body file://" .. vim.fn.shellescape(file))
+    M.run_term("aws cloudformation validate-template --template-body file://" .. vim.fn.shellescape(file), { cwd = cwd })
   elseif vim.fn.executable("cfn-lint") == 1 then
-    M.run_term("cfn-lint " .. vim.fn.shellescape(file))
+    M.run_term("cfn-lint " .. vim.fn.shellescape(file), { cwd = cwd })
   else
     vim.notify(
       "Neither 'aws' CLI nor 'cfn-lint' was found in PATH. Please install the AWS CLI or cfn-lint (:MasonInstall cfn-lint).",
@@ -386,11 +407,13 @@ end
 
 function M.cfn_lint()
   local file = vim.fn.expand("%:p")
+  local root = M.find_cfn_root()
+  local cwd = root or vim.fn.getcwd()
   if vim.fn.executable("cfn-lint") == 1 then
     if file ~= "" then
-      M.run_term("cfn-lint " .. vim.fn.shellescape(file))
+      M.run_term("cfn-lint " .. vim.fn.shellescape(file), { cwd = cwd })
     else
-      M.run_term("cfn-lint")
+      M.run_term("cfn-lint", { cwd = cwd })
     end
   else
     vim.notify(
@@ -402,8 +425,9 @@ function M.cfn_lint()
 end
 
 function M.sam_validate()
+  local root = M.find_cfn_root() or vim.fn.getcwd()
   if vim.fn.executable("sam") == 1 then
-    M.run_term("sam validate")
+    M.run_term("sam validate", { cwd = root })
   else
     vim.notify(
       "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
@@ -414,8 +438,9 @@ function M.sam_validate()
 end
 
 function M.sam_build()
+  local root = M.find_cfn_root() or vim.fn.getcwd()
   if vim.fn.executable("sam") == 1 then
-    M.run_term("sam build")
+    M.run_term("sam build", { cwd = root })
   else
     vim.notify(
       "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
@@ -436,6 +461,8 @@ function M.sam_local_invoke()
   end
 
   local file = vim.fn.expand("%:p")
+  local root = M.find_cfn_root()
+  local cwd = root or vim.fn.getcwd()
   local engine = require("cumulus.util.engine")
   local functions = {}
 
@@ -453,27 +480,28 @@ function M.sam_local_invoke()
   if #functions > 1 then
     vim.ui.select(functions, { prompt = "Select Lambda Function to Invoke:" }, function(choice)
       if choice and choice ~= "" then
-        M.run_term("sam local invoke " .. vim.fn.shellescape(choice) .. tmpl_flag)
+        M.run_term("sam local invoke " .. vim.fn.shellescape(choice) .. tmpl_flag, { cwd = cwd })
       end
     end)
   elseif #functions == 1 then
-    M.run_term("sam local invoke " .. vim.fn.shellescape(functions[1]) .. tmpl_flag)
+    M.run_term("sam local invoke " .. vim.fn.shellescape(functions[1]) .. tmpl_flag, { cwd = cwd })
   else
     vim.ui.input({ prompt = "Lambda Function Logical ID (optional, Esc to cancel): " }, function(input)
       if input == nil then
         return
       elseif input ~= "" then
-        M.run_term("sam local invoke " .. vim.fn.shellescape(input) .. tmpl_flag)
+        M.run_term("sam local invoke " .. vim.fn.shellescape(input) .. tmpl_flag, { cwd = cwd })
       else
-        M.run_term("sam local invoke" .. tmpl_flag)
+        M.run_term("sam local invoke" .. tmpl_flag, { cwd = cwd })
       end
     end)
   end
 end
 
 function M.sam_local_start_api()
+  local root = M.find_cfn_root() or vim.fn.getcwd()
   if vim.fn.executable("sam") == 1 then
-    M.run_term("sam local start-api")
+    M.run_term("sam local start-api", { cwd = root })
   else
     vim.notify(
       "AWS SAM CLI ('sam') is not installed in PATH. Visit https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
@@ -484,9 +512,10 @@ function M.sam_local_start_api()
 end
 
 function M.cfn_guard_validate()
+  local root = M.find_cfn_root() or vim.fn.getcwd()
   if vim.fn.executable("cfn-guard") == 1 then
     local file = vim.fn.expand("%:p")
-    M.run_term("cfn-guard validate --template " .. vim.fn.shellescape(file))
+    M.run_term("cfn-guard validate --template " .. vim.fn.shellescape(file), { cwd = root })
   else
     vim.notify(
       "cfn-guard is not installed in PATH. Install CloudFormation Guard via cargo or homebrew ('brew install cloudformation-guard').",
@@ -518,7 +547,7 @@ function M.is_ansible_buffer(buf)
     end
     local lines = vim.api.nvim_buf_get_lines(buf, 0, 20, false)
     local content = table.concat(lines, "\n")
-    if content:match("%-%s*hosts:") or content:match("%-%s*name:") and content:match("tasks:") then
+    if content:match("%-%s*hosts:") or (content:match("%-%s*name:") and content:match("tasks:")) then
       return true
     end
   end
@@ -527,12 +556,13 @@ end
 
 function M.ansible_syntax_check()
   local file = vim.fn.expand("%:p")
+  local root = M.find_ansible_root() or vim.fn.getcwd()
   if file == "" then
     vim.notify("No file to check", vim.log.levels.WARN)
     return
   end
   if vim.fn.executable("ansible-playbook") == 1 then
-    M.run_term("ansible-playbook --syntax-check " .. vim.fn.shellescape(file))
+    M.run_term("ansible-playbook --syntax-check " .. vim.fn.shellescape(file), { cwd = root })
   else
     vim.notify("ansible-playbook is not installed in PATH.", vim.log.levels.WARN)
   end
@@ -540,11 +570,12 @@ end
 
 function M.ansible_lint()
   local file = vim.fn.expand("%:p")
+  local root = M.find_ansible_root() or vim.fn.getcwd()
   if vim.fn.executable("ansible-lint") == 1 then
     if file ~= "" then
-      M.run_term("ansible-lint " .. vim.fn.shellescape(file))
+      M.run_term("ansible-lint " .. vim.fn.shellescape(file), { cwd = root })
     else
-      M.run_term("ansible-lint")
+      M.run_term("ansible-lint", { cwd = root })
     end
   else
     vim.notify("ansible-lint is not installed in PATH. Install via Mason (:MasonInstall ansible-lint).", vim.log.levels.WARN)
@@ -553,12 +584,13 @@ end
 
 function M.ansible_dry_run()
   local file = vim.fn.expand("%:p")
+  local root = M.find_ansible_root() or vim.fn.getcwd()
   if file == "" then
     vim.notify("No file to run", vim.log.levels.WARN)
     return
   end
   if vim.fn.executable("ansible-playbook") == 1 then
-    M.run_term("ansible-playbook --check " .. vim.fn.shellescape(file))
+    M.run_term("ansible-playbook --check " .. vim.fn.shellescape(file), { cwd = root })
   else
     vim.notify("ansible-playbook is not installed in PATH.", vim.log.levels.WARN)
   end
@@ -566,30 +598,33 @@ end
 
 function M.ansible_run_playbook()
   local file = vim.fn.expand("%:p")
+  local root = M.find_ansible_root() or vim.fn.getcwd()
   if file == "" then
     vim.notify("No file to run", vim.log.levels.WARN)
     return
   end
   if vim.fn.executable("ansible-playbook") == 1 then
-    M.run_term("ansible-playbook " .. vim.fn.shellescape(file))
+    M.run_term("ansible-playbook " .. vim.fn.shellescape(file), { cwd = root })
   else
     vim.notify("ansible-playbook is not installed in PATH.", vim.log.levels.WARN)
   end
 end
 
 function M.ansible_inventory_graph()
+  local root = M.find_ansible_root() or vim.fn.getcwd()
   if vim.fn.executable("ansible-inventory") == 1 then
-    M.run_term("ansible-inventory --graph")
+    M.run_term("ansible-inventory --graph", { cwd = root })
   else
     vim.notify("ansible-inventory is not installed in PATH.", vim.log.levels.WARN)
   end
 end
 
 function M.ansible_doc_lookup()
+  local root = M.find_ansible_root() or vim.fn.getcwd()
   if vim.fn.executable("ansible-doc") == 1 then
     vim.ui.input({ prompt = "Ansible Module / Plugin Doc: " }, function(input)
       if input and input ~= "" then
-        M.run_term("ansible-doc " .. vim.fn.shellescape(input))
+        M.run_term("ansible-doc " .. vim.fn.shellescape(input), { cwd = root })
       end
     end)
   else
@@ -603,6 +638,7 @@ function M.ansible_vault_action()
     return
   end
   local file = vim.fn.expand("%:p")
+  local root = M.find_ansible_root() or vim.fn.getcwd()
   if file == "" then
     vim.notify("No active file for vault operation", vim.log.levels.WARN)
     return
@@ -611,7 +647,7 @@ function M.ansible_vault_action()
   local actions = { "view", "encrypt", "decrypt", "edit" }
   vim.ui.select(actions, { prompt = "Select Ansible Vault Action:" }, function(choice)
     if choice then
-      M.run_term("ansible-vault " .. choice .. " " .. vim.fn.shellescape(file))
+      M.run_term("ansible-vault " .. choice .. " " .. vim.fn.shellescape(file), { cwd = root })
     end
   end)
 end

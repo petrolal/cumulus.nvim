@@ -233,12 +233,42 @@ if nvim -u init.lua --headless "+lua
   assert(devops.find_helm_root(empty_proj) == nil, 'find_helm_root should be nil for empty workspace')
   assert(devops.find_tf_root(999999) == nil or type(devops.find_tf_root(999999)) == 'string', 'find_tf_root invalid buffer must not error')
 
+  -- 7. Verify Root Adoption in Runner Execution
+  local last_executed_cmd, last_executed_opts = nil, nil
+  local orig_run_term = devops.run_term
+  devops.run_term = function(cmd, opts)
+    last_executed_cmd = cmd
+    last_executed_opts = opts
+  end
+
+  -- Test Terraform adoption
+  local orig_get_tf_cmd = devops.get_tf_cmd
+  devops.get_tf_cmd = function() return 'tofu' end
+  local orig_find_tf_root = devops.find_tf_root
+  devops.find_tf_root = function() return '/mock/tf/root' end
+  devops.terraform_init()
+  assert(last_executed_cmd == 'tofu init', 'terraform_init command mismatch')
+  assert(last_executed_opts and last_executed_opts.cwd == '/mock/tf/root', 'terraform_init cwd not adopted: ' .. vim.inspect(last_executed_opts))
+
+  -- Test Ansible adoption
+  local orig_find_ansible_root = devops.find_ansible_root
+  devops.find_ansible_root = function() return '/mock/ansible/root' end
+  devops.ansible_inventory_graph()
+  assert(last_executed_cmd == 'ansible-inventory --graph', 'ansible_inventory_graph command mismatch')
+  assert(last_executed_opts and last_executed_opts.cwd == '/mock/ansible/root', 'ansible_inventory_graph cwd not adopted: ' .. vim.inspect(last_executed_opts))
+
+  -- Restore mocks
+  devops.run_term = orig_run_term
+  devops.get_tf_cmd = orig_get_tf_cmd
+  devops.find_tf_root = orig_find_tf_root
+  devops.find_ansible_root = orig_find_ansible_root
+
   -- Cleanup mock workspace
   vim.fn.delete(tmp_root, 'rf')
 
   local plat = e.detect_platform() or 'unknown'
   assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered')
-  print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling & Workspace Root Discovery verified (' .. plat .. ')')
+  print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling, Workspace Root Discovery & Runner cwd adoption verified (' .. plat .. ')')
 
 " +qa; then
   echo "✔ Engine bridge & DevOps suite PASSED."
