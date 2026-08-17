@@ -10,13 +10,25 @@ local uv = vim.uv or vim.loop
 local function is_dir(path)
   if not path or path == "" then return false end
   local ok, stat = pcall(uv.fs_stat, path)
-  return ok and stat ~= nil and stat.type == "directory"
+  if ok and stat ~= nil then
+    return stat.type == "directory"
+  end
+  if not ok and stat then
+    -- pcall returned error message as second arg on permission denied, etc
+  end
+  return false
 end
 
 local function is_file(path)
   if not path or path == "" then return false end
   local ok, stat = pcall(uv.fs_stat, path)
-  return ok and stat ~= nil and (stat.type == "file" or stat.type == "link")
+  if ok and stat ~= nil then
+    return stat.type == "file" or stat.type == "link"
+  end
+  if not ok and stat then
+    -- pcall returned error message as second arg on permission denied, etc
+  end
+  return false
 end
 
 local function scan_dir_for_match(dir, matcher)
@@ -25,7 +37,8 @@ local function scan_dir_for_match(dir, matcher)
   if not ok or not handle then return false end
   while true do
     local ok_next, name, entry_type = pcall(uv.fs_scandir_next, handle)
-    if not ok_next or not name then break end
+    -- Break if pcall failed or name is nil (end of directory)
+    if not ok_next or name == nil then break end
     local full_path = vim.fs.normalize(dir .. "/" .. name)
     if matcher(name, full_path, entry_type) then
       return true
@@ -100,6 +113,7 @@ local function discover_root(buf_or_path, matcher, convention_dirs)
 
   -- 2. Convention directory scan if upward discovery yielded nil
   if convention_dirs and #convention_dirs > 0 then
+    local max_depth = 3
     for _, subdir in ipairs(convention_dirs) do
       local cand = vim.fs.normalize(search_dir .. "/" .. subdir)
       if is_dir(cand) then
@@ -107,12 +121,18 @@ local function discover_root(buf_or_path, matcher, convention_dirs)
           return cand
         end
         -- Also scan nested folders inside convention directory (e.g. charts/my-chart/Chart.yaml)
+        -- Limit depth to prevent infinite loops on symlink cycles
         local ok_h, handle = pcall(uv.fs_scandir, cand)
         if ok_h and handle then
+          local depth = 0
           while true do
             local ok_n, name, entry_type = pcall(uv.fs_scandir_next, handle)
             if not ok_n or not name then break end
             if entry_type == "directory" then
+              depth = depth + 1
+              if depth > max_depth then
+                break
+              end
               local sub_cand = vim.fs.normalize(cand .. "/" .. name)
               if scan_dir_for_match(sub_cand, matcher) then
                 return sub_cand
@@ -235,6 +255,7 @@ end
 function M.run_term(cmd, opts)
   opts = opts or {}
   local term_cwd = opts.cwd or vim.fn.getcwd()
+  local timeout = opts.timeout or 3600000 -- default 1 hour
   local snacks = _G.Snacks or package.loaded["snacks"]
   if snacks and snacks.terminal then
     snacks.terminal(cmd, { cwd = term_cwd })
@@ -243,16 +264,25 @@ function M.run_term(cmd, opts)
     local win = vim.api.nvim_get_current_win()
     local buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_win_set_buf(win, buf)
-    vim.fn.termopen(cmd, {
+    local job_id = vim.fn.termopen(cmd, {
       cwd = term_cwd,
       on_exit = function(_, code)
         if code == 0 or code == 130 then
-          vim.notify("Process finished (exit code " .. code .. ")", vim.log.levels.INFO)
+          vim.notify("Process finished (exit code " .. code .. ")", vim.log.levels.INFO, { title = "Cumulus DevOps" })
         else
-          vim.notify("Process exited with code " .. code, vim.log.levels.ERROR)
+          vim.notify("Process exited with code " .. code, vim.log.levels.ERROR, { title = "Cumulus DevOps" })
         end
       end,
     })
+    -- Set timeout to prevent indefinite hangs
+    if timeout > 0 then
+      vim.fn.timer_start(timeout, function()
+        if vim.fn.jobwait({ job_id }, 0)[1] == -1 then
+          vim.fn.jobstop(job_id)
+          vim.notify("Process timeout (" .. (timeout / 1000) .. "s), job terminated", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+        end
+      end)
+    end
     vim.keymap.set("n", "q", "<cmd>q<cr>", { buffer = buf, silent = true })
     vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]], { buffer = buf, silent = true })
     vim.cmd("startinsert")
@@ -269,7 +299,10 @@ local function with_root(finder, missing_msg, callback)
     vim.notify(missing_msg, vim.log.levels.WARN, { title = "Cumulus DevOps" })
     return
   end
-  callback(root)
+  local ok, err = pcall(callback, root)
+  if not ok then
+    vim.notify("Error executing operation: " .. err, vim.log.levels.ERROR, { title = "Cumulus DevOps" })
+  end
 end
 
 -- =============================================================================
@@ -328,16 +361,28 @@ function M.terraform_fmt()
   with_tf(function(tf, root)
     local file = vim.fn.expand("%:p")
     local is_tf_file = file ~= "" and (file:match("%.tf$") or file:match("%.tofu$") or file:match("%.tfvars$"))
-    if is_tf_file then
-      pcall(vim.cmd, "update")
+    if is_tf_file and vim.fn.filereadable(file) == 1 then
+      local ok_save, err_save = pcall(vim.cmd, "update")
+      if not ok_save then
+        vim.notify("Failed to save file: " .. err_save, vim.log.levels.ERROR, { title = "Cumulus DevOps" })
+        return
+      end
       local out = vim.fn.system({ tf, "fmt", file })
-      pcall(vim.cmd, "edit!")
+      local ok_reload, err_reload = pcall(vim.cmd, "edit!")
+      if not ok_reload then
+        vim.notify("Failed to reload file after format: " .. err_reload, vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      end
       if vim.v.shell_error == 0 then
-        vim.notify("Formatted with " .. tf .. " fmt", vim.log.levels.INFO)
+        vim.notify("Formatted with " .. tf .. " fmt", vim.log.levels.INFO, { title = "Cumulus DevOps" })
       else
-        vim.notify("Formatting error: " .. out, vim.log.levels.ERROR)
+        vim.notify("Formatting error: " .. out, vim.log.levels.ERROR, { title = "Cumulus DevOps" })
       end
     else
+      if not is_tf_file then
+        vim.notify("Current file is not a Terraform (.tf, .tofu, .tfvars) file.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      elseif vim.fn.filereadable(file) ~= 1 then
+        vim.notify("Cannot read file: " .. file, vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      end
       M.run_term(tf .. " fmt", { cwd = root })
     end
   end)
@@ -413,7 +458,7 @@ local function resolve_cfn_target_file(root)
       return root .. "/template.json"
     end
   end
-  return file ~= "" and file or nil
+  return nil
 end
 
 function M.cfn_validate()
@@ -524,6 +569,10 @@ function M.sam_local_invoke()
         if input == nil then
           return
         elseif input ~= "" then
+          if not input:match("^[a-zA-Z0-9_-]+$") then
+            vim.notify("Invalid Lambda function name. Only alphanumeric, underscore, and hyphen allowed.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+            return
+          end
           M.run_term("sam local invoke " .. vim.fn.shellescape(input) .. tmpl_flag, { cwd = root })
         else
           M.run_term("sam local invoke" .. tmpl_flag, { cwd = root })
@@ -691,7 +740,14 @@ function M.ansible_doc_lookup()
   with_ansible(function(root)
     if vim.fn.executable("ansible-doc") == 1 then
       vim.ui.input({ prompt = "Ansible Module / Plugin Doc: " }, function(input)
-        if input and input ~= "" then
+        if input == nil then
+          return
+        end
+        if input ~= "" then
+          if not input:match("^[a-z0-9_.:-]+$") then
+            vim.notify("Invalid Ansible module name. Use lowercase alphanumeric, dots, underscores, hyphens, or colons.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+            return
+          end
           M.run_term("ansible-doc " .. vim.fn.shellescape(input), { cwd = root })
         end
       end)
@@ -722,7 +778,10 @@ function M.ansible_vault_action()
       run_vault_on_file(file)
     else
       vim.ui.input({ prompt = "Ansible Vault File: " }, function(input)
-        if input and input ~= "" then
+        if input == nil then
+          return
+        end
+        if input ~= "" then
           local full_target = vim.fs.normalize(root .. "/" .. input)
           run_vault_on_file(full_target)
         end
@@ -832,43 +891,49 @@ function M.setup_keymaps(force)
   end
   M.keymaps_registered = true
 
-  local map = vim.keymap.set
+  local function safe_map(mode, lhs, rhs, opts)
+    local ok, err = pcall(vim.keymap.set, mode, lhs, rhs, opts)
+    if not ok then
+      vim.notify("Failed to register keymap " .. lhs .. ": " .. err, vim.log.levels.WARN, { title = "Cumulus DevOps" })
+    end
+    return ok
+  end
 
   -- Terraform & OpenTofu (<leader>ot)
-  map("n", "<leader>oti", M.terraform_init, { desc = "Terraform: Init", silent = true })
-  map("n", "<leader>otv", M.terraform_validate, { desc = "Terraform: Validate", silent = true })
-  map("n", "<leader>otp", M.terraform_plan, { desc = "Terraform: Plan", silent = true })
-  map("n", "<leader>ota", M.terraform_apply, { desc = "Terraform: Apply", silent = true })
-  map("n", "<leader>otf", M.terraform_fmt, { desc = "Terraform: Format", silent = true })
-  map("n", "<leader>otl", M.terraform_lint, { desc = "Terraform: Lint (tflint)", silent = true })
-  map("n", "<leader>ots", M.terraform_security, { desc = "Terraform: Security Scan (trivy/tfsec)", silent = true })
-  map("n", "<leader>oto", M.terraform_output, { desc = "Terraform: Output", silent = true })
+  safe_map("n", "<leader>oti", M.terraform_init, { desc = "Terraform: Init", silent = true })
+  safe_map("n", "<leader>otv", M.terraform_validate, { desc = "Terraform: Validate", silent = true })
+  safe_map("n", "<leader>otp", M.terraform_plan, { desc = "Terraform: Plan", silent = true })
+  safe_map("n", "<leader>ota", M.terraform_apply, { desc = "Terraform: Apply", silent = true })
+  safe_map("n", "<leader>otf", M.terraform_fmt, { desc = "Terraform: Format", silent = true })
+  safe_map("n", "<leader>otl", M.terraform_lint, { desc = "Terraform: Lint (tflint)", silent = true })
+  safe_map("n", "<leader>ots", M.terraform_security, { desc = "Terraform: Security Scan (trivy/tfsec)", silent = true })
+  safe_map("n", "<leader>oto", M.terraform_output, { desc = "Terraform: Output", silent = true })
 
   -- AWS CloudFormation & SAM (<leader>oc)
-  map("n", "<leader>ocv", M.cfn_validate, { desc = "CloudFormation: Validate Template", silent = true })
-  map("n", "<leader>ocl", M.cfn_lint, { desc = "CloudFormation: Lint (cfn-lint)", silent = true })
-  map("n", "<leader>ocV", M.sam_validate, { desc = "SAM: Validate", silent = true })
-  map("n", "<leader>ocb", M.sam_build, { desc = "SAM: Build", silent = true })
-  map("n", "<leader>oci", M.sam_local_invoke, { desc = "SAM: Local Invoke", silent = true })
-  map("n", "<leader>ocr", M.sam_local_start_api, { desc = "SAM: Local Start API", silent = true })
-  map("n", "<leader>ocg", M.cfn_guard_validate, { desc = "CloudFormation: Policy Check (cfn-guard)", silent = true })
+  safe_map("n", "<leader>ocv", M.cfn_validate, { desc = "CloudFormation: Validate Template", silent = true })
+  safe_map("n", "<leader>ocl", M.cfn_lint, { desc = "CloudFormation: Lint (cfn-lint)", silent = true })
+  safe_map("n", "<leader>ocV", M.sam_validate, { desc = "SAM: Validate", silent = true })
+  safe_map("n", "<leader>ocb", M.sam_build, { desc = "SAM: Build", silent = true })
+  safe_map("n", "<leader>oci", M.sam_local_invoke, { desc = "SAM: Local Invoke", silent = true })
+  safe_map("n", "<leader>ocr", M.sam_local_start_api, { desc = "SAM: Local Start API", silent = true })
+  safe_map("n", "<leader>ocg", M.cfn_guard_validate, { desc = "CloudFormation: Policy Check (cfn-guard)", silent = true })
 
   -- Ansible Automation (<leader>oy)
-  map("n", "<leader>oys", M.ansible_syntax_check, { desc = "Ansible: Syntax Check", silent = true })
-  map("n", "<leader>oyl", M.ansible_lint, { desc = "Ansible: Lint Playbook", silent = true })
-  map("n", "<leader>oyc", M.ansible_dry_run, { desc = "Ansible: Dry Run (--check)", silent = true })
-  map("n", "<leader>oyr", M.ansible_run_playbook, { desc = "Ansible: Run Playbook", silent = true })
-  map("n", "<leader>oyi", M.ansible_inventory_graph, { desc = "Ansible: Inventory Graph", silent = true })
-  map("n", "<leader>oyd", M.ansible_doc_lookup, { desc = "Ansible: Module Documentation", silent = true })
-  map("n", "<leader>oyv", M.ansible_vault_action, { desc = "Ansible: Vault Action", silent = true })
+  safe_map("n", "<leader>oys", M.ansible_syntax_check, { desc = "Ansible: Syntax Check", silent = true })
+  safe_map("n", "<leader>oyl", M.ansible_lint, { desc = "Ansible: Lint Playbook", silent = true })
+  safe_map("n", "<leader>oyc", M.ansible_dry_run, { desc = "Ansible: Dry Run (--check)", silent = true })
+  safe_map("n", "<leader>oyr", M.ansible_run_playbook, { desc = "Ansible: Run Playbook", silent = true })
+  safe_map("n", "<leader>oyi", M.ansible_inventory_graph, { desc = "Ansible: Inventory Graph", silent = true })
+  safe_map("n", "<leader>oyd", M.ansible_doc_lookup, { desc = "Ansible: Module Documentation", silent = true })
+  safe_map("n", "<leader>oyv", M.ansible_vault_action, { desc = "Ansible: Vault Action", silent = true })
 
   -- Docker & Containers (<leader>od)
-  map("n", "<leader>odb", M.docker_build, { desc = "Docker: Build Image", silent = true })
-  map("n", "<leader>odl", M.docker_lint, { desc = "Docker: Lint Dockerfile", silent = true })
+  safe_map("n", "<leader>odb", M.docker_build, { desc = "Docker: Build Image", silent = true })
+  safe_map("n", "<leader>odl", M.docker_lint, { desc = "Docker: Lint Dockerfile", silent = true })
 
   -- Helm & Kubernetes (<leader>ok)
-  map("n", "<leader>okl", M.helm_lint, { desc = "Helm: Lint Chart", silent = true })
-  map("n", "<leader>okt", M.helm_template, { desc = "Helm: Render Template", silent = true })
+  safe_map("n", "<leader>okl", M.helm_lint, { desc = "Helm: Lint Chart", silent = true })
+  safe_map("n", "<leader>okt", M.helm_template, { desc = "Helm: Render Template", silent = true })
 end
 
 return M
