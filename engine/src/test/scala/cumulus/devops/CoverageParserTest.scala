@@ -151,3 +151,32 @@ class CoverageParserTest extends FunSuite:
     finally
       os.remove.all(tempDir)
   }
+
+  test("reject XML with malicious XXE in parseJacocoXml") {
+    val xml = """|<?xml version="1.0" encoding="UTF-8"?>
+                 |<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>
+                 |<report name="&xxe;">
+                 |</report>""".stripMargin
+
+    intercept[org.xml.sax.SAXParseException] {
+      CoverageParser.parseJacocoXml(xml)
+    }
+  }
+
+  test("reject XML with malicious XXE in parseCoverage") {
+    val tempDir = os.temp.dir(prefix = "cumulus-cov-xxe")
+    try
+      val badFile = tempDir / "xxe.xml"
+      val xml = """|<?xml version="1.0" encoding="UTF-8"?>
+                   |<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>
+                   |<report name="&xxe;">
+                   |</report>""".stripMargin
+      os.write(badFile, xml)
+
+      val response = CoverageParser.parseCoverage(badFile.toString)
+      assertEquals(response.success, false)
+      assertEquals(response.error_code, Some("PARSE_ERROR"))
+      assert(response.error.exists(_.contains("DOCTYPE is disallowed") || response.error.exists(_.contains("XML parse error"))))
+    finally
+      os.remove.all(tempDir)
+  }

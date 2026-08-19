@@ -1,7 +1,7 @@
 package cumulus.devops
 
 import cumulus.protocol.CumulusResponse
-import scala.xml.XML
+import cumulus.util.SecureXML
 import scala.collection.mutable.ListBuffer
 import os.Path
 
@@ -15,7 +15,7 @@ object CoverageParser:
     val trimmed = xmlContent.trim
     if trimmed.isEmpty then return Seq.empty
 
-    val xml = XML.loadString(trimmed)
+    val xml = SecureXML.loadString(trimmed)
     val entries = ListBuffer[CoverageEntry]()
 
     for pkg <- xml \ "package" do
