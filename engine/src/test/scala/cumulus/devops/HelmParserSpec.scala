@@ -145,6 +145,7 @@ class HelmParserSpec extends FunSuite:
       assertEquals(data.version, "0.1.0")
       assertEquals(data.values.get("replicaCount"), Some("1"))
       assertEquals(data.values.get("service.port"), Some("8080"))
+      assertEquals(data.chart_path, tempDir.getAbsolutePath)
       assert(data.templates.contains("templates/service.yaml"))
       assert(data.template_vars.contains("service.port"))
 

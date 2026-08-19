@@ -45,16 +45,55 @@ else
   exit 1
 fi
 
-echo "[6/7] Verifying Engine Bridge & DevOps Suite (<leader>ot, <leader>oc, <leader>oy, WhichKey, Mason & Scoped Buffers)..."
+echo "[6/7] Verifying Engine Bridge & DevOps Suite (Terraform, CloudFormation, Ansible, WhichKey, Mason & Scoped Buffers)..."
 if nvim -u init.lua --headless "+lua
   local e = require('cumulus.util.engine')
   assert(type(e.detect_platform) == 'function', 'detect_platform not found')
   assert(type(e.install) == 'function', 'install not found')
+  assert(type(e.run_command) == 'function', 'run_command not found')
+  assert(type(e.classify_workspace) == 'function', 'classify_workspace not found')
+  assert(type(e.discover_devops_roots) == 'function', 'discover_devops_roots not found')
   assert(type(e.inspect_cfn_template) == 'function', 'inspect_cfn_template not found')
   assert(type(e.validate_cfn_template) == 'function', 'validate_cfn_template not found')
   assert(type(e.inspect_ansible_playbook) == 'function', 'inspect_ansible_playbook not found')
   assert(type(e.validate_ansible_playbook) == 'function', 'validate_ansible_playbook not found')
   assert(type(e.parse_ansible_inventory) == 'function', 'parse_ansible_inventory not found')
+  assert(type(e.generate_dap_config) == 'function', 'generate_dap_config not found')
+  -- Story 13.1: Consolidated UI picker and action functions
+  assert(type(e.select_bean) == 'function', 'select_bean not found')
+  assert(type(e.select_endpoint) == 'function', 'select_endpoint not found')
+  assert(type(e.optimize_imports_buffer) == 'function', 'optimize_imports_buffer not found')
+  assert(type(e.validate_k8s_manifest_buffer) == 'function', 'validate_k8s_manifest_buffer not found')
+  assert(type(e.validate_manifest) == 'function', 'validate_manifest not found')
+  assert(type(e.validate_migrations_action) == 'function', 'validate_migrations_action not found')
+  assert(type(e.resolve_git_conflicts) == 'function', 'resolve_git_conflicts not found')
+  assert(type(e.resolve_conflicts) == 'function', 'resolve_conflicts not found')
+  assert(type(e.view_coverage) == 'function', 'view_coverage not found')
+  assert(type(e.search_indexed_logs) == 'function', 'search_indexed_logs not found')
+
+  -- Story 13.2: Universal UI Terminal & Notification Bridge Standardization
+  assert(type(e.notify) == 'function', 'notify not found')
+  assert(type(e.notify_info) == 'function', 'notify_info not found')
+  assert(type(e.notify_warn) == 'function', 'notify_warn not found')
+  assert(type(e.notify_err) == 'function', 'notify_err not found')
+  assert(type(e.run_term) == 'function', 'run_term not found')
+
+  -- Test headless invocation of notification and terminal helpers
+  e.notify('test notify', vim.log.levels.INFO, 'Test Title')
+  e.notify_info('test info', 'Test Title')
+  e.notify_warn('test warn', 'Test Title')
+  e.notify_err('test err', 'Test Title')
+
+  -- Verify purged stub and wrapper files do not exist
+  assert(not pcall(require, 'cumulus.util.rust'), 'rust.lua must be purged')
+  assert(not pcall(require, 'cumulus.util.beans'), 'beans.lua must be purged')
+  assert(not pcall(require, 'cumulus.util.endpoints'), 'endpoints.lua must be purged')
+  assert(not pcall(require, 'cumulus.util.import-optimizer'), 'import-optimizer.lua must be purged')
+  assert(not pcall(require, 'cumulus.util.k8s-validator'), 'k8s-validator.lua must be purged')
+  assert(not pcall(require, 'cumulus.util.migrations'), 'migrations.lua must be purged')
+  assert(not pcall(require, 'cumulus.util.conflicts'), 'conflicts.lua must be purged')
+  assert(not pcall(require, 'cumulus.util.coverage'), 'coverage.lua must be purged')
+  assert(not pcall(require, 'cumulus.util.log-indexer'), 'log-indexer.lua must be purged')
   local devops = require('cumulus.util.devops')
   assert(type(devops.cfn_validate) == 'function')
   assert(type(devops.sam_local_invoke) == 'function')
@@ -100,15 +139,15 @@ if nvim -u init.lua --headless "+lua
   for _, key in ipairs(expected_subkeys) do
     local found = false
     for _, m in ipairs(global_maps) do
-      if m.lhs == '<Space>' .. key or m.lhs:match(key .. '$') then
+      if m.lhs == '\''<leader>\'' .. key or m.lhs == '\''<Space>\'' .. key or m.lhs == '\'' '\'' .. key then
         found = true
         found_keymaps = found_keymaps + 1
         break
       end
     end
-    assert(found, '<leader>' .. key .. ' missing from global keymaps')
+    assert(found, '\''leader '\' .. key .. '\'' missing from global keymaps\'')
   end
-  assert(found_keymaps >= 26, 'DevOps keymap count mismatch: found ' .. found_keymaps .. ' of 26')
+  assert(found_keymaps >= 26, '\''DevOps keymap count mismatch: found '\'' .. found_keymaps .. '\'' of 26\'')
 
   -- Robust Mason spec lookup
   local mason_plugins = require('cumulus.plugins.tools-mason')
@@ -215,6 +254,32 @@ if nvim -u init.lua --headless "+lua
   assert(devops.find_docker_root(empty_proj) == nil, 'find_docker_root should be nil for empty workspace')
   assert(devops.find_helm_root(empty_proj) == nil, 'find_helm_root should be nil for empty workspace')
   assert(devops.find_tf_root(999999) == nil or type(devops.find_tf_root(999999)) == 'string', 'find_tf_root invalid buffer must not error')
+
+  -- Story 11.3: Workspace Classification & DevOps Roots Engine Integration
+  local jvm = require('cumulus.util.jvm')
+  local maven_util = require('cumulus.util.maven')
+  local gradle_util = require('cumulus.util.gradle')
+  assert(type(jvm.is_jvm_project) == 'function', 'jvm.is_jvm_project not found')
+
+  if e.is_available() then
+    local ws_topo = e.classify_workspace(tf_proj)
+    assert(type(ws_topo) == 'table', 'classify_workspace must return table topology')
+    assert(ws_topo.root ~= nil, 'classify_workspace root must not be nil')
+    assert(ws_topo.primary_type ~= nil, 'classify_workspace primary_type must not be nil')
+
+    local ws_devops = e.discover_devops_roots(tf_proj)
+    assert(type(ws_devops) == 'table', 'discover_devops_roots must return table')
+    assert(type(ws_devops.terraform) == 'table', 'discover_devops_roots terraform must be list')
+    assert(#ws_devops.terraform >= 1, 'discover_devops_roots should detect tf roots')
+  end
+
+  local jvm_proj = tmp_root .. '/jvm_proj'
+  vim.fn.mkdir(jvm_proj, 'p')
+  vim.fn.writefile({'<project></project>'}, jvm_proj .. '/pom.xml')
+  assert(jvm.is_jvm_project(jvm_proj) == true, 'is_jvm_project should return true for maven repo')
+  assert(maven_util.find_pom(jvm_proj) == true, 'find_pom should return true for maven repo')
+  assert(gradle_util.find_gradle(jvm_proj) == false, 'find_gradle should return false for maven repo')
+  assert(jvm.is_jvm_project(empty_proj) == false, 'is_jvm_project should return false for empty repo')
 
   -- 7. Verify Root Adoption in Runner Execution & Warning Toasts
   local last_executed_cmd, last_executed_opts = nil, nil

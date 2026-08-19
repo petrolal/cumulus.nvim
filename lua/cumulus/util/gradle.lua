@@ -24,6 +24,19 @@ function M.find_gradle(buf)
 
   local engine = require("cumulus.util.engine")
   if engine.is_available() then
+    local topo = engine.classify_workspace(dir)
+    if topo then
+      if topo.primary_type == "gradle" then
+        return true
+      end
+      if topo.project_types then
+        for _, ptype in ipairs(topo.project_types) do
+          if ptype == "gradle" then
+            return true
+          end
+        end
+      end
+    end
     local res = engine.discover_build_tool(dir) or engine.discover_build_tool(vim.fn.getcwd())
     if res and (res.tool == "gradle" or res.build_tool == "gradle") then
       return true
@@ -31,16 +44,7 @@ function M.find_gradle(buf)
   end
 
   local patterns = { "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradlew" }
-  if vim.fs.root(dir, patterns) then
-    return true
-  end
-
-  return vim.fn.findfile("build.gradle", dir .. ";") ~= ""
-    or vim.fn.findfile("build.gradle.kts", dir .. ";") ~= ""
-    or vim.fn.findfile("settings.gradle", dir .. ";") ~= ""
-    or vim.fn.findfile("settings.gradle.kts", dir .. ";") ~= ""
-    or vim.fn.findfile("build.gradle", vim.fn.getcwd() .. ";") ~= ""
-    or vim.fn.findfile("build.gradle.kts", vim.fn.getcwd() .. ";") ~= ""
+  return vim.fs.root(dir, patterns) ~= nil or vim.fs.root(vim.fn.getcwd(), patterns) ~= nil
 end
 
 function M.get_gradle_cmd()
@@ -64,7 +68,7 @@ end
 
 function M.run_gradle_cmd(cmd)
   if not M.find_gradle() then
-    vim.notify("No build.gradle found in project", vim.log.levels.WARN)
+    require("cumulus.util.engine").notify_warn("No build.gradle found in project", "Cumulus JVM")
     return
   end
 
@@ -73,21 +77,7 @@ function M.run_gradle_cmd(cmd)
     cmd = base_cmd .. cmd:sub(7)
   end
 
-  vim.cmd("botright 15split")
-  local win = vim.api.nvim_get_current_win()
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_win_set_buf(win, buf)
-
-  vim.fn.termopen(cmd, {
-    on_exit = function(_, code)
-      local level = (code == 0) and vim.log.levels.INFO or vim.log.levels.ERROR
-      vim.notify("Gradle command exited with code " .. code, level)
-    end,
-  })
-
-  vim.keymap.set("n", "q", "<cmd>q<cr>", { buffer = buf, silent = true })
-  vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]], { buffer = buf, silent = true })
-  vim.cmd("startinsert")
+  require("cumulus.util.engine").run_term(cmd, { title = "Cumulus Gradle" })
 end
 
 function M.sync_dependencies()

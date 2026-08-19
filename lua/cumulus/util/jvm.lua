@@ -50,6 +50,35 @@ function M.is_jvm_project(buf_or_dir)
     dir = vim.fn.getcwd()
   end
 
+  local ok, engine = pcall(require, "cumulus.util.engine")
+  if ok and engine.is_available and engine.is_available() then
+    local topo = engine.classify_workspace(dir)
+    if topo then
+      if topo.primary_type == "maven" or topo.primary_type == "gradle" or topo.primary_type == "sbt" then
+        return true
+      end
+      if topo.has_spring then
+        return true
+      end
+      if topo.project_types then
+        for _, ptype in ipairs(topo.project_types) do
+          if ptype == "maven" or ptype == "gradle" or ptype == "sbt" then
+            return true
+          end
+        end
+      end
+      if topo.primary_type == "devops" or (topo.primary_type == "unknown" and (not topo.project_types or #topo.project_types == 0)) then
+        return false
+      end
+    end
+
+    local res = engine.discover_build_tool(dir) or engine.discover_build_tool(vim.fn.getcwd())
+    if res and (res.tool == "maven" or res.tool == "gradle" or res.tool == "sbt" or
+                res.build_tool == "maven" or res.build_tool == "gradle" or res.build_tool == "sbt") then
+      return true
+    end
+  end
+
   local jvm_markers = {
     "pom.xml",
     "mvnw",
@@ -63,31 +92,6 @@ function M.is_jvm_project(buf_or_dir)
 
   if vim.fs.root(dir, jvm_markers) or vim.fs.root(vim.fn.getcwd(), jvm_markers) then
     return true
-  end
-
-  if vim.fn.findfile("pom.xml", dir .. ";") ~= ""
-    or vim.fn.findfile("build.gradle", dir .. ";") ~= ""
-    or vim.fn.findfile("build.gradle.kts", dir .. ";") ~= ""
-    or vim.fn.findfile("settings.gradle", dir .. ";") ~= ""
-    or vim.fn.findfile("settings.gradle.kts", dir .. ";") ~= ""
-    or vim.fn.findfile("build.sbt", dir .. ";") ~= ""
-    or vim.fn.findfile("pom.xml", vim.fn.getcwd() .. ";") ~= ""
-    or vim.fn.findfile("build.gradle", vim.fn.getcwd() .. ";") ~= ""
-    or vim.fn.findfile("build.gradle.kts", vim.fn.getcwd() .. ";") ~= ""
-    or vim.fn.findfile("settings.gradle", vim.fn.getcwd() .. ";") ~= ""
-    or vim.fn.findfile("settings.gradle.kts", vim.fn.getcwd() .. ";") ~= ""
-    or vim.fn.findfile("build.sbt", vim.fn.getcwd() .. ";") ~= ""
-  then
-    return true
-  end
-
-  local ok, engine = pcall(require, "cumulus.util.engine")
-  if ok and engine.is_available and engine.is_available() then
-    local res = engine.discover_build_tool(dir) or engine.discover_build_tool(vim.fn.getcwd())
-    if res and (res.tool == "maven" or res.tool == "gradle" or res.tool == "sbt" or
-                res.build_tool == "maven" or res.build_tool == "gradle" or res.build_tool == "sbt") then
-      return true
-    end
   end
 
   return false
@@ -181,13 +185,13 @@ function M.setup_keymaps()
         gradle.run_gradle_cmd(gradle.get_gradle_cmd() .. " bootRun")
       end
     else
-      vim.notify("No pom.xml or build.gradle found in project", vim.log.levels.WARN)
+      require("cumulus.util.engine").notify_warn("No pom.xml or build.gradle found in project", "Cumulus JVM")
     end
   end, { desc = "Run Spring Boot / Quarkus App" })
 
   map("n", "<leader>jrg", function()
     vim.cmd("update")
-    Snacks.terminal("groovy " .. vim.fn.shellescape(vim.fn.expand("%:p")))
+    require("cumulus.util.engine").run_term("groovy " .. vim.fn.shellescape(vim.fn.expand("%:p")), { title = "Cumulus JVM" })
   end, { desc = "Groovy: Run Current Script" })
 
   map("n", "<leader>jrd", function()
@@ -196,15 +200,15 @@ function M.setup_keymaps()
 
   -- 4. Spring Boot & Frameworks (<leader>js)
   map("n", "<leader>jse", function()
-    require("cumulus.util.endpoints").select_endpoint()
+    require("cumulus.util.engine").select_endpoint()
   end, { desc = "Spring: Select REST Endpoint" })
 
   map("n", "<leader>jsb", function()
-    require("cumulus.util.beans").select_bean()
+    require("cumulus.util.engine").select_bean()
   end, { desc = "Spring: Select Bean Dependency" })
 
   map("n", "<leader>jsm", function()
-    require("cumulus.util.migrations").validate_migrations()
+    require("cumulus.util.engine").validate_migrations_action()
   end, { desc = "Flyway: Validate Migrations" })
 
   -- 5. Refactoring & JDTLS (<leader>jx)
@@ -236,7 +240,7 @@ function M.setup_keymaps()
   end, { desc = "JDTLS: Extract Method" })
 
   map("n", "<leader>jxo", function()
-    require("cumulus.util.import-optimizer").run()
+    require("cumulus.util.engine").optimize_imports_buffer()
   end, { desc = "Optimize Java/Kotlin Imports" })
 
   map("n", "<leader>jxH", function()

@@ -290,7 +290,8 @@ object HelmParser:
               val combinedInfo = baseInfo.copy(
                 values = valuesMap,
                 templates = templatesList.toSeq,
-                template_vars = templateVars.distinct.toSeq
+                template_vars = templateVars.distinct.toSeq,
+                chart_path = chartDir.toString
               )
 
               CumulusResponse(

@@ -99,7 +99,7 @@ end
 local devops = require("cumulus.util.devops")
 local ok, err = pcall(devops.setup_keymaps)
 if not ok then
-  vim.notify("Failed to register DevOps keymaps: " .. err, vim.log.levels.WARN)
+  vim.notify("Failed to register DevOps keymaps: " .. tostring(err), vim.log.levels.WARN, { title = "Cumulus DevOps" })
 end
 
 lang_keymaps.setup()

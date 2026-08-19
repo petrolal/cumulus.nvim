@@ -1,9 +1,9 @@
 package cumulus
 
 import cumulus.protocol.{CumulusResponse, CumulusError}
-import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor}
-import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult}
-import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
+import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler}
+import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer}
+import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
 import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue, AnsibleParser, AnsiblePlaybookInfo, AnsibleValidationIssue, AnsibleInventoryGroup, TerraformParser, TfSecurityParser, TerraformInfo, SecurityFinding, DockerParser, DockerValidator, DockerImage, ContainerValidationIssue, HelmParser, HelmChartInfo}
@@ -381,6 +381,25 @@ object Main:
                 case Left(error) =>
                   errorEnvelope[WorkspaceInfo](error)
           serializeResponse(result)
+
+        case "classify-workspace" | "--classify-workspace" =>
+          given ReadWriter[WorkspaceTopology] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val dirPath = argMap.get("dir").orElse(args.drop(1).find(!_.startsWith("--"))).getOrElse(".")
+          val result = WorkspaceClassifier.classifyWorkspace(dirPath)
+          serializeResponse(result)
+
+        case "discover-devops-roots" | "--discover-devops-roots" =>
+          given ReadWriter[DevopsRoots] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val path = argMap.get("path")
+            .orElse(argMap.get("dir"))
+            .orElse(argMap.get("file"))
+            .orElse(args.drop(1).find(!_.startsWith("--")))
+            .getOrElse(".")
+          val result = DevopsRootDiscoverer.discoverDevopsRoots(path)
+          serializeResponse(result)
+
 
         case "extract-codelens" =>
           given ReadWriter[CodeLensResponse] = upickle.default.macroRW
@@ -896,6 +915,55 @@ object Main:
               catch
                 case e: Exception =>
                   errorEnvelope[HelmChartInfo](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "assemble-command" | "--assemble-command" =>
+          given ReadWriter[CommandAssemblyResult] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result: CumulusResponse[CommandAssemblyResult] = if argMap.contains("tool") || argMap.contains("action") then
+            val tool = argMap.getOrElse("tool", "")
+            val action = argMap.getOrElse("action", "build")
+            val target = argMap.get("target")
+            val dir = argMap.get("dir")
+            val flags = argMap.get("flags").map { f =>
+              if f.contains(",") then f.split(",").map(_.trim).filter(_.nonEmpty).toSeq
+              else f.split("\\s+").map(_.trim).filter(_.nonEmpty).toSeq
+            }.getOrElse(Seq.empty)
+            val intent = CommandIntent(
+              tool = tool,
+              action = action,
+              target = target,
+              dir = dir,
+              flags = flags
+            )
+            CommandAssembler.assemble(intent) match
+              case Right(res) => successEnvelope(Some(res))
+              case Left(err) => errorEnvelope[CommandAssemblyResult](err, CumulusError.INVALID_INPUT)
+          else
+            try
+              val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString.trim
+              if stdinInput.isEmpty then
+                errorEnvelope[CommandAssemblyResult]("Missing required parameters: tool and action must be specified via flags or JSON stdin", CumulusError.INVALID_INPUT)
+              else
+                try
+                  val intent = upickle.default.read[CommandIntent](stdinInput)
+                  CommandAssembler.assemble(intent) match
+                    case Right(res) => successEnvelope(Some(res))
+                    case Left(err) => errorEnvelope[CommandAssemblyResult](err, CumulusError.INVALID_INPUT)
+                catch
+                  case e: Exception =>
+                    errorEnvelope[CommandAssemblyResult](s"Invalid JSON input for CommandIntent: ${e.getMessage}", CumulusError.INVALID_INPUT)
+            catch
+              case e: Exception =>
+                errorEnvelope[CommandAssemblyResult](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "generate-dap-config" | "--generate-dap-config" =>
+          given ReadWriter[DapConfigResult] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val dirOpt = argMap.get("dir").orElse(args.drop(1).find(!_.startsWith("--")))
+          val dirPath = dirOpt.getOrElse(os.pwd.toString)
+          val result = DapConfigGenerator.generateDapConfig(dirPath)
           serializeResponse(result)
 
         case "install" | "bootstrap" =>

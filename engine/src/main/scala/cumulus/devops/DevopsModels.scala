@@ -425,7 +425,8 @@ case class HelmChartInfo(
   dependencies: Seq[HelmDependency] = Seq.empty,
   values: Map[String, String] = Map.empty,
   templates: Seq[String] = Seq.empty,
-  template_vars: Seq[String] = Seq.empty
+  template_vars: Seq[String] = Seq.empty,
+  chart_path: String = ""
 ) derives ReadWriter
 
 

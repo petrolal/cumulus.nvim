@@ -31,116 +31,87 @@ local function is_file(path)
   return false
 end
 
-local function scan_dir_for_match(dir, matcher)
-  if not is_dir(dir) then return false end
-  local ok, handle = pcall(uv.fs_scandir, dir)
-  if not ok or not handle then return false end
-  while true do
-    local ok_next, name, entry_type = pcall(uv.fs_scandir_next, handle)
-    -- Break if pcall failed or name is nil (end of directory)
-    if not ok_next or name == nil then break end
-    local full_path = vim.fs.normalize(dir .. "/" .. name)
-    if matcher(name, full_path, entry_type) then
-      return true
-    end
-  end
-  return false
-end
-
---- Resolves the starting search directory from a buffer number, file path, or directory path.
---- Defaults gracefully to the active buffer or the current working directory.
---- @param buf_or_path? number|string Buffer handle or directory/file path
---- @return string canonical absolute directory path
-function M.resolve_search_dir(buf_or_path)
-  if not buf_or_path then
-    local ok_buf, buf = pcall(vim.api.nvim_get_current_buf)
-    if ok_buf and type(buf) == "number" and vim.api.nvim_buf_is_valid(buf) then
-      local ok_name, name = pcall(vim.api.nvim_buf_get_name, buf)
-      if ok_name and name and name ~= "" then
-        buf_or_path = name
-      end
-    end
-  elseif type(buf_or_path) == "number" then
-    if vim.api.nvim_buf_is_valid(buf_or_path) then
-      local ok_name, name = pcall(vim.api.nvim_buf_get_name, buf_or_path)
-      if ok_name and name and name ~= "" then
-        buf_or_path = name
-      else
-        buf_or_path = nil
-      end
-    else
-      buf_or_path = nil
-    end
-  end
-
-  if not buf_or_path or buf_or_path == "" then
-    return vim.fs.normalize(vim.fn.getcwd())
-  end
-
-  local abs_path = vim.fs.normalize(vim.fn.fnamemodify(tostring(buf_or_path), ":p"))
-  if is_dir(abs_path) then
-    return abs_path
-  elseif is_file(abs_path) then
-    return vim.fs.normalize(vim.fn.fnamemodify(abs_path, ":h"))
-  else
-    local parent = vim.fs.normalize(vim.fn.fnamemodify(abs_path, ":h"))
-    if is_dir(parent) then
-      return parent
-    end
-    return vim.fs.normalize(vim.fn.getcwd())
-  end
-end
-
---- Generic root discoverer using upward search via vim.fs.root followed by convention scan.
---- @param buf_or_path? number|string
---- @param matcher fun(name: string, path: string, entry_type: string?): boolean
---- @param convention_dirs? string[]
+--- Select the best matching tool root from candidate paths relative to search_dir.
+--- @param candidates string[] List of absolute directory paths
+--- @param search_dir string Canonical search directory
 --- @return string|nil
-local function discover_root(buf_or_path, matcher, convention_dirs)
+local function pick_best_root(candidates, search_dir)
+  if not candidates or #candidates == 0 then
+    return nil
+  end
+
+  search_dir = vim.fs.normalize(search_dir)
+
+  -- 1. Exact match
+  for _, cand in ipairs(candidates) do
+    local norm = vim.fs.normalize(cand)
+    if norm == search_dir then
+      return norm
+    end
+  end
+
+  -- 2. Ancestor match: pick the most specific (longest path) candidate that is an ancestor of search_dir
+  local best_ancestor = nil
+  for _, cand in ipairs(candidates) do
+    local norm = vim.fs.normalize(cand)
+    if search_dir == norm or search_dir:sub(1, #norm + 1) == norm .. "/" then
+      if not best_ancestor or #norm > #best_ancestor then
+        best_ancestor = norm
+      end
+    end
+  end
+  if best_ancestor then
+    return best_ancestor
+  end
+
+  -- 3. Descendant match: pick the closest (shortest path) candidate under search_dir
+  local best_descendant = nil
+  for _, cand in ipairs(candidates) do
+    local norm = vim.fs.normalize(cand)
+    if norm:sub(1, #search_dir + 1) == search_dir .. "/" then
+      if not best_descendant or #norm < #best_descendant then
+        best_descendant = norm
+      end
+    end
+  end
+  if best_descendant then
+    return best_descendant
+  end
+
+  -- 4. Fallback: return the first candidate
+  return vim.fs.normalize(candidates[1])
+end
+
+--- Query engine discover-devops-roots with fallback
+--- @param buf_or_path? number|string
+--- @param tool_key "terraform"|"sam"|"ansible"|"docker"|"helm"
+--- @param fallback_markers string[]
+--- @return string|nil
+local function query_devops_roots(buf_or_path, tool_key, fallback_markers)
   local search_dir = M.resolve_search_dir(buf_or_path)
   if not search_dir or search_dir == "" then
     return nil
   end
 
-  -- 1. Upward discovery using vim.fs.root
-  local ok, root = pcall(vim.fs.root, search_dir, function(name, path)
-    return matcher(name, path)
-  end)
-
-  if ok and root and root ~= "" and root ~= "/" then
-    return vim.fs.normalize(root)
+  local ok, engine = pcall(require, "cumulus.util.engine")
+  if ok and engine.is_available and engine.is_available() then
+    local roots = engine.discover_devops_roots(search_dir, { silent = true })
+    if roots and roots[tool_key] and #roots[tool_key] > 0 then
+      local picked = pick_best_root(roots[tool_key], search_dir)
+      if picked then
+        return picked
+      end
+    end
+    if roots and roots.workspace_root then
+      return nil
+    end
   end
 
-  -- 2. Convention directory scan if upward discovery yielded nil
-  if convention_dirs and #convention_dirs > 0 then
-    local max_depth = 3
-    for _, subdir in ipairs(convention_dirs) do
-      local cand = vim.fs.normalize(search_dir .. "/" .. subdir)
-      if is_dir(cand) then
-        if scan_dir_for_match(cand, matcher) then
-          return cand
-        end
-        -- Also scan nested folders inside convention directory (e.g. charts/my-chart/Chart.yaml)
-        -- Limit depth to prevent infinite loops on symlink cycles
-        local ok_h, handle = pcall(uv.fs_scandir, cand)
-        if ok_h and handle then
-          local depth = 0
-          while true do
-            local ok_n, name, entry_type = pcall(uv.fs_scandir_next, handle)
-            if not ok_n or not name then break end
-            if entry_type == "directory" then
-              depth = depth + 1
-              if depth > max_depth then
-                break
-              end
-              local sub_cand = vim.fs.normalize(cand .. "/" .. name)
-              if scan_dir_for_match(sub_cand, matcher) then
-                return sub_cand
-              end
-            end
-          end
-        end
-      end
+  -- Graceful fallback using vim.fs.root if engine is uncompiled or unavailable
+  if fallback_markers then
+    local root = vim.fs.root(search_dir, fallback_markers)
+    if root and root ~= "" and root ~= "/" then
+      return vim.fs.normalize(root)
     end
   end
 
@@ -151,142 +122,42 @@ end
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_tf_root(buf_or_path)
-  local function matcher(name)
-    if name == "main.tf" or name == "terragrunt.hcl" or name == "versions.tf"
-       or name == "backend.tf" or name == "providers.tf" or name == "variables.tf"
-       or name == "outputs.tf" or name == ".terraform" then
-      return true
-    end
-    if name:match("%.tf$") or name:match("%.tofu$") or name:match("%.tfvars$") then
-      return true
-    end
-    return false
-  end
-
-  local conventions = { "terraform", "infra/terraform", "infra", "deploy/terraform", "deploy", "terragrunt" }
-  return discover_root(buf_or_path, matcher, conventions)
+  return query_devops_roots(buf_or_path, "terraform", { "main.tf", "terragrunt.hcl", ".terraform" })
 end
 
 --- Discover AWS CloudFormation / SAM root directory
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_cfn_root(buf_or_path)
-  local function matcher(name)
-    if name == "template.yaml" or name == "template.yml" or name == "template.json"
-       or name == "samconfig.toml" or name == "samconfig.yaml" or name == "samconfig.yml" then
-      return true
-    end
-    if name:match("%.cfn%.ya?ml$") or name:match("%.cfn%.json$")
-       or name:match("%.sam%.ya?ml$") or name:match("%.sam%.json$")
-       or name:match("^cfn.*%.ya?ml$") or name:match("^sam.*%.ya?ml$") then
-      return true
-    end
-    return false
-  end
-
-  local conventions = { "sam", "cfn", "cloudformation", "infra/sam", "infra/cfn", "infra/cloudformation", "infra", "deploy/sam", "deploy/cfn", "deploy" }
-  return discover_root(buf_or_path, matcher, conventions)
+  return query_devops_roots(buf_or_path, "sam", { "template.yaml", "template.yml", "template.json", "samconfig.toml" })
 end
 
 --- Discover Ansible root directory
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_ansible_root(buf_or_path)
-  local function matcher(name, path)
-    if name == "ansible.cfg" or name == "site.yaml" or name == "site.yml"
-       or name == "playbook.yaml" or name == "playbook.yml" or name == "hosts"
-       or name == "inventory" or name == "inventory.ini" or name == "inventory.yaml"
-       or name == "inventory.yml" or name == "requirements.yml" or name == "requirements.yaml" then
-      return true
-    end
-    if name == "roles" or name == "playbooks" or name == "tasks" or name == "handlers" then
-      -- If checking directory name, check if it contains Ansible structure
-      if path and is_dir(path) then
-        return is_file(path .. "/main.yml") or is_file(path .. "/main.yaml") or is_dir(path .. "/tasks")
-      end
-      return true
-    end
-    return false
-  end
-
-  local conventions = { "ansible", "playbooks", "infra/ansible", "deploy/ansible", "infra/playbooks" }
-  return discover_root(buf_or_path, matcher, conventions)
+  return query_devops_roots(buf_or_path, "ansible", { "ansible.cfg", "site.yml", "site.yaml", "playbook.yml", "playbook.yaml" })
 end
 
 --- Discover Docker / Compose root directory
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_docker_root(buf_or_path)
-  local function matcher(name)
-    if name == "Dockerfile" or name == "Containerfile" or name == "docker-compose.yaml"
-       or name == "docker-compose.yml" or name == "compose.yaml" or name == "compose.yml"
-       or name == ".dockerignore" then
-      return true
-    end
-    if name:match("^Dockerfile") or name:match("^Containerfile")
-       or name:match("%.Dockerfile$") or name:match("%.Containerfile$")
-       or name:match("^docker%-compose.*%.ya?ml$") or name:match("^compose.*%.ya?ml$") then
-      return true
-    end
-    return false
-  end
-
-  local conventions = { "docker", "deploy/docker", "infra/docker", "deploy", "containers", ".docker" }
-  return discover_root(buf_or_path, matcher, conventions)
+  return query_devops_roots(buf_or_path, "docker", { "Dockerfile", "Containerfile", "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml" })
 end
 
 --- Discover Helm root directory
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_helm_root(buf_or_path)
-  local function matcher(name)
-    if name == "Chart.yaml" or name == "Chart.yml" or name == "values.yaml" or name == "values.yml" then
-      return true
-    end
-    return false
-  end
-
-  local conventions = { "charts", "helm", "deploy/charts", "deploy/helm", "infra/helm", "infra/charts" }
-  return discover_root(buf_or_path, matcher, conventions)
+  return query_devops_roots(buf_or_path, "helm", { "Chart.yaml", "Chart.yml" })
 end
 
 --- Run a command in an interactive, non-blocking terminal
 --- Uses Snacks.terminal when available, otherwise falls back to a split buffer.
 function M.run_term(cmd, opts)
-  opts = opts or {}
-  local term_cwd = opts.cwd or vim.fn.getcwd()
-  local timeout = opts.timeout or 3600000 -- default 1 hour
-  local snacks = _G.Snacks or package.loaded["snacks"]
-  if snacks and snacks.terminal then
-    snacks.terminal(cmd, { cwd = term_cwd })
-  else
-    vim.cmd("botright 15split")
-    local win = vim.api.nvim_get_current_win()
-    local buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_win_set_buf(win, buf)
-    local job_id = vim.fn.termopen(cmd, {
-      cwd = term_cwd,
-      on_exit = function(_, code)
-        if code == 0 or code == 130 then
-          vim.notify("Process finished (exit code " .. code .. ")", vim.log.levels.INFO, { title = "Cumulus DevOps" })
-        else
-          vim.notify("Process exited with code " .. code, vim.log.levels.ERROR, { title = "Cumulus DevOps" })
-        end
-      end,
-    })
-    -- Set timeout to prevent indefinite hangs
-    if timeout > 0 then
-      vim.fn.timer_start(timeout, function()
-        if vim.fn.jobwait({ job_id }, 0)[1] == -1 then
-          vim.fn.jobstop(job_id)
-          vim.notify("Process timeout (" .. (timeout / 1000) .. "s), job terminated", vim.log.levels.WARN, { title = "Cumulus DevOps" })
-        end
-      end)
-    end
-    vim.keymap.set("n", "q", "<cmd>q<cr>", { buffer = buf, silent = true })
-    vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]], { buffer = buf, silent = true })
-    vim.cmd("startinsert")
-  end
+  opts = vim.tbl_extend("force", { title = "Cumulus DevOps" }, opts or {})
+  require("cumulus.util.engine").run_term(cmd, opts)
 end
 
 -- =============================================================================
@@ -894,13 +765,11 @@ function M.setup_keymaps(force)
   if M.keymaps_registered and not force then
     return
   end
-  -- Set flag BEFORE registration to prevent concurrent duplicate registration
-  M.keymaps_registered = true
 
   local function safe_map(mode, lhs, rhs, opts)
     local ok, err = pcall(vim.keymap.set, mode, lhs, rhs, opts)
     if not ok then
-      vim.notify("Failed to register keymap " .. lhs .. ": " .. err, vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      vim.notify("Failed to register keymap " .. lhs .. ": " .. tostring(err), vim.log.levels.WARN, { title = "Cumulus DevOps" })
     end
     return ok
   end
@@ -940,6 +809,8 @@ function M.setup_keymaps(force)
   -- Helm & Kubernetes (<leader>ok)
   safe_map("n", "<leader>okl", M.helm_lint, { desc = "Helm: Lint Chart", silent = true })
   safe_map("n", "<leader>okt", M.helm_template, { desc = "Helm: Render Template", silent = true })
+
+  M.keymaps_registered = true
 end
 
 return M

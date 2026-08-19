@@ -112,23 +112,19 @@ function M.run_test(mode)
     end
   end
 
-  vim.notify("Running tests: " .. cmd, vim.log.levels.INFO)
-
-  vim.cmd("botright 15split")
-  local win = vim.api.nvim_get_current_win()
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_win_set_buf(win, buf)
+  engine.notify_info("Running tests: " .. cmd, "Cumulus Test")
 
   local output_lines = {}
-  vim.fn.termopen(cmd, {
-    on_stdout = function(_, data)
+  engine.run_term(cmd, {
+    title = "Cumulus Test",
+    on_stdout = function(data)
       for _, line in ipairs(data) do
         if line ~= "" then
           table.insert(output_lines, line)
         end
       end
     end,
-    on_stderr = function(_, data)
+    on_stderr = function(data)
       for _, line in ipairs(data) do
         if line ~= "" then
           table.insert(output_lines, line)
@@ -142,10 +138,6 @@ function M.run_test(mode)
       end)
     end,
   })
-
-  vim.keymap.set("n", "q", "<cmd>q<cr>", { buffer = buf, silent = true })
-  vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]], { buffer = buf, silent = true })
-  vim.cmd("startinsert")
 end
 
 return M

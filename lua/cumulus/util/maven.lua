@@ -24,16 +24,27 @@ function M.find_pom(buf)
 
   local engine = require("cumulus.util.engine")
   if engine.is_available() then
+    local topo = engine.classify_workspace(dir)
+    if topo then
+      if topo.primary_type == "maven" then
+        return true
+      end
+      if topo.project_types then
+        for _, ptype in ipairs(topo.project_types) do
+          if ptype == "maven" then
+            return true
+          end
+        end
+      end
+    end
     local res = engine.discover_build_tool(dir) or engine.discover_build_tool(vim.fn.getcwd())
     if res and (res.tool == "maven" or res.build_tool == "maven") then
       return true
     end
   end
 
-  if vim.fs.root(dir, { "pom.xml", "mvnw" }) then
-    return true
-  end
-  return vim.fn.findfile("pom.xml", dir .. ";") ~= "" or vim.fn.findfile("pom.xml", vim.fn.getcwd() .. ";") ~= ""
+  local patterns = { "pom.xml", "mvnw" }
+  return vim.fs.root(dir, patterns) ~= nil or vim.fs.root(vim.fn.getcwd(), patterns) ~= nil
 end
 
 function M.get_mvn_cmd()
@@ -57,7 +68,7 @@ end
 
 function M.run_maven_cmd(cmd)
   if not M.find_pom() then
-    vim.notify("No pom.xml found in project", vim.log.levels.WARN)
+    require("cumulus.util.engine").notify_warn("No pom.xml found in project", "Cumulus JVM")
     return
   end
 
@@ -66,21 +77,7 @@ function M.run_maven_cmd(cmd)
     cmd = base_cmd .. cmd:sub(4)
   end
 
-  vim.cmd("botright 15split")
-  local win = vim.api.nvim_get_current_win()
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_win_set_buf(win, buf)
-
-  vim.fn.termopen(cmd, {
-    on_exit = function(_, code)
-      local level = (code == 0) and vim.log.levels.INFO or vim.log.levels.ERROR
-      vim.notify("Maven command exited with code " .. code, level)
-    end,
-  })
-
-  vim.keymap.set("n", "q", "<cmd>q<cr>", { buffer = buf, silent = true })
-  vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]], { buffer = buf, silent = true })
-  vim.cmd("startinsert")
+  require("cumulus.util.engine").run_term(cmd, { title = "Cumulus Maven" })
 end
 
 function M.sync_dependencies()

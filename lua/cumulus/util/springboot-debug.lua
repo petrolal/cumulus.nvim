@@ -8,14 +8,9 @@ function M.launch_debug()
   local engine = require("cumulus.util.engine")
   local cwd = vim.fn.getcwd()
 
-  local config = engine.detect_springboot_app(cwd)
-  if not config then
-    vim.notify("Failed to detect Spring Boot application", vim.log.levels.ERROR)
-    return
-  end
-
-  if config.build_tool == "unknown" then
-    vim.notify("No Maven or Gradle build file found", vim.log.levels.WARN)
+  local dap_result = engine.generate_dap_config(cwd)
+  if not dap_result or not dap_result.launch then
+    vim.notify("Failed to generate debug configuration", vim.log.levels.ERROR)
     return
   end
 
@@ -25,32 +20,11 @@ function M.launch_debug()
     return
   end
 
-  local dap_config = {
-    type = "java",
-    name = "Spring Boot Debug (" .. config.project_name .. ")",
-    request = "launch",
-    mainClass = config.main_class,
-    projectName = config.project_name,
-    cwd = cwd,
-    console = "integratedTerminal",
-    preLaunchTask = config.build_tool == "maven" and "maven: clean package" or "gradle: clean build",
-  }
-
-  if config.build_tool == "maven" then
-    dap_config.args = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
-  elseif config.build_tool == "gradle" then
-    dap_config.args = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
-  end
-
-  if #config.profiles > 0 then
-    dap_config.env = { SPRING_PROFILES_ACTIVE = table.concat(config.profiles, ",") }
-  end
-
   if not dap.configurations.java then
     dap.configurations.java = {}
   end
 
-  table.insert(dap.configurations.java, dap_config)
+  table.insert(dap.configurations.java, dap_result.launch)
 
   dap.continue()
 end
@@ -60,8 +34,8 @@ end
 function M.setup_springboot_dap(root_dir)
   local engine = require("cumulus.util.engine")
 
-  local config = engine.detect_springboot_app(root_dir)
-  if not config or config.main_class == "" then
+  local dap_result = engine.generate_dap_config(root_dir)
+  if not dap_result or not dap_result.launch then
     return
   end
 
@@ -74,17 +48,17 @@ function M.setup_springboot_dap(root_dir)
     dap.configurations.java = {}
   end
 
-  local dap_config = {
-    type = "java",
-    name = "Spring Boot: " .. config.project_name,
-    request = "launch",
-    mainClass = config.main_class,
-    projectName = config.project_name,
-    cwd = root_dir,
-    console = "integratedTerminal",
-  }
-
-  table.insert(dap.configurations.java, dap_config)
+  if dap_result.configurations and #dap_result.configurations > 0 then
+    for _, config in ipairs(dap_result.configurations) do
+      table.insert(dap.configurations.java, config)
+    end
+  else
+    table.insert(dap.configurations.java, dap_result.launch)
+    if dap_result.attach then
+      table.insert(dap.configurations.java, dap_result.attach)
+    end
+  end
 end
 
 return M
+

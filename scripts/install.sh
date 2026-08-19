@@ -113,16 +113,24 @@ if ! has_cmd cumulus-engine && [ ! -x "$DATA_BIN" ]; then
   fi
 fi
 
-# 3. Sync lazy.nvim Plugins
-echo "[3/4] Initializing and syncing Neovim plugins..."
-if nvim -u "$REPO_DIR/init.lua" --headless "+Lazy! sync" +qa; then
+# 3. Symlink configuration into ~/.config/cumulus
+echo "[3/5] Linking Cumulus configuration into ${XDG_CONFIG_HOME:-$HOME/.config}/cumulus..."
+CUMULUS_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cumulus"
+mkdir -p "$CUMULUS_CONFIG_DIR"
+ln -sf "$REPO_DIR/init.lua" "$CUMULUS_CONFIG_DIR/init.lua"
+ln -sfn "$REPO_DIR/lua" "$CUMULUS_CONFIG_DIR/lua"
+echo "  ✔ Linked init.lua and lua/ into $CUMULUS_CONFIG_DIR"
+
+# 4. Sync lazy.nvim Plugins
+echo "[4/5] Initializing and syncing Neovim plugins..."
+if NVIM_APPNAME=cumulus nvim --headless "+Lazy! sync" +qa; then
   echo "  ✔ Plugins synced successfully!"
 else
   echo "  ⚠ Lazy sync encountered warnings or non-zero exit code."
 fi
 
-# 4. Configure 'cn' Alias and Launcher
-echo "[4/5] Setting up 'cn' command launcher and shell alias..."
+# 5. Configure 'cn' Alias and Launcher
+echo "[5/5] Setting up 'cn' command launcher and shell alias..."
 LOCAL_BIN="${HOME}/.local/bin"
 mkdir -p "$LOCAL_BIN"
 
@@ -148,7 +156,7 @@ for RC in "$HOME/.bashrc" "$HOME/.zshrc"; do
     sed -i '/alias cn=/d' "$RC" 2>/dev/null || true
     echo "" >> "$RC"
     echo "# Cumulus Neovim alias" >> "$RC"
-    echo "alias cn='[ -f \"\${XDG_CONFIG_HOME:-\$HOME/.config}/cumulus/init.lua\" ] && NVIM_APPNAME=cumulus nvim || nvim'" >> "$RC"
+    echo "alias cn='NVIM_APPNAME=cumulus nvim'" >> "$RC"
     echo "  ✔ Configured 'cn' alias in $(basename "$RC")"
   fi
 done

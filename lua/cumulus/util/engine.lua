@@ -691,6 +691,19 @@ function M.assemble_test_command(opts)
   return call_engine_command(args, nil, "assemble-test-command")
 end
 
+--- Assemble CLI command for Maven, Gradle, SBT, Terraform, SAM, Ansible, Docker, or Helm
+---@param intent { tool: string, action: string, target?: string, dir?: string, flags?: string[], env?: table<string, string> }
+---@param opts? { silent?: boolean }
+---@return { command: string, executable: string, args: string[], cwd: string, env: table<string, string> }|nil
+function M.assemble_command(intent, opts)
+  if not intent or not intent.tool or not intent.action then
+    return nil
+  end
+  opts = opts or {}
+  local payload = vim.json.encode(intent)
+  return call_engine_command({ "assemble-command" }, payload, "assemble-command", opts)
+end
+
 --- Manage cloud theme state
 ---@param action "get"|"set"
 ---@param opts? { theme?: string, variant?: string, file?: string }
@@ -764,6 +777,353 @@ function M.parse_ansible_inventory(file_path, opts)
   return call_engine_command({ "ansible-inventory-parse", "--file", file_path }, nil, "ansible-inventory-parse", opts)
 end
 
+--- Run an arbitrary engine subcommand
+---@param subcommand string Subcommand name
+---@param args? string[] Arguments array
+---@param stdin? string Optional stdin content
+---@param opts? { debug?: boolean, silent?: boolean } Optional options
+---@return table|nil
+function M.run_command(subcommand, args, stdin, opts)
+  local full_args = { subcommand }
+  if args then
+    for _, arg in ipairs(args) do
+      table.insert(full_args, arg)
+    end
+  end
+  return call_engine_command(full_args, stdin, subcommand, opts)
+end
+
+--- Classify workspace topology and multi-project structure via Scala engine
+---@param dir? string Root workspace directory (defaults to cwd)
+---@param opts? { silent?: boolean }
+---@return { root: string, primary_type: string, project_types: string[], submodules: table[], has_spring: boolean, iac_types: string[], is_multi_module: boolean }|nil
+function M.classify_workspace(dir, opts)
+  dir = dir or vim.fn.getcwd()
+  opts = vim.tbl_extend("force", { silent = true }, opts or {})
+  return call_engine_command({ "classify-workspace", "--dir", dir }, nil, "classify-workspace", opts)
+end
+
+--- Discover DevOps / IaC roots across workspace via Scala engine
+---@param path? string File or directory path to discover roots for (defaults to cwd)
+---@param opts? { silent?: boolean }
+---@return { workspace_root: string, terraform: string[], sam: string[], ansible: string[], docker: string[], helm: string[] }|nil
+function M.discover_devops_roots(path, opts)
+  path = path or vim.fn.getcwd()
+  opts = vim.tbl_extend("force", { silent = true }, opts or {})
+  return call_engine_command({ "discover-devops-roots", "--path", path }, nil, "discover-devops-roots", opts)
+end
+
+--- Generate DAP debug configuration for Spring Boot or JVM project via Scala engine
+---@param dir? string Root project directory (defaults to cwd)
+---@param opts? { silent?: boolean }
+---@return { launch: table, attach: table, configurations: table[] }|nil
+function M.generate_dap_config(dir, opts)
+  dir = dir or vim.fn.getcwd()
+  opts = vim.tbl_extend("force", { silent = true }, opts or {})
+  return call_engine_command({ "generate-dap-config", "--dir", dir }, nil, "generate-dap-config", opts)
+end
+
+-- ==============================================================================
+-- ⭐ Consolidated UI Pickers & Actions (Story 13.1)
+-- ==============================================================================
+
+--- Select a Spring bean from the workspace dependency graph and navigate to its source.
+function M.select_bean()
+  local cwd = vim.fn.getcwd()
+  local beans = M.is_available() and M.parse_spring_beans(cwd) or nil
+  if not beans or #beans == 0 then
+    vim.notify("No Spring stereotypes (@Component, @Service, etc.) found", vim.log.levels.WARN)
+    return
+  end
+
+  vim.ui.select(beans, {
+    prompt = "Select Spring Bean:",
+    format_item = function(item)
+      local deps = #item.injected_deps > 0 and (" -> [" .. table.concat(item.injected_deps, ", ") .. "]") or ""
+      return string.format("%s (%s)%s", item.bean_name, item.class_name, deps)
+    end,
+  }, function(choice)
+    if choice and choice.file then
+      vim.cmd("edit " .. vim.fn.fnameescape(choice.file))
+      vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
+    end
+  end)
+end
+
+--- Select a REST endpoint from the workspace and jump to its controller definition.
+function M.select_endpoint()
+  local cwd = vim.fn.getcwd()
+  local eps = M.is_available() and M.extract_endpoints(cwd) or nil
+  if not eps or #eps == 0 then
+    vim.notify("No Spring Boot / JAX-RS endpoints found in project", vim.log.levels.WARN)
+    return
+  end
+
+  vim.ui.select(eps, {
+    prompt = "Spring Boot REST Endpoints:",
+    format_item = function(item)
+      return string.format("[%s] %s (%s:%d)", item.http_method, item.path, item.class_name, item.line)
+    end,
+  }, function(choice)
+    if choice and choice.file then
+      vim.cmd("edit " .. vim.fn.fnameescape(choice.file))
+      vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
+    end
+  end)
+end
+
+--- Optimize Java/Kotlin imports in the current active buffer.
+function M.optimize_imports_buffer()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local content = table.concat(lines, "\n")
+
+  local new_lines = M.is_available() and M.optimize_imports(content) or nil
+  if new_lines and #new_lines > 0 then
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
+    vim.notify("Imports optimized successfully", vim.log.levels.INFO)
+  else
+    vim.notify("Import optimization unchanged", vim.log.levels.INFO)
+  end
+end
+
+--- Validate Kubernetes manifest in the current buffer and populate diagnostics.
+local k8s_ns = vim.api.nvim_create_namespace("cumulus_k8s_validation")
+function M.validate_k8s_manifest_buffer()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local content = table.concat(lines, "\n")
+
+  local issues = M.is_available() and M.validate_k8s_manifest(content) or nil
+  vim.diagnostic.clear(k8s_ns, bufnr)
+
+  if not issues or #issues == 0 then
+    vim.notify("Kubernetes manifest structure valid", vim.log.levels.INFO)
+    return
+  end
+
+  local diags = {}
+  for _, issue in ipairs(issues) do
+    table.insert(diags, {
+      lnum = math.max(0, issue.line - 1),
+      col = issue.col and math.max(0, issue.col - 1) or 0,
+      message = issue.message,
+      severity = vim.diagnostic.severity.ERROR,
+      source = "k8s_validator",
+    })
+  end
+
+  vim.diagnostic.set(k8s_ns, bufnr, diags)
+end
+-- Alias for spec compatibility
+M.validate_manifest = M.validate_k8s_manifest_buffer
+
+--- Validate Flyway migration scripts in default or specified directory.
+---@param dir? string Optional migrations directory
+function M.validate_migrations_action(dir)
+  local cwd = vim.fn.getcwd()
+  dir = dir or (cwd .. "/src/main/resources/db/migration")
+
+  local issues = M.is_available() and M.validate_migrations(dir) or nil
+  if not issues or #issues == 0 then
+    vim.notify("Flyway migrations verified — 0 issues found", vim.log.levels.INFO)
+    return
+  end
+
+  for _, issue in ipairs(issues) do
+    local level = issue.severity == "ERROR" and vim.log.levels.ERROR or vim.log.levels.WARN
+    vim.notify(string.format("[%s] %s (%s)", issue.severity, issue.message, vim.fn.fnamemodify(issue.file, ":t")), level)
+  end
+end
+
+--- Parse Git conflict markers in current buffer and show interactive jump picker.
+function M.resolve_git_conflicts()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local content = table.concat(lines, "\n")
+
+  local blocks = M.is_available() and M.parse_git_conflicts(content) or nil
+  if not blocks or #blocks == 0 then
+    vim.notify("No Git conflict markers (<<<<<<<) found in buffer", vim.log.levels.INFO)
+    return
+  end
+
+  vim.ui.select(blocks, {
+    prompt = "Jump to Git Conflict:",
+    format_item = function(item)
+      return string.format("Line %d: %s vs %s", item.start_line, item.current_header, item.incoming_header)
+    end,
+  }, function(choice)
+    if choice then
+      vim.api.nvim_win_set_cursor(0, { choice.start_line, 0 })
+    end
+  end)
+end
+-- Alias for spec compatibility
+M.resolve_conflicts = M.resolve_git_conflicts
+
+--- Load JaCoCo code coverage report and populate diagnostics.
+---@param xml_path? string
+local coverage_ns = vim.api.nvim_create_namespace("cumulus_coverage")
+function M.view_coverage(xml_path)
+  xml_path = xml_path or (vim.fn.getcwd() .. "/target/site/jacoco/jacoco.xml")
+
+  local entries = M.is_available() and M.parse_coverage(xml_path) or nil
+  if not entries or #entries == 0 then
+    vim.notify("No JaCoCo coverage report found at: " .. xml_path, vim.log.levels.WARN)
+    return
+  end
+
+  vim.diagnostic.clear(coverage_ns)
+
+  for _, entry in ipairs(entries) do
+    local bufnr = vim.fn.bufnr(entry.file, false)
+    if bufnr ~= -1 and vim.api.nvim_buf_is_valid(bufnr) then
+      local diags = {}
+      for _, lnr in ipairs(entry.missed_lines) do
+        table.insert(diags, {
+          lnum = math.max(0, lnr - 1),
+          col = 0,
+          message = "Uncovered line (JaCoCo)",
+          severity = vim.diagnostic.severity.WARN,
+          source = "JaCoCo",
+        })
+      end
+      vim.diagnostic.set(coverage_ns, bufnr, diags)
+    end
+  end
+
+  vim.notify("JaCoCo coverage loaded successfully", vim.log.levels.INFO)
+end
+M.load_coverage = M.view_coverage
+
+--- Index log content in current buffer and show interactive jump picker for ERROR/WARN lines.
+function M.search_indexed_logs()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local content = table.concat(lines, "\n")
+
+  local entries = M.is_available() and M.index_log(content) or nil
+  if not entries or #entries == 0 then
+    vim.notify("No ERROR/WARN messages found in log buffer", vim.log.levels.INFO)
+    return
+  end
+
+  vim.ui.select(entries, {
+    prompt = "Jump to Log Entry:",
+    format_item = function(item)
+      return string.format("Line %d [%s] %s", item.line, item.level, item.message)
+    end,
+  }, function(choice)
+    if choice then
+      vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
+    end
+  end)
+end
+M.index_current_buffer = M.search_indexed_logs
+
+-- ==============================================================================
+-- ⭐ Universal Notification & Terminal Bridge (Story 13.2)
+-- ==============================================================================
+
+--- Standardized notification dispatcher with default title and level mapping.
+---@param msg string Message text
+---@param level? number vim.log.levels level (default: INFO)
+---@param title? string Notification title (default: "Cumulus")
+---@param opts? table Additional notification options (e.g. id, timeout)
+function M.notify(msg, level, title, opts)
+  level = level or vim.log.levels.INFO
+  title = title or "Cumulus"
+  opts = vim.tbl_extend("force", { title = title }, opts or {})
+  vim.notify(msg, level, opts)
+end
+
+--- Standardized info notification.
+---@param msg string Message text
+---@param title? string Notification title (default: "Cumulus")
+---@param opts? table Additional notification options
+function M.notify_info(msg, title, opts)
+  M.notify(msg, vim.log.levels.INFO, title, opts)
+end
+
+--- Standardized warning notification.
+---@param msg string Message text
+---@param title? string Notification title (default: "Cumulus")
+---@param opts? table Additional notification options
+function M.notify_warn(msg, title, opts)
+  M.notify(msg, vim.log.levels.WARN, title, opts)
+end
+
+--- Standardized error notification.
+---@param msg string Message text
+---@param title? string Notification title (default: "Cumulus")
+---@param opts? table Additional notification options
+function M.notify_err(msg, title, opts)
+  M.notify(msg, vim.log.levels.ERROR, title, opts)
+end
+
+--- Run a command in an interactive, non-blocking terminal session.
+--- Uses Snacks.terminal when available, falling back gracefully to a bottom split (15split) with terminal keymaps.
+---@param cmd string|string[] Command string or command argv list to execute
+---@param opts? { cwd?: string, timeout?: number, title?: string, on_exit?: fun(code: number), on_stdout?: fun(data: string[]), on_stderr?: fun(data: string[]) }
+function M.run_term(cmd, opts)
+  opts = opts or {}
+  local term_cwd = opts.cwd or vim.fn.getcwd()
+  local timeout = opts.timeout or 3600000 -- default 1 hour
+  local title = opts.title or "Cumulus"
+  local snacks = _G.Snacks or package.loaded["snacks"]
+
+  if snacks and snacks.terminal then
+    snacks.terminal(cmd, { cwd = term_cwd })
+    return
+  end
+
+  vim.cmd("botright 15split")
+  local win = vim.api.nvim_get_current_win()
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_win_set_buf(win, buf)
+
+  local job_id = vim.fn.termopen(cmd, {
+    cwd = term_cwd,
+    on_stdout = function(_, data)
+      if opts.on_stdout then
+        opts.on_stdout(data)
+      end
+    end,
+    on_stderr = function(_, data)
+      if opts.on_stderr then
+        opts.on_stderr(data)
+      end
+    end,
+    on_exit = function(_, code)
+      if opts.on_exit then
+        opts.on_exit(code)
+      else
+        if code == 0 or code == 130 then
+          M.notify_info("Process finished (exit code " .. code .. ")", title)
+        else
+          M.notify_err("Process exited with code " .. code, title)
+        end
+      end
+    end,
+  })
+
+  -- Set timeout timer to prevent indefinite hangs
+  if timeout > 0 then
+    vim.fn.timer_start(timeout, function()
+      if vim.fn.jobwait({ job_id }, 0)[1] == -1 then
+        vim.fn.jobstop(job_id)
+        M.notify_warn("Process timeout (" .. (timeout / 1000) .. "s), job terminated", title)
+      end
+    end)
+  end
+
+  vim.keymap.set("n", "q", "<cmd>q<cr>", { buffer = buf, silent = true })
+  vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]], { buffer = buf, silent = true })
+  vim.cmd("startinsert")
+end
+
 return M
+
 
 

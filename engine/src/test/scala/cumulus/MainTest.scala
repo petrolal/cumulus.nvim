@@ -537,6 +537,11 @@ class MainTest extends FunSuite:
       assert(result.data.isDefined)
       assertEquals(result.data.get.resources.length, 1)
       assertEquals(result.data.get.resources.head.name, "demo")
+
+      // Test via CLI router parseContent
+      val stdinResult = cumulus.devops.TerraformParser.inspectContent("resource \"aws_s3_bucket\" \"demo\" { bucket = \"my-bucket\" }", "stdin.tf")
+      assertEquals(stdinResult.resources.length, 1)
+      assertEquals(stdinResult.resources.head.name, "demo")
     finally
       file.delete()
   }
@@ -551,6 +556,12 @@ class MainTest extends FunSuite:
       assert(result.data.isDefined)
       assertEquals(result.data.get.length, 1)
       assertEquals(result.data.get.head.rule_id, "AVD-001")
+
+      // Test stdin parsing via parseSecurityJson
+      val jsonResult = cumulus.devops.TfSecurityParser.parseSecurityJson(json)
+      assert(jsonResult.isRight)
+      assertEquals(jsonResult.toOption.get.length, 1)
+      assertEquals(jsonResult.toOption.get.head.rule_id, "AVD-001")
     finally
       file.delete()
   }
@@ -674,6 +685,11 @@ class MainTest extends FunSuite:
       assert(result.data.isDefined)
       assertEquals(result.data.get.name, "test-app")
       assertEquals(result.data.get.values.get("replicaCount"), Some("2"))
+
+      // Test raw content inspection
+      val contentResult = cumulus.devops.HelmParser.inspectChartContent(chart, Some(values))
+      assertEquals(contentResult.name, "test-app")
+      assertEquals(contentResult.values.get("replicaCount"), Some("2"))
     finally
       os.remove.all(os.Path(tempDir))
   }
@@ -683,6 +699,128 @@ class MainTest extends FunSuite:
     assert(!result.success)
     assertEquals(result.error_code, Some("FILE_NOT_FOUND"))
   }
+
+  test("CLI: classify-workspace with valid directory returns topology") {
+    val tempDir = Files.createTempDirectory("maintest-classify").toFile
+    try
+      Files.writeString(new java.io.File(tempDir, "pom.xml").toPath, "<project></project>")
+      val result = cumulus.workspace.WorkspaceClassifier.classifyWorkspace(tempDir.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.primary_type, "maven")
+
+      // Test arg parsing with --dir
+      val argMap = cumulus.Main.parseArgs(Array("--dir", tempDir.getAbsolutePath))
+      assertEquals(argMap.get("dir"), Some(tempDir.getAbsolutePath))
+    finally
+      os.remove.all(os.Path(tempDir))
+  }
+
+  test("CLI: classify-workspace with non-existent directory returns FILE_NOT_FOUND") {
+    val result = cumulus.workspace.WorkspaceClassifier.classifyWorkspace("/nonexistent/workspace/dir")
+    assert(!result.success)
+    assertEquals(result.error_code, Some("FILE_NOT_FOUND"))
+  }
+
+  test("CLI: discover-devops-roots with valid directory returns devops roots") {
+    val tempDir = Files.createTempDirectory("maintest-devopsroots").toFile
+    try
+      Files.createDirectories(new java.io.File(tempDir, "infra/terraform").toPath)
+      Files.writeString(new java.io.File(tempDir, "infra/terraform/main.tf").toPath, "provider \"aws\" {}")
+      Files.createDirectories(new java.io.File(tempDir, "deploy/helm").toPath)
+      Files.writeString(new java.io.File(tempDir, "deploy/helm/Chart.yaml").toPath, "name: app")
+
+      val result = cumulus.workspace.DevopsRootDiscoverer.discoverDevopsRoots(tempDir.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      val data = result.data.get
+      assertEquals(data.workspace_root, tempDir.getAbsolutePath)
+      assert(data.terraform.contains((os.Path(tempDir) / "infra" / "terraform").toString))
+      assert(data.helm.contains((os.Path(tempDir) / "deploy" / "helm").toString))
+
+      // Test arg parsing with --path, --dir, --file
+      val argMapPath = cumulus.Main.parseArgs(Array("--path", tempDir.getAbsolutePath))
+      assertEquals(argMapPath.get("path"), Some(tempDir.getAbsolutePath))
+
+      val argMapDir = cumulus.Main.parseArgs(Array("--dir", tempDir.getAbsolutePath))
+      assertEquals(argMapDir.get("dir"), Some(tempDir.getAbsolutePath))
+
+      val argMapFile = cumulus.Main.parseArgs(Array("--file", tempDir.getAbsolutePath))
+      assertEquals(argMapFile.get("file"), Some(tempDir.getAbsolutePath))
+    finally
+      os.remove.all(os.Path(tempDir))
+  }
+
+  test("CLI: discover-devops-roots with non-existent path returns FILE_NOT_FOUND") {
+    val result = cumulus.workspace.DevopsRootDiscoverer.discoverDevopsRoots("/nonexistent/devops/path")
+    assert(!result.success)
+    assertEquals(result.error_code, Some("FILE_NOT_FOUND"))
+  }
+
+  test("CLI: assemble-command with key-value flags returns success") {
+    val argMap = cumulus.Main.parseArgs(Array("--tool", "maven", "--action", "build", "--flags", "-DskipTests"))
+    assertEquals(argMap.get("tool"), Some("maven"))
+    assertEquals(argMap.get("action"), Some("build"))
+    assertEquals(argMap.get("flags"), Some("-DskipTests"))
+
+    val intent = cumulus.build.CommandIntent(
+      tool = "maven",
+      action = "build",
+      flags = Seq("-DskipTests")
+    )
+    val result = cumulus.build.CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    assert(cmd.command.contains("clean package -DskipTests"))
+  }
+
+  test("CLI: assemble-command with JSON deserialization returns success") {
+    val json = """{"tool":"terraform","action":"plan","target":"infra/dev","flags":["-var-file=dev.tfvars"]}"""
+    val intent = upickle.default.read[cumulus.build.CommandIntent](json)
+    assertEquals(intent.tool, "terraform")
+    assertEquals(intent.action, "plan")
+    assertEquals(intent.target, Some("infra/dev"))
+    assertEquals(intent.flags, Seq("-var-file=dev.tfvars"))
+
+    val result = cumulus.build.CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    assertEquals(cmd.command, "terraform plan -var-file=dev.tfvars")
+    assert(cmd.cwd.endsWith("infra/dev"))
+  }
+
+  test("CLI: generate-dap-config with directory returns valid DapConfigResult") {
+    val tempDir = Files.createTempDirectory("main-dap-test-").toString
+    try
+      val pomPath = Paths.get(tempDir, "pom.xml")
+      Files.write(pomPath, "<project><artifactId>cli-demo-app</artifactId></project>".getBytes("UTF-8"))
+      val javaDir = Paths.get(tempDir, "src/main/java/com/example")
+      Files.createDirectories(javaDir)
+      Files.write(javaDir.resolve("CliApp.java"),
+        """package com.example;
+          |import org.springframework.boot.autoconfigure.SpringBootApplication;
+          |@SpringBootApplication
+          |public class CliApp {}""".stripMargin.getBytes("UTF-8"))
+
+      val response = cumulus.code.DapConfigGenerator.generateDapConfig(tempDir)
+      assert(response.success)
+      assert(response.data.isDefined)
+      val data = response.data.get
+      assertEquals(data.launch.mainClass, Some("com.example.CliApp"))
+      assertEquals(data.launch.projectName, Some("cli-demo-app"))
+      assertEquals(data.attach.port, Some(5005))
+    finally
+      os.remove.all(os.Path(tempDir))
+  }
+
+  test("CLI: generate-dap-config with non-existent directory returns FILE_NOT_FOUND") {
+    val response = cumulus.code.DapConfigGenerator.generateDapConfig("/nonexistent/cli/dap/path")
+    assert(!response.success)
+    assertEquals(response.error_code, Some("FILE_NOT_FOUND"))
+  }
+
+
+
 
 
 
