@@ -819,6 +819,78 @@ class MainTest extends FunSuite:
     assertEquals(response.error_code, Some("FILE_NOT_FOUND"))
   }
 
+  test("CLI: jdtls-config with valid Maven project returns success") {
+    val tempDir = Files.createTempDirectory("jdtls-maven-test-").toString
+    try
+      val pomPath = Paths.get(tempDir, "pom.xml")
+      Files.write(pomPath, """<?xml version="1.0" encoding="UTF-8"?>
+        |<project xmlns="http://maven.apache.org/POM/4.0.0">
+        |  <modelVersion>4.0.0</modelVersion>
+        |  <groupId>com.example</groupId>
+        |  <artifactId>test-app</artifactId>
+        |  <version>1.0.0</version>
+        |  <dependencies/>
+        |</project>""".stripMargin.getBytes("UTF-8"))
+
+      val result = cumulus.workspace.JdtlsConfigResolver.handle(tempDir)
+      assert(result.success)
+      assert(result.data.isDefined)
+      val config = result.data.get
+      assert(config.classpath.isInstanceOf[Seq[?]])
+      assert(config.jvm_runtimes.isInstanceOf[Seq[?]])
+      assert(config.jvm_args.contains("-Xmx4G"))
+      assert(config.init_options.nonEmpty)
+    finally
+      os.remove.all(os.Path(tempDir))
+  }
+
+  test("CLI: jdtls-config with non-existent directory returns FILE_NOT_FOUND") {
+    val result = cumulus.workspace.JdtlsConfigResolver.handle("/nonexistent/jdtls/project")
+    assert(!result.success)
+    assertEquals(result.error_code, Some("FILE_NOT_FOUND"))
+    assert(result.error.isDefined)
+  }
+
+  test("CLI: JdtlsConfig serialization and deserialization via uPickle") {
+    val tempDir = Files.createTempDirectory("jdtls-json-test-").toString
+    try
+      val pomPath = Paths.get(tempDir, "pom.xml")
+      Files.write(pomPath, """<?xml version="1.0" encoding="UTF-8"?>
+        |<project xmlns="http://maven.apache.org/POM/4.0.0">
+        |  <groupId>com.example</groupId>
+        |  <artifactId>test-app</artifactId>
+        |  <version>1.0.0</version>
+        |</project>""".stripMargin.getBytes("UTF-8"))
+
+      val result = cumulus.workspace.JdtlsConfigResolver.handle(tempDir)
+      given rw: upickle.default.ReadWriter[cumulus.protocol.JdtlsConfig] = upickle.default.macroRW
+
+      // Serialize to JSON
+      val jsonVal = CumulusResponse.toJson(result)
+      val json = ujson.write(jsonVal)
+
+      // Verify JSON contains expected fields
+      assert(json.contains("\"jdtls_path\""))
+      assert(json.contains("\"bundle_valid\""))
+      assert(json.contains("\"classpath\""))
+      assert(json.contains("\"jvm_runtimes\""))
+      assert(json.contains("\"jvm_args\""))
+      assert(json.contains("\"init_options\""))
+      assert(json.contains("\"success\":true"))
+
+      // Round-trip: deserialize back from JSON
+      val restored = CumulusResponse.fromJson[cumulus.protocol.JdtlsConfig](jsonVal)
+      assert(restored.success)
+      assert(restored.data.isDefined)
+      val restoredConfig = restored.data.get
+      assertEquals(restoredConfig.classpath, result.data.get.classpath)
+      assertEquals(restoredConfig.jvm_args, result.data.get.jvm_args)
+      assertEquals(restoredConfig.bundle_valid, result.data.get.bundle_valid)
+      assertEquals(restoredConfig.jvm_runtimes.length, result.data.get.jvm_runtimes.length)
+    finally
+      os.remove.all(os.Path(tempDir))
+  }
+
 
 
 

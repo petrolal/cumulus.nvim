@@ -184,6 +184,29 @@ object ThemeHighlights:
     }
   )
 
+// JDTLS configuration models
+case class JdkRuntime(
+  version: String,
+  path: String,
+  is_default: Boolean
+) derives ReadWriter
+
+case class JdtlsBundle(
+  path: String,
+  valid: Boolean,
+  config_dir: Option[String]
+) derives ReadWriter
+
+case class JdtlsConfig(
+  jdtls_path: Option[String],
+  bundle_valid: Boolean,
+  classpath: Seq[String],
+  jvm_runtimes: Seq[JdkRuntime],
+  jvm_args: Seq[String],
+  init_options: Map[String, String],
+  notes: Option[Seq[String]]
+) derives ReadWriter
+
 object CumulusResponse:
   // Reusable ReadWriter for Unit responses (e.g. ping)
   given unitRW: ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](

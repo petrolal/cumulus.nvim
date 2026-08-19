@@ -1,8 +1,8 @@
 package cumulus
 
-import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights}
+import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights, JdtlsConfig}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler, MultiModuleResolver}
-import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer}
+import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer, JdtlsConfigResolver}
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
@@ -1022,6 +1022,13 @@ object Main:
               ThemeGenerator.generateThemeHighlights(prov)
             case None =>
               errorEnvelope[ThemeHighlights]("Missing provider argument (aws, azure, gcp, or oci)", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
+
+        case "jdtls-config" =>
+          given ReadWriter[JdtlsConfig] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val projectRoot = argMap.getOrElse("project-root", ".")
+          val result = JdtlsConfigResolver.handle(projectRoot)
           serializeResponse(result)
 
         case _ =>
