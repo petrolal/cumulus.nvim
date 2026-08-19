@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 import scala.sys.process._
 import cumulus.build.MavenParser
 import cumulus.protocol.CumulusResponse
+import upickle.default.ReadWriter
 
 class MainTest extends FunSuite:
 
@@ -889,6 +890,109 @@ class MainTest extends FunSuite:
       assertEquals(restoredConfig.jvm_runtimes.length, result.data.get.jvm_runtimes.length)
     finally
       os.remove.all(os.Path(tempDir))
+  }
+
+  test("CLI: eval-keymap-gates with simple equality gate returns success") {
+    given ReadWriter[cumulus.protocol.GateEvalResult] = upickle.default.macroRW
+    given contextRW: ReadWriter[cumulus.protocol.GateContext] = cumulus.protocol.GateContext.GateContextRW
+
+    val result = cumulus.keymap.KeymapGateEvaluator.handle(
+      "filetype=java",
+      cumulus.protocol.GateContext(filetype = Some("java"))
+    )
+
+    assert(result.success)
+    assert(result.data.isDefined)
+    assert(result.data.get.gate_active)
+    assert(result.error.isEmpty)
+    assert(result.error_code.isEmpty)
+  }
+
+  test("CLI: eval-keymap-gates with AND gate returns correct result") {
+    given ReadWriter[cumulus.protocol.GateEvalResult] = upickle.default.macroRW
+    given contextRW: ReadWriter[cumulus.protocol.GateContext] = cumulus.protocol.GateContext.GateContextRW
+
+    val result = cumulus.keymap.KeymapGateEvaluator.handle(
+      "filetype=java AND project_type=maven",
+      cumulus.protocol.GateContext(
+        filetype = Some("java"),
+        project_type = Some("maven")
+      )
+    )
+
+    assert(result.success)
+    assert(result.data.isDefined)
+    assert(result.data.get.gate_active)
+  }
+
+  test("CLI: eval-keymap-gates with mismatched AND gate returns false") {
+    given ReadWriter[cumulus.protocol.GateEvalResult] = upickle.default.macroRW
+    given contextRW: ReadWriter[cumulus.protocol.GateContext] = cumulus.protocol.GateContext.GateContextRW
+
+    val result = cumulus.keymap.KeymapGateEvaluator.handle(
+      "filetype=java AND project_type=maven",
+      cumulus.protocol.GateContext(
+        filetype = Some("java"),
+        project_type = Some("gradle")
+      )
+    )
+
+    assert(result.success)
+    assert(result.data.isDefined)
+    assert(!result.data.get.gate_active)
+  }
+
+  test("CLI: eval-keymap-gates with malformed gate expression returns error") {
+    given ReadWriter[cumulus.protocol.GateEvalResult] = upickle.default.macroRW
+    given contextRW: ReadWriter[cumulus.protocol.GateContext] = cumulus.protocol.GateContext.GateContextRW
+
+    val result = cumulus.keymap.KeymapGateEvaluator.handle(
+      "filetype==java",
+      cumulus.protocol.GateContext(filetype = Some("java"))
+    )
+
+    assert(!result.success)
+    assert(result.data.isEmpty)
+    assert(result.error.isDefined)
+    assert(result.error.get.contains("Invalid gate expression syntax"))
+    assert(result.error_code.isDefined)
+  }
+
+  test("CLI: eval-keymap-gates with missing context field returns error") {
+    given ReadWriter[cumulus.protocol.GateEvalResult] = upickle.default.macroRW
+    given contextRW: ReadWriter[cumulus.protocol.GateContext] = cumulus.protocol.GateContext.GateContextRW
+
+    val result = cumulus.keymap.KeymapGateEvaluator.handle(
+      "filetype=java",
+      cumulus.protocol.GateContext() // Empty context
+    )
+
+    assert(!result.success)
+    assert(result.data.isEmpty)
+    assert(result.error.isDefined)
+    assert(result.error.get.contains("Missing required variable"))
+  }
+
+  test("CLI: eval-keymap-gates JSON serialization roundtrip") {
+    given ReadWriter[cumulus.protocol.GateEvalResult] = upickle.default.macroRW
+    given contextRW: ReadWriter[cumulus.protocol.GateContext] = cumulus.protocol.GateContext.GateContextRW
+
+    val original = cumulus.protocol.GateContext(
+      buftype = Some(""),
+      filetype = Some("java"),
+      mode = Some("normal"),
+      lsp_active = Some(true),
+      debug_mode = Some(false)
+    )
+
+    val json = upickle.default.write[cumulus.protocol.GateContext](original)
+    val restored = upickle.default.read[cumulus.protocol.GateContext](json)
+
+    assertEquals(restored.buftype, original.buftype)
+    assertEquals(restored.filetype, original.filetype)
+    assertEquals(restored.mode, original.mode)
+    assertEquals(restored.lsp_active, original.lsp_active)
+    assertEquals(restored.debug_mode, original.debug_mode)
   }
 
 

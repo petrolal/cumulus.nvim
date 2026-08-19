@@ -184,6 +184,47 @@ object ThemeHighlights:
     }
   )
 
+// Keymap gate evaluation models
+case class GateContext(
+  buftype: Option[String] = None,
+  filetype: Option[String] = None,
+  mode: Option[String] = None,
+  project_type: Option[String] = None,
+  lsp_active: Option[Boolean] = None,
+  debug_mode: Option[Boolean] = None,
+  test_context: Option[Boolean] = None
+)
+
+object GateContext:
+  // Custom ReadWriter needed for proper Option field handling in partial JSON
+  given GateContextRW: ReadWriter[GateContext] = upickle.default.readwriter[ujson.Value].bimap[GateContext](
+    ctx => ujson.Obj(
+      "buftype" -> ctx.buftype.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+      "filetype" -> ctx.filetype.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+      "mode" -> ctx.mode.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+      "project_type" -> ctx.project_type.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+      "lsp_active" -> ctx.lsp_active.fold(ujson.Null: ujson.Value)(ujson.Bool(_)),
+      "debug_mode" -> ctx.debug_mode.fold(ujson.Null: ujson.Value)(ujson.Bool(_)),
+      "test_context" -> ctx.test_context.fold(ujson.Null: ujson.Value)(ujson.Bool(_))
+    ),
+    json => {
+      val obj = json.obj
+      GateContext(
+        buftype = obj.get("buftype").flatMap { case ujson.Str(s) => Some(s); case ujson.Null => None; case _ => None },
+        filetype = obj.get("filetype").flatMap { case ujson.Str(s) => Some(s); case ujson.Null => None; case _ => None },
+        mode = obj.get("mode").flatMap { case ujson.Str(s) => Some(s); case ujson.Null => None; case _ => None },
+        project_type = obj.get("project_type").flatMap { case ujson.Str(s) => Some(s); case ujson.Null => None; case _ => None },
+        lsp_active = obj.get("lsp_active").flatMap { case ujson.Bool(b) => Some(b); case ujson.Null => None; case _ => None },
+        debug_mode = obj.get("debug_mode").flatMap { case ujson.Bool(b) => Some(b); case ujson.Null => None; case _ => None },
+        test_context = obj.get("test_context").flatMap { case ujson.Bool(b) => Some(b); case ujson.Null => None; case _ => None }
+      )
+    }
+  )
+
+case class GateEvalResult(
+  gate_active: Boolean
+) derives ReadWriter
+
 // JDTLS configuration models
 case class JdkRuntime(
   version: String,

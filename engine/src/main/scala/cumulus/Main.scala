@@ -1,6 +1,6 @@
 package cumulus
 
-import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights, JdtlsConfig}
+import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights, JdtlsConfig, GateContext, GateEvalResult}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler, MultiModuleResolver}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer, JdtlsConfigResolver}
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator}
@@ -16,6 +16,7 @@ import cumulus.gradle.WrapperVerifier
 import cumulus.workspace.JdtlsSyncChecker
 import cumulus.dep.{DepResolver, DepLens}
 import cumulus.theme.{ThemeManager, ThemeGenerator}
+import cumulus.keymap.KeymapGateEvaluator
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -1030,6 +1031,32 @@ object Main:
           val projectRoot = argMap.getOrElse("project-root", ".")
           val result = JdtlsConfigResolver.handle(projectRoot)
           serializeResponse(result)
+
+        case "eval-keymap-gates" =>
+          given ReadWriter[GateEvalResult] = upickle.default.macroRW
+          given contextRW: ReadWriter[GateContext] = GateContext.GateContextRW
+          try
+            val argMap = parseArgs(args.slice(1, args.length))
+            val gateExpr = argMap.get("gate").getOrElse("")
+            val contextJsonOpt = argMap.get("context")
+
+            val result = if gateExpr.isEmpty then
+              errorEnvelope[GateEvalResult]("Missing --gate argument", CumulusError.INVALID_INPUT)
+            else if contextJsonOpt.isEmpty then
+              errorEnvelope[GateEvalResult]("Missing --context argument", CumulusError.INVALID_INPUT)
+            else
+              try
+                val contextJson = contextJsonOpt.get
+                val gateContext = upickle.default.read[GateContext](contextJson)
+                KeymapGateEvaluator.handle(gateExpr, gateContext)
+              catch
+                case e: Exception =>
+                  errorEnvelope[GateEvalResult](s"Invalid context JSON: ${e.getMessage}", CumulusError.INVALID_INPUT)
+
+            serializeResponse(result)
+          catch
+            case e: Exception =>
+              serializeResponse(errorEnvelope[GateEvalResult](s"Error evaluating gate: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
 
         case _ =>
           import CumulusResponse.unitRW
