@@ -319,5 +319,62 @@ class MavenParserTest extends FunSuite:
     val moduleNames = result.data.get.modules.map(_.name)
     assert(moduleNames == Seq("alpha", "beta", "gamma"))
 
-    Files.delete(Paths.get(pomPath))
+  test("reject POM with malicious XXE in parseGoals") {
+    val pomContent = """<?xml version="1.0" encoding="UTF-8"?>
+      |<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>
+      |<project xmlns="http://maven.apache.org/POM/4.0.0">
+      |  <modelVersion>4.0.0</modelVersion>
+      |  <groupId>com.example</groupId>
+      |  <artifactId>&xxe;</artifactId>
+      |  <version>1.0.0</version>
+      |</project>""".stripMargin
+
+    val pomPath = createTempFile(pomContent)
+    try {
+      val result = MavenParser.parseGoals(pomPath)
+      assert(!result.success)
+    } finally {
+      Files.deleteIfExists(Paths.get(pomPath))
+    }
   }
+
+  test("reject POM with malicious XXE in parseModules") {
+    val pomContent = """<?xml version="1.0" encoding="UTF-8"?>
+      |<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>
+      |<project xmlns="http://maven.apache.org/POM/4.0.0">
+      |  <modelVersion>4.0.0</modelVersion>
+      |  <groupId>com.example</groupId>
+      |  <artifactId>&xxe;</artifactId>
+      |  <version>1.0.0</version>
+      |</project>""".stripMargin
+
+    val pomPath = createTempFile(pomContent)
+    try {
+      val result = MavenParser.parseModules(pomPath)
+      assert(!result.success)
+    } finally {
+      Files.deleteIfExists(Paths.get(pomPath))
+    }
+  }
+
+  test("reject POM with malicious XXE in resolveModuleTree") {
+    val pomContent = """<?xml version="1.0" encoding="UTF-8"?>
+      |<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>
+      |<project xmlns="http://maven.apache.org/POM/4.0.0">
+      |  <modelVersion>4.0.0</modelVersion>
+      |  <groupId>com.example</groupId>
+      |  <artifactId>&xxe;</artifactId>
+      |  <version>1.0.0</version>
+      |</project>""".stripMargin
+
+    val pomPath = createTempFile(pomContent)
+    try {
+      val result = MavenParser.resolveModuleTree(pomPath)
+      assert(!result.success)
+    } finally {
+      Files.deleteIfExists(Paths.get(pomPath))
+    }
+  }
+
+
+}

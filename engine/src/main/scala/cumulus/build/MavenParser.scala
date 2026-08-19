@@ -2,8 +2,9 @@ package cumulus.build
 
 import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree}
 import upickle.default.ReadWriter
-import scala.xml.{XML, Elem, Node}
+import scala.xml.{Elem, Node}
 import scala.io.Source
+import cumulus.util.SecureXML
 import java.io.File
 
 object MavenParser:
@@ -25,7 +26,7 @@ object MavenParser:
           error_code = Some("FILE_NOT_FOUND")
         )
 
-      val pom = XML.loadFile(file)
+      val pom = SecureXML.loadFile(file)
       val goals = scala.collection.mutable.ListBuffer[PomGoal]()
 
       // Add standard lifecycle goals
@@ -77,7 +78,7 @@ object MavenParser:
           error_code = Some("FILE_NOT_FOUND")
         )
 
-      val pom = XML.loadFile(file)
+      val pom = SecureXML.loadFile(file)
       val modules = scala.collection.mutable.ListBuffer[PomModule]()
 
       // Look for modules - try both with and without namespace
@@ -139,7 +140,7 @@ object MavenParser:
           error_code = Some("FILE_NOT_FOUND")
         )
 
-      val pom = XML.loadFile(file)
+      val pom = SecureXML.loadFile(file)
       val rootDir = Option(file.getParentFile).map(_.getAbsolutePath).getOrElse(file.getAbsolutePath)
       val modules = scala.collection.mutable.ListBuffer[Module]()
 
