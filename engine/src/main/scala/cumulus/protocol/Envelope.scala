@@ -334,6 +334,18 @@ case class KotlinLspConfig(
   diagnostics: Option[Seq[String]] = None
 ) derives ReadWriter
 
+// File Scaffolding models
+case class ScaffoldResult(
+  file_path: String,
+  package_name: String,
+  type_name: String,
+  template: String,
+  content: String,
+  source_root: Option[String] = None,
+  created: Boolean = false
+) derives ReadWriter
+
+
 object CumulusResponse:
   // Reusable ReadWriter for Unit responses (e.g. ping)
   given unitRW: ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](

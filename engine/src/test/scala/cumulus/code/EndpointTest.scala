@@ -315,3 +315,121 @@ class HelloController {
       os.remove.all(Path(dir))
   }
 
+// ===== FileScaffolder Tests =====
+
+class FileScaffolderTest extends FunSuite:
+
+  test("scaffold: Java class default template") {
+    val res = FileScaffolder.scaffold("src/main/java/com/example/service/UserService.java", None)
+    assert(res.success)
+    assert(res.data.isDefined)
+    val data = res.data.get
+    assertEquals(data.package_name, "com.example.service")
+    assertEquals(data.type_name, "UserService")
+    assertEquals(data.template, "class")
+    assertEquals(data.created, false)
+    assertEquals(data.content, "package com.example.service;\n\npublic class UserService {\n}\n")
+  }
+
+  test("scaffold: Java interface, record, and enum templates") {
+    val resInterface = FileScaffolder.scaffold("src/main/java/com/example/repo/UserRepo.java", Some("interface"))
+    assert(resInterface.success)
+    assertEquals(resInterface.data.get.content, "package com.example.repo;\n\npublic interface UserRepo {\n}\n")
+
+    val resRecord = FileScaffolder.scaffold("src/main/java/com/example/dto/UserDto.java", Some("record"))
+    assert(resRecord.success)
+    assertEquals(resRecord.data.get.content, "package com.example.dto;\n\npublic record UserDto(\n) {\n}\n")
+
+    val resEnum = FileScaffolder.scaffold("src/main/java/com/example/model/Role.java", Some("enum"))
+    assert(resEnum.success)
+    assertEquals(resEnum.data.get.content, "package com.example.model;\n\npublic enum Role {\n}\n")
+  }
+
+  test("scaffold: Kotlin class, data class, interface, object, enum") {
+    val resClass = FileScaffolder.scaffold("src/main/kotlin/com/example/model/User.kt", None)
+    assert(resClass.success)
+    assertEquals(resClass.data.get.content, "package com.example.model\n\nclass User {\n}\n")
+
+    val resDataClass = FileScaffolder.scaffold("src/main/kotlin/com/example/model/User.kt", Some("data-class"))
+    assert(resDataClass.success)
+    assertEquals(resDataClass.data.get.content, "package com.example.model\n\ndata class User(\n    val id: String\n)\n")
+
+    val resObj = FileScaffolder.scaffold("src/main/kotlin/com/example/util/Constants.kt", Some("object"))
+    assert(resObj.success)
+    assertEquals(resObj.data.get.content, "package com.example.util\n\nobject Constants {\n}\n")
+
+    val resEnum = FileScaffolder.scaffold("src/main/kotlin/com/example/model/Status.kt", Some("enum"))
+    assert(resEnum.success)
+    assertEquals(resEnum.data.get.content, "package com.example.model\n\nenum class Status {\n}\n")
+  }
+
+  test("scaffold: Scala class, trait, object, enum, case-class") {
+    val resClass = FileScaffolder.scaffold("src/main/scala/com/example/Runner.scala", None)
+    assert(resClass.success)
+    assertEquals(resClass.data.get.content, "package com.example\n\nclass Runner {\n}\n")
+
+    val resTrait = FileScaffolder.scaffold("src/main/scala/com/example/Service.scala", Some("trait"))
+    assert(resTrait.success)
+    assertEquals(resTrait.data.get.content, "package com.example\n\ntrait Service {\n}\n")
+
+    val resObj = FileScaffolder.scaffold("src/main/scala/com/example/Main.scala", Some("object"))
+    assert(resObj.success)
+    assertEquals(resObj.data.get.content, "package com.example\n\nobject Main {\n}\n")
+
+    val resEnum = FileScaffolder.scaffold("src/main/scala/com/example/Color.scala", Some("enum"))
+    assert(resEnum.success)
+    assertEquals(resEnum.data.get.content, "package com.example\n\nenum Color {\n}\n")
+  }
+
+  test("scaffold: Multiplatform and varied source roots") {
+    val resKmp = FileScaffolder.scaffold("shared/src/commonMain/kotlin/com/example/kmp/CommonModel.kt", None)
+    assert(resKmp.success)
+    assertEquals(resKmp.data.get.package_name, "com.example.kmp")
+
+    val resJvm = FileScaffolder.scaffold("shared/src/jvmMain/kotlin/com/example/jvm/JvmModel.kt", None)
+    assert(resJvm.success)
+    assertEquals(resJvm.data.get.package_name, "com.example.jvm")
+
+    val resTest = FileScaffolder.scaffold("src/test/java/com/example/service/UserServiceTest.java", None)
+    assert(resTest.success)
+    assertEquals(resTest.data.get.package_name, "com.example.service")
+  }
+
+  test("scaffold: File outside source root returns empty package") {
+    val res = FileScaffolder.scaffold("/opt/code/User.java", None)
+    assert(res.success)
+    assertEquals(res.data.get.package_name, "")
+    assertEquals(res.data.get.content, "public class User {\n}\n")
+  }
+
+  test("scaffold: Missing file returns INVALID_INPUT error envelope") {
+    val resNull = FileScaffolder.scaffold(null, None)
+    assert(!resNull.success)
+    assertEquals(resNull.error_code, Some("INVALID_INPUT"))
+
+    val resEmpty = FileScaffolder.scaffold("   ", None)
+    assert(!resEmpty.success)
+    assertEquals(resEmpty.error_code, Some("INVALID_INPUT"))
+  }
+
+  test("scaffold: --create flag creates file and parent directories") {
+    val tmpDir = os.temp.dir(prefix = "scaffold-test")
+    try
+      val targetFile = tmpDir / "src" / "main" / "java" / "com" / "example" / "App.java"
+      val res = FileScaffolder.scaffold(targetFile.toString, Some("class"), create = true)
+      assert(res.success)
+      assert(res.data.isDefined)
+      assertEquals(res.data.get.created, true)
+      assert(os.exists(targetFile))
+      val fileContent = os.read(targetFile)
+      assertEquals(fileContent, "package com.example;\n\npublic class App {\n}\n")
+
+      // Attempting to overwrite non-empty file fails
+      val resOverwrite = FileScaffolder.scaffold(targetFile.toString, Some("class"), create = true)
+      assert(!resOverwrite.success)
+      assertEquals(resOverwrite.error_code, Some("INVALID_INPUT"))
+    finally
+      os.remove.all(tmpDir)
+  }
+
+

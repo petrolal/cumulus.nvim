@@ -1261,6 +1261,30 @@ class MainTest extends FunSuite:
     assertEquals(result.error_code, Some("FILE_NOT_FOUND"))
   }
 
+  test("CLI: scaffold-file argument parsing and serialization") {
+    val argMap = Main.parseArgs(Seq("--file", "src/main/java/com/example/TestService.java", "--template", "record"))
+    assertEquals(argMap.get("file"), Some("src/main/java/com/example/TestService.java"))
+    assertEquals(argMap.get("template"), Some("record"))
+
+    val result = cumulus.code.FileScaffolder.scaffold("src/main/java/com/example/TestService.java", Some("record"))
+    assert(result.success)
+    assert(result.data.isDefined)
+    assertEquals(result.data.get.package_name, "com.example")
+    assertEquals(result.data.get.type_name, "TestService")
+    assertEquals(result.data.get.template, "record")
+
+    given rw: upickle.default.ReadWriter[cumulus.protocol.ScaffoldResult] = upickle.default.macroRW
+    val jsonVal = cumulus.protocol.CumulusResponse.toJson(result)
+    val jsonStr = ujson.write(jsonVal)
+    assert(jsonStr.contains("\"package_name\":\"com.example\""))
+    assert(jsonStr.contains("\"type_name\":\"TestService\""))
+
+    val restored = cumulus.protocol.CumulusResponse.fromJson[cumulus.protocol.ScaffoldResult](jsonVal)
+    assert(restored.success)
+    assertEquals(restored.data.get.package_name, "com.example")
+  }
+
+
 
 
 

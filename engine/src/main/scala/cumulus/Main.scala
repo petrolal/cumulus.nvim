@@ -1,9 +1,9 @@
 package cumulus
 
-import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights, JdtlsConfig, GateContext, GateEvalResult, ToolchainMatrix, KotlinLspConfig}
+import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights, JdtlsConfig, GateContext, GateEvalResult, ToolchainMatrix, KotlinLspConfig, ScaffoldResult}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler, MultiModuleResolver}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer, JdtlsConfigResolver}
-import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator}
+import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator, FileScaffolder}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
 import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue, AnsibleParser, AnsiblePlaybookInfo, AnsibleValidationIssue, AnsibleInventoryGroup, TerraformParser, TfSecurityParser, TerraformInfo, SecurityFinding, DockerParser, DockerValidator, DockerImage, ContainerValidationIssue, HelmParser, HelmChartInfo}
@@ -1112,7 +1112,27 @@ object Main:
             case e: Exception =>
               serializeResponse(errorEnvelope[KotlinLspConfig](s"Error resolving Kotlin LSP configuration: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
 
+        case "scaffold-file" =>
+          given ReadWriter[ScaffoldResult] = upickle.default.macroRW
+          try
+            val argMap = parseArgs(args.slice(1, args.length))
+            val filePathOpt = argMap.get("file")
+            val templateOpt = argMap.get("template")
+            val createFlag = args.contains("--create")
+
+            val result = filePathOpt match
+              case Some(filePath) =>
+                FileScaffolder.scaffold(filePath, templateOpt, createFlag)
+              case None =>
+                errorEnvelope[ScaffoldResult]("Missing required argument: --file", CumulusError.INVALID_INPUT)
+
+            serializeResponse(result)
+          catch
+            case e: Exception =>
+              serializeResponse(errorEnvelope[ScaffoldResult](s"Error scaffolding file: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
+
         case _ =>
           import CumulusResponse.unitRW
           serializeResponse(errorEnvelope[Unit]("Unknown subcommand"))
+
 
