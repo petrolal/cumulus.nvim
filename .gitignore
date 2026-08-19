@@ -15,7 +15,6 @@ engine/project/target/
 .bloop/
 
 # Dotfiles project-specific artifacts
-.dotfiles_backup/
 .agent/
 .agents/
 .claude/

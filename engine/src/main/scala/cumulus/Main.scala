@@ -1,6 +1,6 @@
 package cumulus
 
-import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights, JdtlsConfig, GateContext, GateEvalResult}
+import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights, JdtlsConfig, GateContext, GateEvalResult, ToolchainMatrix}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler, MultiModuleResolver}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer, JdtlsConfigResolver}
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator}
@@ -17,6 +17,7 @@ import cumulus.workspace.JdtlsSyncChecker
 import cumulus.dep.{DepResolver, DepLens}
 import cumulus.theme.{ThemeManager, ThemeGenerator}
 import cumulus.keymap.KeymapGateEvaluator
+import cumulus.toolchain.ToolchainMatrixGenerator
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -1057,6 +1058,24 @@ object Main:
           catch
             case e: Exception =>
               serializeResponse(errorEnvelope[GateEvalResult](s"Error evaluating gate: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
+
+        case "toolchain-matrix" =>
+          given ReadWriter[ToolchainMatrix] = upickle.default.macroRW
+          try
+            val argMap = parseArgs(args.slice(1, args.length))
+            val language = argMap.get("language").map(_.trim.toLowerCase).getOrElse("")
+
+            val result = if language.isEmpty then
+              errorEnvelope[ToolchainMatrix]("Missing required argument: --language LANG", CumulusError.INVALID_INPUT)
+            else if !Seq("java", "kotlin", "scala", "go", "rust", "python", "node").contains(language) then
+              errorEnvelope[ToolchainMatrix](s"Unsupported language: $language. Supported: java, kotlin, scala, go, rust, python, node", CumulusError.INVALID_INPUT)
+            else
+              ToolchainMatrixGenerator.handle(language)
+
+            serializeResponse(result)
+          catch
+            case e: Exception =>
+              serializeResponse(errorEnvelope[ToolchainMatrix](s"Error generating toolchain matrix: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
 
         case _ =>
           import CumulusResponse.unitRW

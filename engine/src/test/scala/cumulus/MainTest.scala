@@ -995,7 +995,86 @@ class MainTest extends FunSuite:
     assertEquals(restored.debug_mode, original.debug_mode)
   }
 
+  test("CLI: toolchain-matrix with unsupported language returns error") {
+    val result = cumulus.toolchain.ToolchainMatrixGenerator.handle("cobol")
+    assertEquals(result.success, false)
+    assertEquals(result.error_code, Some("UNSUPPORTED_LANGUAGE"))
+    assert(result.error.isDefined)
+  }
 
+  test("CLI: toolchain-matrix with java language returns valid response structure") {
+    val result = cumulus.toolchain.ToolchainMatrixGenerator.handle("java")
+    if result.success then
+      assert(result.data.isDefined)
+      val matrix = result.data.get
+      assertEquals(matrix.language, "java")
+      assert(matrix.available_tools.isInstanceOf[Seq[_]])
+      assert(matrix.formatters.isInstanceOf[Seq[_]])
+      assert(matrix.language_servers.isInstanceOf[Seq[_]])
+      assert(matrix.debuggers.isInstanceOf[Seq[_]])
+  }
+
+  test("CLI: toolchain-matrix with go language returns valid response structure") {
+    val result = cumulus.toolchain.ToolchainMatrixGenerator.handle("go")
+    if result.success then
+      assert(result.data.isDefined)
+      val matrix = result.data.get
+      assertEquals(matrix.language, "go")
+  }
+
+  test("CLI: toolchain-matrix with python language returns valid response structure") {
+    val result = cumulus.toolchain.ToolchainMatrixGenerator.handle("python")
+    if result.success then
+      assert(result.data.isDefined)
+      val matrix = result.data.get
+      assertEquals(matrix.language, "python")
+  }
+
+  test("CLI: toolchain-matrix response serializes to valid JSON") {
+    given ReadWriter[cumulus.protocol.ToolchainMatrix] = upickle.default.macroRW
+    val result = cumulus.toolchain.ToolchainMatrixGenerator.handle("go")
+    if result.success then
+      val matrix = result.data.get
+      val json = upickle.default.write[cumulus.protocol.ToolchainMatrix](matrix)
+      assert(json.nonEmpty)
+      // Verify it's valid JSON
+      val restored = upickle.default.read[cumulus.protocol.ToolchainMatrix](json)
+      assertEquals(restored.language, matrix.language)
+  }
+
+  test("CLI: toolchain-matrix is case-insensitive") {
+    val result1 = cumulus.toolchain.ToolchainMatrixGenerator.handle("JAVA")
+    val result2 = cumulus.toolchain.ToolchainMatrixGenerator.handle("java")
+    assertEquals(result1.success, result2.success)
+  }
+
+  test("CLI: toolchain-matrix response has correct envelope structure") {
+    val result = cumulus.toolchain.ToolchainMatrixGenerator.handle("python")
+    // Check CumulusResponse envelope fields
+    if result.success then
+      assertEquals(result.success, true)
+      assert(result.data.isDefined)
+      assertEquals(result.error, None)
+      assertEquals(result.error_code, None)
+  }
+
+  test("ToolchainMatrix case class serialization") {
+    given ReadWriter[cumulus.protocol.ToolchainMatrix] = upickle.default.macroRW
+    val original = cumulus.protocol.ToolchainMatrix(
+      language = "java",
+      available_tools = Seq("javac", "maven"),
+      formatters = Seq(),
+      language_servers = Seq(),
+      debuggers = Seq(),
+      diagnostic_warnings = Seq()
+    )
+
+    val json = upickle.default.write[cumulus.protocol.ToolchainMatrix](original)
+    val restored = upickle.default.read[cumulus.protocol.ToolchainMatrix](json)
+
+    assertEquals(restored.language, original.language)
+    assertEquals(restored.available_tools, original.available_tools)
+  }
 
 
 

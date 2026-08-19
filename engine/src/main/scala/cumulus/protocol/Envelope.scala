@@ -248,6 +248,57 @@ case class JdtlsConfig(
   notes: Option[Seq[String]]
 ) derives ReadWriter
 
+// Toolchain matrix models
+case class ToolSpec(
+  name: String,
+  version: Option[String] = None,
+  path: Option[String] = None,
+  status: String = "available" // "available", "missing", "unknown"
+) derives ReadWriter
+
+case class MasonPackageSpec(
+  name: String,
+  mason_name: String,
+  min_version: String,
+  installation_method: String = "mason",
+  tags: Seq[String] = Seq()
+) derives ReadWriter
+
+case class FormatterInfo(
+  name: String,
+  mason_name: String,
+  version: Option[String] = None,
+  cli_args: Seq[String] = Seq(),
+  status: String = "available"
+) derives ReadWriter
+
+case class LanguageServerInfo(
+  name: String,
+  mason_name: String,
+  min_version: String,
+  version: Option[String] = None,
+  status: String = "available", // "compatible", "incompatible", "unknown"
+  diagnostic_message: Option[String] = None
+) derives ReadWriter
+
+case class DebuggerInfo(
+  name: String,
+  mason_name: String,
+  version: Option[String] = None,
+  status: String = "available",
+  diagnostic_message: Option[String] = None
+) derives ReadWriter
+
+case class ToolchainMatrix(
+  language: String,
+  available_tools: Seq[String],
+  build_tools: Seq[ToolSpec] = Seq(),
+  formatters: Seq[FormatterInfo] = Seq(),
+  language_servers: Seq[LanguageServerInfo] = Seq(),
+  debuggers: Seq[DebuggerInfo] = Seq(),
+  diagnostic_warnings: Seq[String] = Seq()
+) derives ReadWriter
+
 object CumulusResponse:
   // Reusable ReadWriter for Unit responses (e.g. ping)
   given unitRW: ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
