@@ -7,6 +7,8 @@ import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBo
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
 import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue, AnsibleParser, AnsiblePlaybookInfo, AnsibleValidationIssue, AnsibleInventoryGroup, TerraformParser, TfSecurityParser, TerraformInfo, SecurityFinding, DockerParser, DockerValidator, DockerImage, ContainerValidationIssue, HelmParser, HelmChartInfo}
+import cumulus.health.HealthChecker
+import cumulus.protocol.HealthReport
 import cumulus.git.{ConflictParser, ConflictBlock}
 import cumulus.util.{SessionSanitizer, NetworkChecker}
 import cumulus.gradle.WrapperVerifier
@@ -721,6 +723,15 @@ object Main:
             case None =>
               errorEnvelope[NetworkStatus]("Missing --host argument", CumulusError.INVALID_INPUT)
           serializeResponse(result)
+
+        case "check-health" =>
+          given ReadWriter[HealthReport] = upickle.default.macroRW
+          try
+            val result = HealthChecker.checkHealth()
+            serializeResponse(result)
+          catch
+            case e: Exception =>
+              serializeResponse(errorEnvelope[HealthReport](s"Health check failed: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
 
         case "check-jdtls-sync" =>
           val argMap = parseArgs(args.slice(1, args.length))

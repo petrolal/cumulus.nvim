@@ -482,6 +482,16 @@ function M.check_network(host)
   return result and result.online or nil
 end
 
+--- Perform a comprehensive health check of system binaries, compilers, JDKs, and Gradle wrapper
+---@return { binaries: table[], compilers: table[], jdks: table[], gradle_wrapper: table|nil, build_tool: string, engine_available: boolean, notes: string[]|nil }|nil
+function M.check_health()
+  local ok, response = pcall(call_engine_command, { "check-health" }, nil, "check-health", { silent = true })
+  if ok and response then
+    return response
+  end
+  return nil
+end
+
 --- Parse Checkstyle XML report using Scala engine
 ---@param xml_content string
 ---@return table[]|nil Array of { file = string, line = number, col = number|nil, message = string, severity = string }

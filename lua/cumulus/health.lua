@@ -19,29 +19,39 @@ function M.check()
 
   vim.health.start("Cumulus System Dependencies")
 
-  local binaries = {
-    { name = "rg", desc = "ripgrep (required for Telescope live_grep & Snacks picker)", level = "warn" },
-    { name = "fd", desc = "fd (optional high-speed file finder)", level = "info" },
-    { name = "git", desc = "git (required for version control & git_files picker)", level = "warn" },
-    { name = "sbt", desc = "sbt / GraalVM native-image (for building Scala native engine)", level = "info" },
-    { name = "npm", desc = "npm (required for markdown-preview.nvim build)", level = "info" },
-    { name = "node", desc = "node (required for markdown-preview & npm-based DevOps LSP servers)", level = "info" },
-    { name = "python3", desc = "python3 (required for pynvim, ansible-lint, cfn-lint & BMad scripts)", level = "info" },
-  }
+  local engine = require("cumulus.util.engine")
+  local health_response = engine.check_health()
 
-  for _, b in ipairs(binaries) do
-    if vim.fn.executable(b.name) == 1 then
-      vim.health.ok(string.format("%s: installed and executable", b.name))
-    else
-      if b.level == "warn" then
-        vim.health.warn(string.format("%s: NOT found on $PATH (%s)", b.name, b.desc))
-      else
-        vim.health.info(string.format("%s: NOT found on $PATH (%s)", b.name, b.desc))
+  if health_response and health_response.data then
+    local report = health_response.data
+
+    -- Display binary status
+    if report.binaries then
+      for _, binary in ipairs(report.binaries) do
+        if binary.status == "ok" then
+          if binary.version then
+            vim.health.ok(string.format("%s: installed (v%s)", binary.name, binary.version))
+          else
+            vim.health.ok(string.format("%s: installed", binary.name))
+          end
+        elseif binary.status == "missing" then
+          -- Determine if it's required or optional
+          local required_binaries = { rg = true, git = true }
+          if required_binaries[binary.name] then
+            vim.health.warn(string.format("%s: NOT found on $PATH (required)", binary.name))
+          else
+            vim.health.info(string.format("%s: NOT found on $PATH (optional)", binary.name))
+          end
+        elseif binary.status == "error" then
+          vim.health.warn(string.format("%s: error checking binary (%s)", binary.name, binary.path or "unknown"))
+        end
       end
     end
+  else
+    vim.health.warn("Cumulus Scala Engine ('cumulus-engine'): check-health failed or not available")
   end
 
-  local engine = require("cumulus.util.engine")
+  -- Engine availability
   if engine.is_available() then
     local info = engine.ping()
     if info then
@@ -56,41 +66,42 @@ function M.check()
 
   vim.health.start("Gradle Wrapper & Build Lock (SPEC-012)")
 
-  local gradle = require("cumulus.util.gradle")
-  if gradle.find_gradle() then
-    local cwd = vim.fn.getcwd()
-    local status = engine.verify_gradle_wrapper(cwd)
-    if status then
-      if status.local_version then
-        vim.health.ok(string.format("Local Gradle version: %s", status.local_version))
-      else
-        vim.health.warn("Local Gradle version: not found in gradle-wrapper.properties")
-      end
+  if health_response and health_response.data then
+    if health_response.data.gradle_wrapper then
+      local gradle_info = health_response.data.gradle_wrapper
 
-      if status.ci_version then
-        vim.health.ok(string.format("CI Gradle version: %s", status.ci_version))
-      else
-        vim.health.info("CI Gradle version: not configured in CI workflows")
-      end
+    if gradle_info.local_version then
+      vim.health.ok(string.format("Local Gradle version: %s", gradle_info.local_version))
+    else
+      vim.health.warn("Local Gradle version: not found in gradle-wrapper.properties")
+    end
 
-      if status.sha256_configured then
-        vim.health.ok("SHA-256 checksum: configured")
-      else
-        vim.health.warn("SHA-256 checksum: NOT configured (security risk for supply chain)")
-      end
+    if gradle_info.ci_version then
+      vim.health.ok(string.format("CI Gradle version: %s", gradle_info.ci_version))
+    else
+      vim.health.info("CI Gradle version: not configured in CI workflows")
+    end
 
-      if status.issues and #status.issues > 0 then
-        for _, issue in ipairs(status.issues) do
+    if gradle_info.sha256_configured then
+      vim.health.ok("SHA-256 checksum: configured")
+    else
+      vim.health.warn("SHA-256 checksum: NOT configured (security risk for supply chain)")
+    end
+
+      if gradle_info.issues and #gradle_info.issues > 0 then
+        for _, issue in ipairs(gradle_info.issues) do
           vim.health.warn("Gradle Wrapper: " .. issue)
         end
       else
         vim.health.ok("Gradle wrapper: no issues detected")
       end
+    elseif health_response.data.build_tool == "gradle" then
+      vim.health.warn("Gradle project detected but wrapper verification failed")
     else
-      vim.health.warn("Failed to verify Gradle wrapper")
+      vim.health.info("Gradle project not detected")
     end
   else
-    vim.health.info("Gradle project not detected (gradle-wrapper.properties not found)")
+    vim.health.info("Engine health check failed or unavailable")
   end
 
   vim.health.start("AWS CloudFormation & SAM DevOps Tooling (Story 8.2)")

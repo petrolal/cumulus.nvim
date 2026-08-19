@@ -34,6 +34,43 @@ case class ModuleTree(
   dependencies: Option[Map[String, Seq[String]]] = None
 ) derives ReadWriter
 
+// Health check related models
+case class BinaryInfo(
+  name: String,
+  version: Option[String],
+  status: String, // "ok", "missing", "error"
+  path: Option[String]
+) derives ReadWriter
+
+case class CompilerInfo(
+  name: String,
+  version: Option[String]
+) derives ReadWriter
+
+case class JdkInfo(
+  version: String,
+  path: String,
+  active: Boolean = false
+) derives ReadWriter
+
+case class GradleWrapperInfo(
+  local_version: Option[String],
+  ci_version: Option[String],
+  sha256_configured: Boolean,
+  sha256_valid: Boolean,
+  issues: Seq[String]
+) derives ReadWriter
+
+case class HealthReport(
+  binaries: Seq[BinaryInfo],
+  compilers: Seq[CompilerInfo],
+  jdks: Seq[JdkInfo],
+  gradle_wrapper: Option[GradleWrapperInfo],
+  build_tool: String, // "maven", "gradle", "sbt", "none"
+  engine_available: Boolean,
+  notes: Option[Seq[String]] = None
+) derives ReadWriter
+
 object CumulusResponse:
   // Reusable ReadWriter for Unit responses (e.g. ping)
   given unitRW: ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
