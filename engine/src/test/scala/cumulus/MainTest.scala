@@ -555,6 +555,115 @@ class MainTest extends FunSuite:
       file.delete()
   }
 
+  test("CLI: ansible-inspect with valid file returns playbook info") {
+    val file = Files.createTempFile("playbook", ".yml").toFile
+    try
+      val yaml =
+        """---
+          |- name: Deploy
+          |  hosts: all
+          |  tasks:
+          |    - name: Ping
+          |      ansible.builtin.ping:
+          |""".stripMargin
+      Files.writeString(file.toPath, yaml)
+      val result = cumulus.devops.AnsibleParser.inspectPlaybookFile(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.plays.length, 1)
+      assertEquals(result.data.get.plays.head.name, "Deploy")
+    finally
+      file.delete()
+  }
+
+  test("CLI: ansible-validate with valid file returns empty issues") {
+    val file = Files.createTempFile("playbook", ".yml").toFile
+    try
+      val yaml =
+        """---
+          |- name: Deploy
+          |  hosts: all
+          |  tasks:
+          |    - name: Ping
+          |      ansible.builtin.ping:
+          |""".stripMargin
+      Files.writeString(file.toPath, yaml)
+      val result = cumulus.devops.AnsibleParser.validatePlaybookFile(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.length, 0)
+    finally
+      file.delete()
+  }
+
+  test("CLI: ansible-validate with invalid playbook returns error issues") {
+    val file = Files.createTempFile("invalid_playbook", ".yml").toFile
+    try
+      val yaml =
+        """---
+          |- name: Bad Jinja
+          |  hosts: all
+          |  tasks:
+          |    - name: Debug
+          |      debug:
+          |        msg: {{ unquoted_var }}
+          |""".stripMargin
+      Files.writeString(file.toPath, yaml)
+      val result = cumulus.devops.AnsibleParser.validatePlaybookFile(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assert(result.data.get.nonEmpty)
+      assert(result.data.get.exists(_.severity == "ERROR"))
+    finally
+      file.delete()
+  }
+
+  test("CLI: ansible-inspect with non-existent file returns FILE_NOT_FOUND") {
+    val result = cumulus.devops.AnsibleParser.inspectPlaybookFile("/nonexistent/ansible_test.yml")
+    assert(!result.success)
+    assertEquals(result.error_code, Some("FILE_NOT_FOUND"))
+  }
+
+  test("CLI: ansible-inventory-parse with valid json returns groups") {
+    val file = Files.createTempFile("inventory", ".json").toFile
+    try
+      val json =
+        """{
+          |  "all": {
+          |    "children": ["webservers"]
+          |  },
+          |  "webservers": {
+          |    "hosts": ["web1.local"]
+          |  }
+          |}""".stripMargin
+      Files.writeString(file.toPath, json)
+      val result = cumulus.devops.AnsibleParser.parseInventoryFile(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.length, 2)
+    finally
+      file.delete()
+  }
+
+  test("CLI: ansible-inventory-parse with graph text file returns groups") {
+    val file = Files.createTempFile("inventory_graph", ".txt").toFile
+    try
+      val graph =
+        """@all:
+          |  |--@webservers:
+          |  |  |--web1.example.com
+          |""".stripMargin
+      Files.writeString(file.toPath, graph)
+      val result = cumulus.devops.AnsibleParser.parseInventoryFile(file.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assert(result.data.get.exists(_.name == "webservers"))
+    finally
+      file.delete()
+  }
+
+
+
 
 
 

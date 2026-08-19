@@ -125,3 +125,43 @@ class AnsibleParserSpec extends FunSuite:
     assertEquals(webGroup.get.hosts, Seq("web1.local", "web2.local"))
     assertEquals(webGroup.get.vars.get("http_port"), Some("80"))
   }
+
+  test("AnsibleParser file-based operations and error handling") {
+    val tempFile = java.nio.file.Files.createTempFile("playbook", ".yml").toFile
+    try
+      val yaml =
+        """---
+          |- name: Test Play
+          |  hosts: all
+          |  tasks:
+          |    - name: Ping host
+          |      ansible.builtin.ping:
+          |""".stripMargin
+      java.nio.file.Files.writeString(tempFile.toPath, yaml)
+
+      val inspectRes = AnsibleParser.inspectPlaybookFile(tempFile.getAbsolutePath)
+      assert(inspectRes.success)
+      assert(inspectRes.data.isDefined)
+      assertEquals(inspectRes.data.get.plays.length, 1)
+      assertEquals(inspectRes.data.get.plays.head.tasks.head.module, "ansible.builtin.ping")
+
+      val validRes = AnsibleParser.validatePlaybookFile(tempFile.getAbsolutePath)
+      assert(validRes.success)
+      assert(validRes.data.isDefined)
+      assertEquals(validRes.data.get.length, 0)
+    finally
+      tempFile.delete()
+
+    val missingRes = AnsibleParser.inspectPlaybookFile("/nonexistent/playbook.yml")
+    assert(!missingRes.success)
+    assertEquals(missingRes.error_code, Some("FILE_NOT_FOUND"))
+
+    val missingValRes = AnsibleParser.validatePlaybookFile("/nonexistent/playbook.yml")
+    assert(!missingValRes.success)
+    assertEquals(missingValRes.error_code, Some("FILE_NOT_FOUND"))
+
+    val missingInvRes = AnsibleParser.parseInventoryFile("/nonexistent/inventory.json")
+    assert(!missingInvRes.success)
+    assertEquals(missingInvRes.error_code, Some("FILE_NOT_FOUND"))
+  }
+
