@@ -18,6 +18,8 @@ import cumulus.dep.{DepResolver, DepLens}
 import cumulus.theme.{ThemeManager, ThemeGenerator}
 import cumulus.keymap.KeymapGateEvaluator
 import cumulus.toolchain.ToolchainMatrixGenerator
+import cumulus.lsp.LspResolver
+import cumulus.protocol.LspSpec
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -1076,6 +1078,22 @@ object Main:
           catch
             case e: Exception =>
               serializeResponse(errorEnvelope[ToolchainMatrix](s"Error generating toolchain matrix: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
+
+        case "resolve-lsp" =>
+          given ReadWriter[LspSpec] = upickle.default.macroRW
+          try
+            val argMap = parseArgs(args.slice(1, args.length))
+            val language = argMap.get("language").map(_.trim.toLowerCase).getOrElse("")
+
+            val result = if language.isEmpty then
+              errorEnvelope[LspSpec]("Missing required argument: --language LANG", CumulusError.INVALID_INPUT)
+            else
+              LspResolver.handle(language)
+
+            serializeResponse(result)
+          catch
+            case e: Exception =>
+              serializeResponse(errorEnvelope[LspSpec](s"Error resolving LSP configuration: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
 
         case _ =>
           import CumulusResponse.unitRW

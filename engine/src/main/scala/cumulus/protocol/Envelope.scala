@@ -299,6 +299,29 @@ case class ToolchainMatrix(
   diagnostic_warnings: Seq[String] = Seq()
 ) derives ReadWriter
 
+// LSP Specification models
+case class LspCapability(
+  name: String,
+  supported: Boolean = true
+) derives ReadWriter
+
+case class TreeSitterParserSpec(
+  parser: String,
+  queries: String = "standard", // "standard", "extended", "minimal"
+  installed: Boolean = false
+) derives ReadWriter
+
+case class LspSpec(
+  language: String,
+  lsp_name: Option[String],
+  lsp_path: Option[String],
+  capabilities: Seq[LspCapability] = Seq(),
+  binary_valid: Boolean = true,
+  treesitter: Seq[TreeSitterParserSpec] = Seq(),
+  mason_spec: Option[MasonPackageSpec] = None,
+  notes: Option[Seq[String]] = None
+) derives ReadWriter
+
 object CumulusResponse:
   // Reusable ReadWriter for Unit responses (e.g. ping)
   given unitRW: ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](

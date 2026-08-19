@@ -24,6 +24,7 @@ object LanguageServerDetector:
       case "java" => detectJavaLanguageServers(compilerVersion)
       case "kotlin" => detectKotlinLanguageServers(compilerVersion)
       case "scala" => detectScalaLanguageServers(compilerVersion)
+      case "groovy" => detectGroovyLanguageServers(compilerVersion)
       case "go" => detectGoLanguageServers(compilerVersion)
       case "rust" => detectRustLanguageServers(compilerVersion)
       case "python" => detectPythonLanguageServers(compilerVersion)
@@ -91,6 +92,24 @@ object LanguageServerDetector:
         mason_name = "metals",
         min_version = "0.11",
         version = getLspVersion("metals"),
+        status = "compatible"
+      )
+
+    servers.toSeq
+
+  /**
+   * Detect Groovy language servers (groovy-lsp, etc.)
+   */
+  private def detectGroovyLanguageServers(compilerVersion: Option[String]): Seq[LanguageServerInfo] =
+    val servers = scala.collection.mutable.ListBuffer[LanguageServerInfo]()
+
+    // Detect groovy-lsp
+    if isLspInstalled("groovy-lsp") || isToolAvailable("groovy-lsp") then
+      servers += LanguageServerInfo(
+        name = "groovy-lsp",
+        mason_name = "groovy-lsp",
+        min_version = "1.0",
+        version = getLspVersion("groovy-lsp"),
         status = "compatible"
       )
 

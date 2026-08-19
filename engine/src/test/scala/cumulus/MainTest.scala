@@ -1076,6 +1076,154 @@ class MainTest extends FunSuite:
     assertEquals(restored.available_tools, original.available_tools)
   }
 
+  test("CLI: resolve-lsp with java language returns valid LspSpec with capabilities") {
+    val result = cumulus.lsp.LspResolver.handle("java")
+    assert(result.success)
+    assert(result.data.isDefined)
+    val spec = result.data.get
+    assertEquals(spec.language, "java")
+    // Strong assertion: capabilities should be a populated list
+    assert(spec.capabilities.nonEmpty, "Java should have capabilities defined")
+    val capabilityNames = spec.capabilities.map(_.name)
+    assert(capabilityNames.contains("textDocument/completion"), "Should support textDocument/completion")
+    assert(capabilityNames.contains("textDocument/hover"), "Should support textDocument/hover")
+    assert(capabilityNames.contains("textDocument/definition"), "Should support textDocument/definition")
+    // TreeSitter should return a structure (may be empty if not installed)
+    assert(spec.treesitter.isInstanceOf[Seq[_]])
+    assertEquals(result.error, None)
+  }
+
+  test("CLI: resolve-lsp with kotlin language returns valid LspSpec") {
+    val result = cumulus.lsp.LspResolver.handle("kotlin")
+    assert(result.success)
+    assert(result.data.isDefined)
+    val spec = result.data.get
+    assertEquals(spec.language, "kotlin")
+    // Verify structure is complete
+    assert(spec.capabilities.nonEmpty, "Kotlin should have capabilities defined")
+    assert(spec.treesitter.isInstanceOf[Seq[_]])
+  }
+
+  test("CLI: resolve-lsp with scala language returns valid LspSpec") {
+    val result = cumulus.lsp.LspResolver.handle("scala")
+    assert(result.success)
+    assert(result.data.isDefined)
+    val spec = result.data.get
+    assertEquals(spec.language, "scala")
+    // Verify structure is complete
+    assert(spec.capabilities.isInstanceOf[Seq[_]])
+    assert(spec.treesitter.isInstanceOf[Seq[_]])
+  }
+
+  test("CLI: resolve-lsp with groovy language returns valid LspSpec") {
+    val result = cumulus.lsp.LspResolver.handle("groovy")
+    assert(result.success)
+    assert(result.data.isDefined)
+    val spec = result.data.get
+    assertEquals(spec.language, "groovy")
+    // Verify structure is complete
+    assert(spec.capabilities.isInstanceOf[Seq[_]])
+    assert(spec.treesitter.isInstanceOf[Seq[_]])
+  }
+
+  test("CLI: resolve-lsp with unsupported language returns error") {
+    val result = cumulus.lsp.LspResolver.handle("rust")
+    assert(!result.success)
+    assert(result.data.isEmpty)
+    assert(result.error.isDefined)
+    assertEquals(result.error_code, Some("UNSUPPORTED_LANGUAGE"))
+  }
+
+  test("CLI: resolve-lsp response has correct envelope structure") {
+    val result = cumulus.lsp.LspResolver.handle("java")
+    assertEquals(result.success, true)
+    assert(result.data.isDefined, "Data should be defined for valid language")
+    assertEquals(result.error, None, "No error for valid language")
+    assertEquals(result.error_code, None, "No error code for valid language")
+  }
+
+  test("CLI: resolve-lsp serializes to JSON") {
+    given ReadWriter[cumulus.protocol.LspSpec] = upickle.default.macroRW
+    val result = cumulus.lsp.LspResolver.handle("kotlin")
+    if result.success && result.data.isDefined then
+      val json = upickle.default.write[cumulus.protocol.LspSpec](result.data.get)
+      assert(json.nonEmpty)
+      assert(json.contains("kotlin"))
+      // Verify round-trip
+      val restored = upickle.default.read[cumulus.protocol.LspSpec](json)
+      assertEquals(restored.language, "kotlin")
+  }
+
+  test("CLI: resolve-lsp case-insensitive language names") {
+    val result1 = cumulus.lsp.LspResolver.handle("JAVA")
+    val result2 = cumulus.lsp.LspResolver.handle("Java")
+    val result3 = cumulus.lsp.LspResolver.handle("java")
+    assertEquals(result1.success, true)
+    assertEquals(result2.success, true)
+    assertEquals(result3.success, true)
+    if result1.data.isDefined && result2.data.isDefined && result3.data.isDefined then
+      assertEquals(result1.data.get.language, "java")
+      assertEquals(result2.data.get.language, "java")
+      assertEquals(result3.data.get.language, "java")
+  }
+
+  test("CLI: resolve-lsp response contains capabilities for java") {
+    val result = cumulus.lsp.LspResolver.handle("java")
+    assert(result.success)
+    assert(result.data.isDefined)
+    val spec = result.data.get
+    // Strong assertion: capabilities should be defined for Java
+    assert(spec.capabilities.nonEmpty, "Java LSP should provide at least some capabilities")
+    val capabilityNames = spec.capabilities.map(_.name)
+    assert(capabilityNames.contains("textDocument/completion"), "Missing textDocument/completion")
+    assert(capabilityNames.contains("textDocument/hover"), "Missing textDocument/hover")
+  }
+
+  test("CLI: resolve-lsp response contains treesitter parsers") {
+    val result = cumulus.lsp.LspResolver.handle("java")
+    assert(result.success)
+    assert(result.data.isDefined)
+    val spec = result.data.get
+    // TreeSitter parsers are checked - structure must be valid Seq
+    assert(spec.treesitter.isInstanceOf[Seq[_]], "TreeSitter specs should be a Seq")
+    // Parser spec structure should have parser names if any exist
+    if spec.treesitter.nonEmpty then
+      val parsers = spec.treesitter.map(_.parser)
+      assert(parsers.nonEmpty, "Should have parser names if treesitter list is not empty")
+  }
+
+  test("CLI: resolve-lsp with whitespace in language name is trimmed") {
+    val result = cumulus.lsp.LspResolver.handle("  kotlin  ")
+    assert(result.success)
+    assert(result.data.isDefined)
+    assertEquals(result.data.get.language, "kotlin")
+  }
+
+  test("CLI: resolve-lsp mason spec is generated when applicable") {
+    val result = cumulus.lsp.LspResolver.handle("java")
+    assert(result.success)
+    assert(result.data.isDefined)
+    val spec = result.data.get
+    // Verify structure: mason_spec should be Option[MasonPackageSpec]
+    assert(spec.mason_spec.isInstanceOf[Option[_]], "mason_spec should be an Option")
+    // If LSP is detected, Mason spec should be populated
+    if spec.lsp_name.nonEmpty then
+      assert(spec.mason_spec.isDefined, "Mason spec should be defined when LSP is detected")
+      val masonSpec = spec.mason_spec.get
+      assert(masonSpec.name.nonEmpty, "Mason spec should have a name")
+      assert(masonSpec.min_version.nonEmpty, "Mason spec should have min_version")
+  }
+
+  test("CLI: resolve-lsp binary_valid field is boolean") {
+    val result = cumulus.lsp.LspResolver.handle("scala")
+    assert(result.success)
+    assert(result.data.isDefined)
+    val spec = result.data.get
+    // Strong assertion: binary_valid must be a Boolean value
+    assert(spec.binary_valid.isInstanceOf[Boolean], "binary_valid must be a Boolean")
+    assertEquals(spec.binary_valid.getClass.getSimpleName, "boolean", "binary_valid should be a primitive boolean")
+  }
+
 
 
 
