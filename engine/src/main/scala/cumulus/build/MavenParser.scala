@@ -1,6 +1,6 @@
 package cumulus.build
 
-import cumulus.protocol.{CumulusResponse, CumulusError}
+import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree}
 import upickle.default.ReadWriter
 import scala.xml.{XML, Elem, Node}
 import scala.io.Source
@@ -112,6 +112,83 @@ object MavenParser:
           success = false,
           data = None,
           error = Some(s"Error parsing POM: ${e.getMessage}"),
+          error_code = Some("INTERNAL_ERROR")
+        )
+
+  /**
+   * Resolve the module tree from a Maven pom.xml file.
+   * Extracts direct child modules from the root pom.xml and returns them as a flat ModuleTree.
+   * Only processes single-level module hierarchy (direct children only).
+   */
+  def resolveModuleTree(pomPath: String): CumulusResponse[ModuleTree] =
+    try
+      if pomPath == null || pomPath.isEmpty then
+        return CumulusResponse(
+          success = false,
+          data = None,
+          error = Some("POM path cannot be null or empty"),
+          error_code = Some("FILE_NOT_FOUND")
+        )
+
+      val file = new File(pomPath)
+      if !file.exists() then
+        return CumulusResponse(
+          success = false,
+          data = None,
+          error = Some(s"File not found: $pomPath"),
+          error_code = Some("FILE_NOT_FOUND")
+        )
+
+      val pom = XML.loadFile(file)
+      val rootDir = Option(file.getParentFile).map(_.getAbsolutePath).getOrElse(file.getAbsolutePath)
+      val modules = scala.collection.mutable.ListBuffer[Module]()
+
+      // Look for direct child modules under <modules> element only
+      val modulesContainer = pom \ "modules"
+      val modulesNodes = modulesContainer \ "module"
+
+      for moduleNode <- modulesNodes do
+        val moduleName = moduleNode.text.trim
+        if moduleName.nonEmpty && !moduleName.contains("..") then
+          // Normalize path: if it doesn't start with ./ or /, add ./
+          val normalizedPath = if moduleName.startsWith("./") || moduleName.startsWith("/") then
+            moduleName
+          else
+            s"./$moduleName"
+
+          // Resolve absolute path for validation and protect against directory traversal
+          val moduleDir = new File(rootDir, normalizedPath)
+          val canonicalPath = try moduleDir.getCanonicalPath catch { case _ => moduleDir.getAbsolutePath }
+          if moduleDir.exists && moduleDir.isDirectory && canonicalPath.startsWith(new File(rootDir).getCanonicalPath) then
+            modules += Module(
+              name = moduleName,
+              path = normalizedPath,
+              relativePath = Some(normalizedPath)
+            )
+
+      CumulusResponse(
+        success = true,
+        data = Some(ModuleTree(
+          root = rootDir,
+          modules = modules.toSeq,
+          dependencies = None
+        )),
+        error = None,
+        error_code = None
+      )
+    catch
+      case e: org.xml.sax.SAXException =>
+        CumulusResponse(
+          success = false,
+          data = None,
+          error = Some(s"XML parse error: ${e.getMessage}"),
+          error_code = Some("PARSE_ERROR")
+        )
+      case e: Exception =>
+        CumulusResponse(
+          success = false,
+          data = None,
+          error = Some(s"Error resolving module tree: ${e.getMessage}"),
           error_code = Some("INTERNAL_ERROR")
         )
 

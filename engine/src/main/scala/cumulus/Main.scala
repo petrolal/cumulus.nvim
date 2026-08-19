@@ -1,7 +1,7 @@
 package cumulus
 
-import cumulus.protocol.{CumulusResponse, CumulusError}
-import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler}
+import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree}
+import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler, MultiModuleResolver}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer}
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
@@ -337,6 +337,18 @@ object Main:
               errorEnvelope[ComputeBuildOrderResponse]("Missing --dir argument")
             case Some(dirPath) =>
               computeBuildOrderForDirectory(dirPath)
+          serializeResponse(result)
+
+        case "resolve-modules" =>
+          given ReadWriter[ModuleTree] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("dir") match
+            case None =>
+              errorEnvelope[ModuleTree]("Missing --dir argument")
+            case Some(dirPath) if dirPath.isEmpty =>
+              errorEnvelope[ModuleTree]("Empty --dir argument")
+            case Some(dirPath) =>
+              MultiModuleResolver.resolve(dirPath)
           serializeResponse(result)
 
         case "discover-jdk" =>

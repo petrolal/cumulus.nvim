@@ -20,6 +20,20 @@ case class CumulusResponse[T](
   error_code: Option[String]
 )
 
+// Represents a single module in a multi-module project
+case class Module(
+  name: String,
+  path: String,
+  relativePath: Option[String] = None
+) derives ReadWriter
+
+// Represents the complete module tree for a multi-module project
+case class ModuleTree(
+  root: String,
+  modules: Seq[Module],
+  dependencies: Option[Map[String, Seq[String]]] = None
+) derives ReadWriter
+
 object CumulusResponse:
   // Reusable ReadWriter for Unit responses (e.g. ping)
   given unitRW: ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
