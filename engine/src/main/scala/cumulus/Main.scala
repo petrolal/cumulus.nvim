@@ -1,6 +1,6 @@
 package cumulus
 
-import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights, JdtlsConfig, GateContext, GateEvalResult, ToolchainMatrix}
+import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights, JdtlsConfig, GateContext, GateEvalResult, ToolchainMatrix, KotlinLspConfig}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler, MultiModuleResolver}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer, JdtlsConfigResolver}
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator}
@@ -18,7 +18,7 @@ import cumulus.dep.{DepResolver, DepLens}
 import cumulus.theme.{ThemeManager, ThemeGenerator}
 import cumulus.keymap.KeymapGateEvaluator
 import cumulus.toolchain.ToolchainMatrixGenerator
-import cumulus.lsp.LspResolver
+import cumulus.lsp.{LspResolver, KotlinLspResolver}
 import cumulus.protocol.LspSpec
 import upickle.default.ReadWriter
 import scala.io.Source
@@ -1094,6 +1094,23 @@ object Main:
           catch
             case e: Exception =>
               serializeResponse(errorEnvelope[LspSpec](s"Error resolving LSP configuration: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
+
+        case "kotlin-lsp-config" =>
+          given ReadWriter[KotlinLspConfig] = upickle.default.macroRW
+          try
+            val argMap = parseArgs(args.slice(1, args.length))
+            val projectRoot = argMap.get("project-root")
+            val sanitizeCache = args.contains("--sanitize-cache")
+
+            val result = KotlinLspResolver.handle(
+              projectRootOpt = projectRoot,
+              sanitizeCache = sanitizeCache
+            )
+
+            serializeResponse(result)
+          catch
+            case e: Exception =>
+              serializeResponse(errorEnvelope[KotlinLspConfig](s"Error resolving Kotlin LSP configuration: ${e.getMessage}", CumulusError.INTERNAL_ERROR))
 
         case _ =>
           import CumulusResponse.unitRW

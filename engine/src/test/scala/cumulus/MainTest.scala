@@ -1224,6 +1224,43 @@ class MainTest extends FunSuite:
     assertEquals(spec.binary_valid.getClass.getSimpleName, "boolean", "binary_valid should be a primitive boolean")
   }
 
+  test("CLI: kotlin-lsp-config arguments parsing and handler routing") {
+    val tempDir = Files.createTempDirectory("maintest-kt-").toFile
+    try
+      val ktFile = new java.io.File(tempDir, "build.gradle.kts")
+      Files.writeString(ktFile.toPath, "plugins { kotlin(\"jvm\") version \"1.9.22\" }")
+
+      val argMap = Main.parseArgs(Seq("--project-root", tempDir.getAbsolutePath, "--sanitize-cache"))
+      assertEquals(argMap.get("project-root"), Some(tempDir.getAbsolutePath))
+
+      val result = cumulus.lsp.KotlinLspResolver.handle(
+        projectRootOpt = argMap.get("project-root"),
+        sanitizeCache = true
+      )
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.cache_sanitized, true)
+
+      // Serialization test
+      given rw: upickle.default.ReadWriter[cumulus.protocol.KotlinLspConfig] = upickle.default.macroRW
+      val jsonVal = cumulus.protocol.CumulusResponse.toJson(result)
+      val jsonStr = ujson.write(jsonVal)
+      assert(jsonStr.contains("\"success\":true"))
+      assert(jsonStr.contains("is_cached"))
+
+      val restored = cumulus.protocol.CumulusResponse.fromJson[cumulus.protocol.KotlinLspConfig](jsonVal)
+      assert(restored.success)
+      assert(restored.data.isDefined)
+    finally
+      os.remove.all(os.Path(tempDir))
+  }
+
+  test("CLI: kotlin-lsp-config returns FILE_NOT_FOUND error on missing directory") {
+    val result = cumulus.lsp.KotlinLspResolver.handle(Some("/nonexistent/kt/directory"))
+    assert(!result.success)
+    assertEquals(result.error_code, Some("FILE_NOT_FOUND"))
+  }
+
 
 
 

@@ -322,6 +322,18 @@ case class LspSpec(
   notes: Option[Seq[String]] = None
 ) derives ReadWriter
 
+// Kotlin LSP Configuration models
+case class KotlinLspConfig(
+  server_path: Option[String],
+  server_valid: Boolean,
+  classpath: Seq[String],
+  source_roots: Seq[String],
+  compiler_version: Option[String],
+  is_cached: Boolean,
+  cache_sanitized: Boolean = false,
+  diagnostics: Option[Seq[String]] = None
+) derives ReadWriter
+
 object CumulusResponse:
   // Reusable ReadWriter for Unit responses (e.g. ping)
   given unitRW: ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
