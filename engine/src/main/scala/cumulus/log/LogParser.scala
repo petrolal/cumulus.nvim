@@ -21,8 +21,110 @@ object LogParser:
       .replaceAll("\\(B", "")
 
   /**
-   * Parse a build log (Maven or Gradle) and extract diagnostics.
-   * Reads from the provided text content (already split into lines).
+   * Parse SBT log format: [error] File.scala:123: message or [warn] File.scala:123: message
+   * SBT does not include column numbers in standard output, so default to 1.
+   */
+  private def parseSbtLog(line: String): Option[BuildDiagnostic] =
+    val sbtPattern = """\[(error|warn|warning)\]\s*(.+?):(\d+):\s*(.*)""".r
+    sbtPattern.findFirstMatchIn(line) match
+      case Some(m) =>
+        val severity = if m.group(1) == "warn" || m.group(1) == "warning" then "WARN" else "ERROR"
+        val file = m.group(2).trim
+        if file.isEmpty then return None
+        try
+          val lineNum = m.group(3).toInt
+          if lineNum <= 0 then return None
+          val message = m.group(4).trim
+          Some(BuildDiagnostic(
+            file = file,
+            line = lineNum,
+            col = 1,
+            severity = severity,
+            message = message
+          ))
+        catch
+          case _: NumberFormatException => None
+      case None => None
+
+  /**
+   * Parse kotlinc log format: File.kt:123:45: error: message
+   * Kotlinc uses the same format as Gradle for file:line:col: severity: message
+   */
+  private def parseKotlinLog(line: String): Option[BuildDiagnostic] =
+    val kotlincPattern = """^(.+?\.kt):(\d+):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
+    kotlincPattern.findFirstMatchIn(line) match
+      case Some(m) =>
+        val file = m.group(1).trim
+        if file.isEmpty then return None
+        try
+          val lineNum = m.group(2).toInt
+          val col = m.group(3).toInt
+          if lineNum <= 0 || col <= 0 then return None
+          val message = m.group(4).trim
+          val severity = if line.toLowerCase.contains("error") then "ERROR" else "WARN"
+          Some(BuildDiagnostic(
+            file = file,
+            line = lineNum,
+            col = col,
+            severity = severity,
+            message = message
+          ))
+        catch
+          case _: NumberFormatException => None
+      case None => None
+
+  /**
+   * Parse scalac log format: File.scala:123: error: message
+   * Scalac typically only includes line number, not column; default column to 1.
+   */
+  private def parseScalaLog(line: String): Option[BuildDiagnostic] =
+    val scalacPattern = """^(.+?\.scala):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
+    scalacPattern.findFirstMatchIn(line) match
+      case Some(m) =>
+        val file = m.group(1).trim
+        if file.isEmpty then return None
+        try
+          val lineNum = m.group(2).toInt
+          if lineNum <= 0 then return None
+          val message = m.group(3).trim
+          val severity = if line.toLowerCase.contains("error") then "ERROR" else "WARN"
+          Some(BuildDiagnostic(
+            file = file,
+            line = lineNum,
+            col = 1,
+            severity = severity,
+            message = message
+          ))
+        catch
+          case _: NumberFormatException => None
+      case None => None
+
+  /**
+   * Parse Cargo (Rust) log format. Cargo outputs text-based errors as:
+   * error[E0425]: cannot find value in this scope
+   * --> src/main.rs:10:5
+   *
+   * This function looks for lines with error[Ennn]: pattern and extracts
+   * file/line/col from the following context line (-->).
+   * Returns None if no match; context extraction happens in parseLog().
+   */
+  private def parseCargoLogError(line: String): Option[String] =
+    val cargoErrorPattern = """^error\[E\d+\]:\s*(.*)$""".r
+    cargoErrorPattern.findFirstMatchIn(line).map(m => m.group(1))
+
+  /**
+   * Parse Cargo context line to extract file, line, col: --> path/file.rs:10:5
+   */
+  private def parseCargoContextLine(line: String): Option[(String, Int, Int)] =
+    val contextPattern = """--> (.+?):(\d+):(\d+)""".r
+    contextPattern.findFirstMatchIn(line).map(m =>
+      (m.group(1).trim, m.group(2).toInt, m.group(3).toInt)
+    )
+
+  /**
+   * Parse a build log (Maven, Gradle, SBT, kotlinc, scalac, Cargo) and extract diagnostics.
+   * Uses language-agnostic auto-detection by scanning pattern signatures.
+   * Single pass through lines, testing each against all patterns in priority order.
    *
    * @param logContent The full log content as a string
    * @return Sequence of BuildDiagnostic entries
@@ -31,10 +133,17 @@ object LogParser:
     val lines = logContent.split("(?:\r\n|\r|\n)")
     val diagnostics = mutable.Buffer[BuildDiagnostic]()
 
-    lines.zipWithIndex.foreach { case (line, _) =>
+    var cargoErrorMessage: Option[String] = None
+    var cargoErrorLineIdx = -1
+
+    lines.zipWithIndex.foreach { case (line, idx) =>
       val cleanLine = stripAnsiCodes(line)
 
-      // Try Maven patterns:
+      // Clear orphaned Cargo error at EOF if no context line found
+      if idx > 0 && cargoErrorMessage.isDefined && idx > cargoErrorLineIdx + 1 then
+        cargoErrorMessage = None
+
+      // Try Maven bracket patterns (highest priority):
       // 1. [ERROR] /path/to/File.java:[123,45] message or [ERROR] /path/to/File.java:[123] message
       // 2. [ERROR] /path/to/File.java:123 message
       val mavenBracketPattern = """\[(ERROR|WARN|WARNING)\]\s*(.+?):\[(\d+)(?:,(\d+))?\]\s*(.*)""".r
@@ -69,40 +178,66 @@ object LogParser:
                 message = message
               )
             case None =>
-              // Try Gradle pattern: File.java:line:col: error: message
-              val gradlePattern = """^(.+?):(\d+):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
-              gradlePattern.findFirstMatchIn(cleanLine) match
-                case Some(m) =>
-                  val file = m.group(1).trim
-                  val lineNum = m.group(2).toInt
-                  val col = m.group(3).toInt
-                  val message = m.group(4).trim
-                  val severity = if cleanLine.toLowerCase.contains("error") then "ERROR" else "WARN"
-                  diagnostics += BuildDiagnostic(
-                    file = file,
-                    line = lineNum,
-                    col = col,
-                    severity = severity,
-                    message = message
-                  )
+              // Try SBT pattern: [error] File.scala:123: message
+              parseSbtLog(cleanLine) match
+                case Some(diag) =>
+                  diagnostics += diag
                 case None =>
-                  // Try Gradle pattern without column: File.java:line: error: message
-                  val gradlePatternNoCol = """^(.+?):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
-                  gradlePatternNoCol.findFirstMatchIn(cleanLine) match
+                  // Try Gradle/Kotlin pattern: File.java:line:col: error: message
+                  val gradlePattern = """^(.+?):(\d+):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
+                  gradlePattern.findFirstMatchIn(cleanLine) match
                     case Some(m) =>
                       val file = m.group(1).trim
                       val lineNum = m.group(2).toInt
-                      val message = m.group(3).trim
+                      val col = m.group(3).toInt
+                      val message = m.group(4).trim
                       val severity = if cleanLine.toLowerCase.contains("error") then "ERROR" else "WARN"
                       diagnostics += BuildDiagnostic(
                         file = file,
                         line = lineNum,
-                        col = 1,
+                        col = col,
                         severity = severity,
                         message = message
                       )
                     case None =>
-                      // No match, skip line
+                      // Try Gradle pattern without column: File.java:line: error: message
+                      val gradlePatternNoCol = """^(.+?):(\d+):\s*(?:error|warning|info):\s*(.*)$""".r
+                      gradlePatternNoCol.findFirstMatchIn(cleanLine) match
+                        case Some(m) =>
+                          val file = m.group(1).trim
+                          val lineNum = m.group(2).toInt
+                          val message = m.group(3).trim
+                          val severity = if cleanLine.toLowerCase.contains("error") then "ERROR" else "WARN"
+                          diagnostics += BuildDiagnostic(
+                            file = file,
+                            line = lineNum,
+                            col = 1,
+                            severity = severity,
+                            message = message
+                          )
+                        case None =>
+                          // Try Cargo error pattern: error[E0425]: message
+                          parseCargoLogError(cleanLine) match
+                            case Some(msg) =>
+                              cargoErrorMessage = Some(msg)
+                              cargoErrorLineIdx = idx
+                            case None =>
+                              // Try Cargo context line: --> path/file.rs:10:5
+                              if cargoErrorMessage.isDefined && idx == cargoErrorLineIdx + 1 then
+                                parseCargoContextLine(cleanLine) match
+                                  case Some((file, lineNum, col)) =>
+                                    diagnostics += BuildDiagnostic(
+                                      file = file,
+                                      line = lineNum,
+                                      col = col,
+                                      severity = "ERROR",
+                                      message = cargoErrorMessage.get
+                                    )
+                                    cargoErrorMessage = None
+                                  case None =>
+                                    cargoErrorMessage = None
+                              else
+                                cargoErrorMessage = None
     }
 
     diagnostics.toSeq
