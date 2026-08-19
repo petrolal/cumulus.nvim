@@ -1,12 +1,13 @@
 package cumulus
 
-import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree}
+import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler, MultiModuleResolver}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer}
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
 import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue, AnsibleParser, AnsiblePlaybookInfo, AnsibleValidationIssue, AnsibleInventoryGroup, TerraformParser, TfSecurityParser, TerraformInfo, SecurityFinding, DockerParser, DockerValidator, DockerImage, ContainerValidationIssue, HelmParser, HelmChartInfo}
+import cumulus.format.FormatterResolver
 import cumulus.health.HealthChecker
 import cumulus.protocol.HealthReport
 import cumulus.git.{ConflictParser, ConflictBlock}
@@ -1001,6 +1002,16 @@ object Main:
               serializeResponse(successEnvelope[InstallResult](Some(res)))
             case Left(err) =>
               serializeResponse(errorEnvelope[InstallResult](err, CumulusError.INTERNAL_ERROR))
+
+        case "resolve-formatter" =>
+          given ReadWriter[FormatterSpec] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val result = argMap.get("file") match
+            case Some(filePath) =>
+              FormatterResolver.resolveFormatter(filePath)
+            case None =>
+              errorEnvelope[FormatterSpec]("Missing --file argument", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
 
         case _ =>
           import CumulusResponse.unitRW

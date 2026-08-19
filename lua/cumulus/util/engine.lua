@@ -813,6 +813,18 @@ function M.classify_workspace(dir, opts)
   return call_engine_command({ "classify-workspace", "--dir", dir }, nil, "classify-workspace", opts)
 end
 
+--- Resolve formatter for a file by inspecting project configuration
+---@param file_path string Path to the file to format
+---@param opts? { silent?: boolean }
+---@return { formatter: string, config_file: string|nil, args: { name: string, value: string }[], stdin_mode: boolean, notes: string[]|nil }|nil
+function M.resolve_formatter(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "resolve-formatter", "--file", file_path }, nil, "resolve-formatter", opts)
+end
+
 --- Discover DevOps / IaC roots across workspace via Scala engine
 ---@param path? string File or directory path to discover roots for (defaults to cwd)
 ---@param opts? { silent?: boolean }

@@ -71,6 +71,20 @@ case class HealthReport(
   notes: Option[Seq[String]] = None
 ) derives ReadWriter
 
+// Formatter specification models
+case class FormatterArg(
+  name: String,
+  value: String
+) derives ReadWriter
+
+case class FormatterSpec(
+  formatter: String,
+  config_file: Option[String],
+  args: Seq[FormatterArg],
+  stdin_mode: Boolean,
+  notes: Option[Seq[String]] = None
+) derives ReadWriter
+
 object CumulusResponse:
   // Reusable ReadWriter for Unit responses (e.g. ping)
   given unitRW: ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](
