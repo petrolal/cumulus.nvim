@@ -390,3 +390,42 @@ case class ContainerValidationIssue(
   remediation: String
 ) derives ReadWriter
 
+/**
+ * Represents a Helm chart dependency in Chart.yaml.
+ */
+case class HelmDependency(
+  name: String,
+  version: String,
+  repository: Option[String] = None,
+  condition: Option[String] = None,
+  tags: Seq[String] = Seq.empty
+) derives ReadWriter
+
+/**
+ * Represents a maintainer in Chart.yaml.
+ */
+case class HelmMaintainer(
+  name: String,
+  email: Option[String] = None,
+  url: Option[String] = None
+) derives ReadWriter
+
+/**
+ * Inspected Helm chart metadata, dependencies, values, and templates.
+ */
+case class HelmChartInfo(
+  name: String,
+  version: String,
+  apiVersion: String = "v2",
+  appVersion: Option[String] = None,
+  description: Option[String] = None,
+  chart_type: Option[String] = None,
+  keywords: Seq[String] = Seq.empty,
+  maintainers: Seq[HelmMaintainer] = Seq.empty,
+  dependencies: Seq[HelmDependency] = Seq.empty,
+  values: Map[String, String] = Map.empty,
+  templates: Seq[String] = Seq.empty,
+  template_vars: Seq[String] = Seq.empty
+) derives ReadWriter
+
+

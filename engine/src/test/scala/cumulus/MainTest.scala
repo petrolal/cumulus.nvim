@@ -662,6 +662,29 @@ class MainTest extends FunSuite:
       file.delete()
   }
 
+  test("CLI: helm-inspect with valid chart directory returns chart info") {
+    val tempDir = Files.createTempDirectory("maintest-helm").toFile
+    try
+      val chart = "apiVersion: v2\nname: test-app\nversion: 1.0.0\n"
+      val values = "replicaCount: 2\n"
+      Files.writeString(new java.io.File(tempDir, "Chart.yaml").toPath, chart)
+      Files.writeString(new java.io.File(tempDir, "values.yaml").toPath, values)
+      val result = cumulus.devops.HelmParser.inspectChart(tempDir.getAbsolutePath)
+      assert(result.success)
+      assert(result.data.isDefined)
+      assertEquals(result.data.get.name, "test-app")
+      assertEquals(result.data.get.values.get("replicaCount"), Some("2"))
+    finally
+      os.remove.all(os.Path(tempDir))
+  }
+
+  test("CLI: helm-inspect with missing chart returns FILE_NOT_FOUND") {
+    val result = cumulus.devops.HelmParser.inspectChart("/nonexistent/helm/dir")
+    assert(!result.success)
+    assertEquals(result.error_code, Some("FILE_NOT_FOUND"))
+  }
+
+
 
 
 

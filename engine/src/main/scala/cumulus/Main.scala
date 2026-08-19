@@ -6,7 +6,7 @@ import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, Jd
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader}
 import cumulus.testing.{TestContextDetector, TestOutputParser, TestCommandAssembler, TestContext, TestResult, TestCommand}
 import cumulus.log.{LogParser, LogIndexer, StacktraceResolver, BuildDiagnostic, LogIndexEntry, StackFrame}
-import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue, AnsibleParser, AnsiblePlaybookInfo, AnsibleValidationIssue, AnsibleInventoryGroup, TerraformParser, TfSecurityParser, TerraformInfo, SecurityFinding, DockerParser, DockerValidator, DockerImage, ContainerValidationIssue}
+import cumulus.devops.{CoverageParser, CheckstyleParser, CoverageEntry, CheckstyleDiagnostic, MigrationValidator, K8sValidator, MigrationIssue, K8sValidationIssue, SessionSanitizeResult, GradleWrapperStatus, NetworkStatus, SyncStatus, DependencyInfo, DependencyLens, ThemeState, CfnSamParser, CfnTemplateInfo, CfnValidationIssue, AnsibleParser, AnsiblePlaybookInfo, AnsibleValidationIssue, AnsibleInventoryGroup, TerraformParser, TfSecurityParser, TerraformInfo, SecurityFinding, DockerParser, DockerValidator, DockerImage, ContainerValidationIssue, HelmParser, HelmChartInfo}
 import cumulus.git.{ConflictParser, ConflictBlock}
 import cumulus.util.{SessionSanitizer, NetworkChecker}
 import cumulus.gradle.WrapperVerifier
@@ -881,6 +881,21 @@ object Main:
               catch
                 case e: Exception =>
                   errorEnvelope[Seq[ContainerValidationIssue]](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
+          serializeResponse(result)
+
+        case "helm-inspect" | "--helm-inspect" =>
+          val argMap = parseArgs(args.slice(1, args.length))
+          val filePath = argMap.get("file").orElse(argMap.get("dir")).orElse(args.drop(1).find(!_.startsWith("--")))
+          val result = filePath match
+            case Some(path) =>
+              HelmParser.inspectChart(path)
+            case None =>
+              try
+                val stdinInput = Source.fromInputStream(System.in, "UTF-8").mkString
+                successEnvelope(Some(HelmParser.inspectChartContent(stdinInput)))
+              catch
+                case e: Exception =>
+                  errorEnvelope[HelmChartInfo](s"Error reading stdin: ${e.getMessage}", CumulusError.INTERNAL_ERROR)
           serializeResponse(result)
 
         case "install" | "bootstrap" =>
