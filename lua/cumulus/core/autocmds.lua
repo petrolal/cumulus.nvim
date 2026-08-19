@@ -211,7 +211,7 @@ vim.api.nvim_create_autocmd("BufNewFile", {
   end,
 })
 
--- Instant Java & Kotlin CodeLens rendering via Rust engine (SPEC-027)
+-- Instant Java & Kotlin CodeLens rendering via Scala engine (SPEC-027)
 local codelens_ns = vim.api.nvim_create_namespace("cumulus_codelens")
 vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
   group = augroup("instant_codelens"),

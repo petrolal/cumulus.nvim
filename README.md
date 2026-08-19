@@ -1,6 +1,6 @@
 # cumulus.nvim
 
-> Polyglot JVM intelligence engine and opinionated Neovim distribution for modern backend engineering (Java, Kotlin, Scala, Rust, Go, Python, and Cloud Native development).
+> Polyglot JVM intelligence engine and opinionated Neovim distribution for modern backend engineering (Java, Kotlin, Scala, Go, Python, and Cloud Native development).
 
 Built in **Lua + Scala 3 & GraalVM Native Image** to pair with [`cumulus.dotfiles`](https://github.com/petrolal/cumulus.dotfiles).
 
