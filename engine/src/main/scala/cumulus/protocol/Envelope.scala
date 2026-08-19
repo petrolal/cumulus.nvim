@@ -85,6 +85,105 @@ case class FormatterSpec(
   notes: Option[Seq[String]] = None
 ) derives ReadWriter
 
+// Theme highlight group models
+case class HighlightGroup(
+  fg: Option[String] = None,
+  bg: Option[String] = None,
+  bold: Boolean = false,
+  italic: Boolean = false,
+  underline: Boolean = false
+)
+
+object HighlightGroup:
+  given HighlightGroupRW: ReadWriter[HighlightGroup] = upickle.default.readwriter[ujson.Value].bimap[HighlightGroup](
+    group => ujson.Obj(
+      "fg" -> group.fg.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+      "bg" -> group.bg.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+      "bold" -> ujson.Bool(group.bold),
+      "italic" -> ujson.Bool(group.italic),
+      "underline" -> ujson.Bool(group.underline)
+    ),
+    json => {
+      val obj = json.obj
+      HighlightGroup(
+        fg = obj.get("fg").flatMap {
+          case ujson.Str(s) => Some(s)
+          case ujson.Null => None
+          case _ => None
+        },
+        bg = obj.get("bg").flatMap {
+          case ujson.Str(s) => Some(s)
+          case ujson.Null => None
+          case _ => None
+        },
+        bold = obj.get("bold").exists { case ujson.Bool(b) => b; case _ => false },
+        italic = obj.get("italic").exists { case ujson.Bool(b) => b; case _ => false },
+        underline = obj.get("underline").exists { case ujson.Bool(b) => b; case _ => false }
+      )
+    }
+  )
+
+case class ThemeHighlights(
+  provider: String,
+  base_color: String,
+  highlights: Map[String, HighlightGroup]
+)
+
+object ThemeHighlights:
+  given ThemeHighlightsRW: ReadWriter[ThemeHighlights] = upickle.default.readwriter[ujson.Value].bimap[ThemeHighlights](
+    theme => {
+      val highlightObjs = upickle.core.LinkedHashMap[String, ujson.Value]()
+      for (name, group) <- theme.highlights do
+        highlightObjs(name) = ujson.Obj(
+          "fg" -> group.fg.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+          "bg" -> group.bg.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+          "bold" -> ujson.Bool(group.bold),
+          "italic" -> ujson.Bool(group.italic),
+          "underline" -> ujson.Bool(group.underline)
+        )
+      ujson.Obj(
+        "provider" -> ujson.Str(theme.provider),
+        "base_color" -> ujson.Str(theme.base_color),
+        "highlights" -> ujson.Obj(highlightObjs)
+      )
+    },
+    json => {
+      val obj = json.obj
+      val provider = obj.get("provider") match {
+        case Some(ujson.Str(s)) => s
+        case _ => ""
+      }
+      val baseColor = obj.get("base_color") match {
+        case Some(ujson.Str(s)) => s
+        case _ => "#000000"
+      }
+      val highlights = obj.get("highlights") match {
+        case Some(ujson.Obj(highlightsMap)) =>
+          highlightsMap.map { case (groupName, groupJson) =>
+            val groupObj = groupJson.obj
+            val group = HighlightGroup(
+              fg = groupObj.get("fg").flatMap {
+                case ujson.Str(s) => Some(s)
+                case ujson.Null => None
+                case _ => None
+              },
+              bg = groupObj.get("bg").flatMap {
+                case ujson.Str(s) => Some(s)
+                case ujson.Null => None
+                case _ => None
+              },
+              bold = groupObj.get("bold").exists { case ujson.Bool(b) => b; case _ => false },
+              italic = groupObj.get("italic").exists { case ujson.Bool(b) => b; case _ => false },
+              underline = groupObj.get("underline").exists { case ujson.Bool(b) => b; case _ => false }
+            )
+            (groupName, group)
+          }.toMap
+        case _ => Map.empty
+      }
+      ThemeHighlights(provider, baseColor, highlights)
+    }
+  )
+
 object CumulusResponse:
   // Reusable ReadWriter for Unit responses (e.g. ping)
   given unitRW: ReadWriter[Unit] = upickle.default.readwriter[String].bimap[Unit](

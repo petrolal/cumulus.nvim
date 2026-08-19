@@ -1145,6 +1145,18 @@ function M.run_term(cmd, opts)
   vim.cmd("startinsert")
 end
 
+--- Generate theme highlights for a cloud provider via Scala engine
+---@param provider string Cloud provider name: "aws", "azure", "gcp", or "oci"
+---@param opts? { silent?: boolean }
+---@return { provider: string, base_color: string, highlights: { [string]: { fg?: string, bg?: string, bold?: boolean, italic?: boolean, underline?: boolean } } }|nil
+function M.generate_theme_highlights(provider, opts)
+  if not provider or provider == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "generate-theme-highlights", provider }, nil, "generate-theme-highlights", opts)
+end
+
 return M
 
 

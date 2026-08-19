@@ -1,6 +1,6 @@
 package cumulus
 
-import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec}
+import cumulus.protocol.{CumulusResponse, CumulusError, Module, ModuleTree, FormatterSpec, ThemeHighlights}
 import cumulus.build.{MavenParser, GradleParser, ParsePomResponse, ParseGradleTasksResponse, ParseModulesResponse, ParseGradleModulesResponse, ComputeBuildOrderResponse, ModuleBuildStep, DagSolver, DependencyExtractor, CommandIntent, CommandAssemblyResult, CommandAssembler, MultiModuleResolver}
 import cumulus.workspace.{JdkDiscoverer, BuildToolDetector, WorkspaceScanner, JdkInfo, BuildToolInfo, WorkspaceInfo, DistroInstaller, InstallResult, WorkspaceClassifier, WorkspaceTopology, ProjectSubmodule, DevopsRoots, DevopsRootDiscoverer}
 import cumulus.code.{CodeLensExtractor, CodeLensItem, CodeLensResponse, SpringBootDetector, BeanGraphAnalyzer, SpringBootApp, SpringBeansResponse, EndpointScanner, Endpoint, EndpointsResponse, ImportOptimizer, ImportsResponse, JavaHeaderGenerator, JavaHeader, DapConfiguration, DapConfigResult, DapConfigGenerator}
@@ -15,7 +15,7 @@ import cumulus.util.{SessionSanitizer, NetworkChecker}
 import cumulus.gradle.WrapperVerifier
 import cumulus.workspace.JdtlsSyncChecker
 import cumulus.dep.{DepResolver, DepLens}
-import cumulus.theme.ThemeManager
+import cumulus.theme.{ThemeManager, ThemeGenerator}
 import upickle.default.ReadWriter
 import scala.io.Source
 import java.io.File
@@ -1011,6 +1011,17 @@ object Main:
               FormatterResolver.resolveFormatter(filePath)
             case None =>
               errorEnvelope[FormatterSpec]("Missing --file argument", CumulusError.INVALID_INPUT)
+          serializeResponse(result)
+
+        case "generate-theme-highlights" =>
+          given ReadWriter[ThemeHighlights] = upickle.default.macroRW
+          val argMap = parseArgs(args.slice(1, args.length))
+          val provider = argMap.get("provider").orElse(args.drop(1).find(!_.startsWith("--")))
+          val result = provider match
+            case Some(prov) =>
+              ThemeGenerator.generateThemeHighlights(prov)
+            case None =>
+              errorEnvelope[ThemeHighlights]("Missing provider argument (aws, azure, gcp, or oci)", CumulusError.INVALID_INPUT)
           serializeResponse(result)
 
         case _ =>
