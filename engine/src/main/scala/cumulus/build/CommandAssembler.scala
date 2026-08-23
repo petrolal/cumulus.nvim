@@ -198,29 +198,30 @@ object CommandAssembler:
     baseDir: Path
   ): Either[String, CommandAssemblyResult] =
     val executable = if tool == "tofu" then "tofu" else "terraform"
-    val (resolvedCwd, args) = intent.target match
+    val (resolvedCwdOrError, args) = intent.target match
       case Some(t) if t.trim.nonEmpty =>
         val trimmed = t.trim
         if trimmed.endsWith(".tf") || trimmed.endsWith(".tofu") || trimmed.endsWith(".tfvars") then
-          (baseDir.toString, Seq(action) ++ intent.flags ++ Seq(trimmed))
+          (Right(baseDir.toString), Seq(action) ++ intent.flags ++ Seq(trimmed))
         else
-          val targetPath = if trimmed.startsWith("/") then
-            Path(trimmed)
-          else
-            baseDir / os.SubPath(trimmed.stripPrefix("./"))
-          (targetPath.toString, Seq(action) ++ intent.flags)
+          // Validate that target path is within project boundary
+          val validation = isPathWithinProject(trimmed, baseDir)
+          val resolvedCwd = validation.map(_.toString)
+          (resolvedCwd, Seq(action) ++ intent.flags)
       case _ =>
-        (baseDir.toString, Seq(action) ++ intent.flags)
+        (Right(baseDir.toString), Seq(action) ++ intent.flags)
 
-    val commandStr = formatCommand(executable, args)
-
-    Right(CommandAssemblyResult(
-      command = commandStr,
-      executable = executable,
-      args = args,
-      cwd = resolvedCwd,
-      env = intent.env
-    ))
+    resolvedCwdOrError match
+      case Left(error) => Left(error)
+      case Right(resolvedCwd) =>
+        val commandStr = formatCommand(executable, args)
+        Right(CommandAssemblyResult(
+          command = commandStr,
+          executable = executable,
+          args = args,
+          cwd = resolvedCwd,
+          env = intent.env
+        ))
 
   private def assembleSam(
     intent: CommandIntent,
@@ -518,6 +519,38 @@ object CommandAssembler:
     (leadingOptions.toSeq, trailingOptions.toSeq)
 
   /**
+   * Validate that a target path is within the project boundary.
+   * For existing paths, uses toRealPath() to resolve symlinks and traversal sequences.
+   * For non-existent paths, uses normalize() + toAbsolutePath() to detect traversal.
+   * Then verifies that the resulting path is within the base directory.
+   *
+   * @param target The target path (relative or absolute)
+   * @param baseDir The project base directory that serves as the boundary
+   * @return Either an error message or the validated normalized path
+   */
+  private def isPathWithinProject(target: String, baseDir: Path): Either[String, Path] =
+    try
+      val targetPath = if target.startsWith("/") then
+        Path(target)  // Absolute path
+      else
+        baseDir / os.SubPath(target.stripPrefix("./"))  // Relative to base
+
+      // Try to resolve real path (handles existing paths and symlinks)
+      val resolvedTarget = try
+        targetPath.toNIO.toRealPath()
+      catch
+        // If path doesn't exist, fall back to normalize + absolute path
+        case _: Exception => targetPath.toNIO.normalize().toAbsolutePath()
+
+      val realBase = baseDir.toNIO.toRealPath()
+
+      // Check if resolvedTarget is within realBase
+      if resolvedTarget.startsWith(realBase) then Right(Path(resolvedTarget))
+      else Left("Path traversal detected")
+    catch
+      case _: Exception => Left("Path traversal detected")
+
+  /**
    * Check if wrapper exists in directory or parent hierarchy.
    */
   private def hasWrapper(startDir: Path, wrapperName: String): Boolean =
@@ -531,22 +564,55 @@ object CommandAssembler:
     found
 
   /**
-   * Format command and args into a single shell command string, escaping arguments with spaces if necessary.
+   * Escape a shell argument by escaping backslashes and double quotes, then wrapping in double quotes.
+   * This prevents shell metacharacter injection while preserving the argument as a literal string.
+   *
+   * Escaping order is critical:
+   * 1. Escape backslashes first: \ → \\
+   * 2. Escape double quotes: " → \"
+   * 3. Wrap result in double quotes
+   *
+   * @param arg The argument to escape
+   * @return The escaped and quoted argument
+   */
+  private def escapeShellArg(arg: String): String =
+    val escaped = arg
+      .replace("\\", "\\\\")  // Backslash first (order matters!)
+      .replace("\"", "\\\"")  // Then double quotes
+    s""""$escaped""""
+
+  /**
+   * Format command and args into a single shell command string, escaping backslashes and double quotes
+   * to prevent command injection attacks via quote-escaped injection.
+   * Note: Other shell metacharacters ($, `, |, etc.) within double quotes are still interpreted by the shell.
    */
   private def formatCommand(executable: String, args: Seq[String]): String =
     if args.isEmpty then executable
     else
       val formattedArgs = args.map { arg =>
-        if arg.contains(" ") && !arg.startsWith("\"") && !arg.startsWith("'") then
+        // Check if argument needs escaping (contains special chars or spaces)
+        val needsEscaping = arg.contains("\\") || arg.contains("\"") || arg.contains(" ")
+
+        if needsEscaping then
           if arg.startsWith("-") && arg.contains("=") then
+            // Handle -key="value" pattern: split on =, escape value if needed
             val eqIdx = arg.indexOf('=')
             val key = arg.substring(0, eqIdx)
             val value = arg.substring(eqIdx + 1)
-            if value.contains(" ") && !value.startsWith("\"") && !value.startsWith("'") then
-              s"""$key="$value""""
+            val needsValueEscaping = value.contains("\\") || value.contains("\"") || value.contains(" ")
+            if needsValueEscaping then
+              // If value already starts with quote, remove matching quotes before escaping
+              val unquotedValue = if (value.startsWith("\"") && value.endsWith("\"") && value.length >= 2) then
+                value.substring(1, value.length - 1)
+              else if (value.startsWith("'") && value.endsWith("'") && value.length >= 2) then
+                value.substring(1, value.length - 1)
+              else
+                value
+              s"""$key=${escapeShellArg(unquotedValue)}"""
             else arg
           else
-            s""""$arg""""
+            // Escape the entire argument if it contains special chars
+            escapeShellArg(arg)
         else
           arg
       }

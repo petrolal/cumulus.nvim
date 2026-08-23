@@ -298,3 +298,469 @@ class CommandAssemblerTest extends FunSuite:
     assert(result.isLeft)
     assert(result.left.toOption.get.contains("Unsupported tool"))
   }
+
+  test("shell injection vector: double quotes with metacharacters") {
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      // The input string contains actual quote characters that need escaping
+      flags = Seq("\"; rm -rf /; echo \""),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // The dangerous input should be escaped and quoted to prevent injection
+    // Input: "; rm -rf /; echo "
+    // Escape quotes: \"; rm -rf /; echo \"
+    // Wrap in quotes: "\"; rm -rf /; echo \""
+    assertEquals(cmd.command, "terraform plan \"\\\"; rm -rf /; echo \\\"\"")
+  }
+
+  test("shell injection vector: complex attack string") {
+    // Note: This test shows that $(malicious_command) without spaces won't be wrapped.
+    // This is a limitation of the spec which only escapes backslashes and quotes.
+    // In practice, $() is still interpreted inside double quotes, so this is unsafe.
+    // However, we follow the spec which doesn't mandate escaping for $ and ().
+    val intent = CommandIntent(
+      tool = "docker",
+      action = "build",
+      flags = Seq("$(malicious_command)"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Per spec: no spaces, no backslashes, no quotes -> no escaping needed
+    assertEquals(cmd.command, "docker build $(malicious_command) .")
+  }
+
+  test("argument with backslashes only") {
+    val intent = CommandIntent(
+      tool = "maven",
+      action = "build",
+      flags = Seq("path\\to\\file"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Backslashes should be escaped
+    assertEquals(cmd.command, """mvn clean package "path\\to\\file"""")
+  }
+
+  test("argument with mixed backslashes and quotes") {
+    val intent = CommandIntent(
+      tool = "sbt",
+      action = "build",
+      flags = Seq("""test"; \evil\path"""),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Both backslashes and quotes should be escaped
+    // Backslashes: \ → \\, Quotes: " → \", Wrapped: "result"
+    assertEquals(cmd.command, """sbt compile "test\"; \\evil\\path"""")
+  }
+
+  test("-key=\"value\" pattern with special characters in value") {
+    val intent = CommandIntent(
+      tool = "maven",
+      action = "build",
+      flags = Seq("""-Dconf="my value with; bad chars\here\""""),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Value should be escaped even with -key= prefix
+    assertEquals(cmd.command, """mvn clean package -Dconf="my value with; bad chars\\here\\"""")
+  }
+
+  test("-key=\"value\" pattern without special characters remains unchanged") {
+    val intent = CommandIntent(
+      tool = "maven",
+      action = "build",
+      flags = Seq("-Dconf=simple_value"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Simple values without spaces or special chars should not be modified
+    assertEquals(cmd.command, "mvn clean package -Dconf=simple_value")
+  }
+
+  test("empty string argument is handled safely") {
+    val intent = CommandIntent(
+      tool = "docker",
+      action = "run",
+      flags = Seq(""),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Empty strings should not cause issues
+    assert(cmd.command.contains("docker run"))
+  }
+
+  test("argument with only quotes") {
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      flags = Seq("\""),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Pure quote should be escaped and wrapped: " -> \" -> "\""
+    assertEquals(cmd.command, "terraform plan \"\\\"\"")
+  }
+
+  test("normal argument without special characters remains unchanged") {
+    val intent = CommandIntent(
+      tool = "gradle",
+      action = "build",
+      flags = Seq("--offline", "-q"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Clean arguments should remain unchanged
+    assertEquals(cmd.command, "gradle build --offline -q")
+  }
+
+  test("already quoted argument gets internal quotes escaped") {
+    val intent = CommandIntent(
+      tool = "docker",
+      action = "run",
+      flags = Seq("""-e VAR="already quoted""""),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Argument with -key="value" pattern: value is unquoted before escaping, then re-wrapped
+    // Input: -e VAR="already quoted"
+    // Key: -e VAR, Value: "already quoted" → unquote to: already quoted → escape → "already quoted"
+    // Result: -e VAR="already quoted"
+    assertEquals(cmd.command, """docker run -e VAR="already quoted"""")
+  }
+
+  test("shell injection: command substitution with backticks") {
+    val intent = CommandIntent(
+      tool = "ansible",
+      action = "run",
+      flags = Seq("`whoami`"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Backticks don't require escaping per spec (only backslashes and quotes)
+    // and have no spaces, so they pass through unchanged
+    assertEquals(cmd.command, "ansible-playbook `whoami`")
+  }
+
+  test("shell injection: pipe and redirection") {
+    val intent = CommandIntent(
+      tool = "helm",
+      action = "lint",
+      flags = Seq("| cat /etc/passwd"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Pipe with space should be quoted to prevent shell interpretation
+    assertEquals(cmd.command, """helm lint . "| cat /etc/passwd"""")
+  }
+
+  test("multiple arguments with mixed special characters") {
+    val intent = CommandIntent(
+      tool = "maven",
+      action = "build",
+      flags = Seq("-Dfile=my file.txt", "-Dpath=C:\\Users\\Admin\\file"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Each should have values properly escaped and quoted
+    // -Dfile=my file.txt has space in value -> -Dfile="my file.txt"
+    // -Dpath=C:\Users\Admin\file has backslashes in value -> needs escaping to C:\\Users\\Admin\\file
+    // Verify the full command
+    assert(cmd.command.startsWith("mvn clean package"))
+    assert(cmd.command.contains("-Dfile=\"my file.txt\""))
+    assert(cmd.command.contains("-Dpath=\"C") && cmd.command.contains("Users\\\\Admin\\\\file\""))
+  }
+
+  test("backslash escaping order: backslash must come before quote escaping") {
+    // This test verifies that the escaping order (backslash first, then quotes) is correct
+    // Input: a\b"c should become: "a\\b\"c"
+    val intent = CommandIntent(
+      tool = "docker",
+      action = "build",
+      flags = Seq("""a\b"c"""),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // If backslash escaping happens first: \ → \\, then " → \"
+    // Result should be: "a\\b\"c"
+    assertEquals(cmd.command, """docker build "a\\b\"c" .""")
+  }
+
+  // Path traversal security tests for Terraform
+  test("Terraform: reject path traversal attempt ../../../etc/passwd") {
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      target = Some("../../../etc/passwd"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isLeft)
+    assert(result.left.toOption.get.contains("Path traversal detected"))
+  }
+
+  test("Terraform: reject deeply nested traversal ../../../../../../tmp/file") {
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      target = Some("../../../../../../tmp/file"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isLeft)
+    assert(result.left.toOption.get.contains("Path traversal detected"))
+  }
+
+  test("Terraform: reject absolute path /etc/passwd") {
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      target = Some("/etc/passwd"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isLeft)
+    assert(result.left.toOption.get.contains("Path traversal detected"))
+  }
+
+  test("Terraform: accept valid in-project relative path") {
+    val tfDir = tmpDir / "tf-valid"
+    val infraDir = tfDir / "infra" / "dev"
+    os.makeDir.all(infraDir)
+
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      target = Some("infra/dev"),
+      dir = Some(tfDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    assertEquals(cmd.cwd, infraDir.toString)
+    assertEquals(cmd.executable, "terraform")
+    assertEquals(cmd.args, Seq("plan"))
+  }
+
+  test("Terraform: accept valid deep in-project path") {
+    val tfDir = tmpDir / "tf-deep"
+    val deepDir = tfDir / "subdir" / "deep" / "terraform"
+    os.makeDir.all(deepDir)
+
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "init",
+      target = Some("subdir/deep/terraform"),
+      dir = Some(tfDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    assertEquals(cmd.cwd, deepDir.toString)
+  }
+
+  test("Terraform: reject symlink pointing outside project") {
+    val tfDir = tmpDir / "tf-symlink-out"
+    os.makeDir.all(tfDir)
+
+    // Create external target outside project
+    val externalDir = tmpDir / "external"
+    os.makeDir.all(externalDir)
+
+    // Create symlink inside project pointing outside
+    val symlinkPath = tfDir / "external-link"
+    try
+      os.symlink(symlinkPath, externalDir)
+
+      val intent = CommandIntent(
+        tool = "terraform",
+        action = "plan",
+        target = Some("external-link"),
+        dir = Some(tfDir.toString)
+      )
+      val result = CommandAssembler.assemble(intent)
+      assert(result.isLeft)
+      assert(result.left.toOption.get.contains("Path traversal detected"))
+    catch
+      case _: Exception =>
+        // Skip test if symlink creation fails (e.g., on Windows)
+        ()
+  }
+
+  test("Terraform: accept symlink pointing inside project") {
+    val tfDir = tmpDir / "tf-symlink-in"
+    val targetDir = tfDir / "actual" / "target"
+    os.makeDir.all(targetDir)
+
+    val symlinkPath = tfDir / "link-to-target"
+    try
+      os.symlink(symlinkPath, targetDir)
+
+      val intent = CommandIntent(
+        tool = "terraform",
+        action = "plan",
+        target = Some("link-to-target"),
+        dir = Some(tfDir.toString)
+      )
+      val result = CommandAssembler.assemble(intent)
+      assert(result.isRight)
+      val cmd = result.toOption.get
+      // Should resolve to the actual target directory
+      assertEquals(cmd.cwd, targetDir.toString)
+    catch
+      case _: Exception =>
+        // Skip test if symlink creation fails (e.g., on Windows)
+        ()
+  }
+
+  test("Terraform: terraform file with traversal sequences in name is allowed") {
+    val tfDir = tmpDir / "tf-files"
+    os.makeDir.all(tfDir)
+
+    // Even if filename contains traversal patterns, terraform files are passed as-is
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "fmt",
+      target = Some("../../../main.tf"),
+      dir = Some(tfDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    // Terraform files (.tf) are passed directly without path validation
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    assertEquals(cmd.cwd, tfDir.toString)
+    assert(cmd.args.contains("../../../main.tf"))
+  }
+
+  test("Terraform: empty target works as before") {
+    val tfDir = tmpDir / "tf-empty"
+    os.makeDir.all(tfDir)
+
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      target = None,
+      dir = Some(tfDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    assertEquals(cmd.cwd, tfDir.toString)
+  }
+
+  test("Terraform: path with ./ prefix is normalized and validated") {
+    val tfDir = tmpDir / "tf-dotslash"
+    val infraDir = tfDir / "infra"
+    os.makeDir.all(infraDir)
+
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      target = Some("./infra"),
+      dir = Some(tfDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    assertEquals(cmd.cwd, infraDir.toString)
+  }
+
+  test("Terraform: reject ../../sensitive-file traversal") {
+    val tfDir = tmpDir / "tf-sensitive"
+    os.makeDir.all(tfDir)
+
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      target = Some("../../sensitive-file"),
+      dir = Some(tfDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isLeft)
+    assert(result.left.toOption.get.contains("Path traversal detected"))
+  }
+
+  test("OpenTofu (tofu): reject path traversal") {
+    val intent = CommandIntent(
+      tool = "tofu",
+      action = "plan",
+      target = Some("../../../etc/shadow"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isLeft)
+    assert(result.left.toOption.get.contains("Path traversal detected"))
+  }
+
+  test("Terraform: tofu file extensions bypass traversal check") {
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "fmt",
+      target = Some("../../../config.tofu"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    // .tofu files are passed directly without validation
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    assert(cmd.args.contains("../../../config.tofu"))
+  }
+
+  test("Terraform: tfvars file extensions bypass traversal check") {
+    val intent = CommandIntent(
+      tool = "terraform",
+      action = "plan",
+      target = Some("../../../dev.tfvars"),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    // .tfvars files are passed directly without validation
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    assert(cmd.args.contains("../../../dev.tfvars"))
+  }
+
+  test("Maven: -key=\" (single quote value) is properly escaped") {
+    val intent = CommandIntent(
+      tool = "maven",
+      action = "build",
+      flags = Seq("-Dconf=\""),
+      dir = Some(tmpDir.toString)
+    )
+    val result = CommandAssembler.assemble(intent)
+    assert(result.isRight)
+    val cmd = result.toOption.get
+    // Single quote value should be escaped and preserved, not converted to empty string
+    // Input: -Dconf=" → should become: -Dconf="\"" (escaped literal quote)
+    assertEquals(cmd.command, "mvn clean package -Dconf=\"\\\"\"")
+  }
