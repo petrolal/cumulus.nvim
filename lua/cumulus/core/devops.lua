@@ -7,6 +7,7 @@
 local M = {}
 
 local uv = vim.uv or vim.loop
+local engine = require("cumulus.util.engine")
 
 -- =============================================================================
 -- Engine-Driven Root Discovery (No Fallback Logic)
@@ -54,7 +55,6 @@ function M.find_tf_root(buf_or_path)
     return nil
   end
 
-  local engine = require("cumulus.util.engine")
   if not engine.is_available() then
     vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
     return nil
@@ -73,7 +73,6 @@ function M.find_cfn_root(buf_or_path)
     return nil
   end
 
-  local engine = require("cumulus.util.engine")
   if not engine.is_available() then
     vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
     return nil
@@ -92,7 +91,6 @@ function M.find_ansible_root(buf_or_path)
     return nil
   end
 
-  local engine = require("cumulus.util.engine")
   if not engine.is_available() then
     vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
     return nil
@@ -111,7 +109,6 @@ function M.find_docker_root(buf_or_path)
     return nil
   end
 
-  local engine = require("cumulus.util.engine")
   if not engine.is_available() then
     vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
     return nil
@@ -130,7 +127,6 @@ function M.find_helm_root(buf_or_path)
     return nil
   end
 
-  local engine = require("cumulus.util.engine")
   if not engine.is_available() then
     vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
     return nil

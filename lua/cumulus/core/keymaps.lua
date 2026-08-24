@@ -75,7 +75,10 @@ local lang_keymaps = require("cumulus.core.lang-keymaps")
 -- ⭐ JVM PLATFORM KEYMAP SUITE (<leader>j) - Unconditionally Registered
 -- ==============================================================================
 local jvm = require("cumulus.util.jvm")
-jvm.setup_keymaps()
+local jvm_ok, jvm_err = pcall(jvm.setup_keymaps)
+if not jvm_ok then
+  vim.notify("Failed to register JVM keymaps: " .. tostring(jvm_err), vim.log.levels.WARN, { title = "Cumulus JVM" })
+end
 
 -- ==============================================================================
 -- 󱁢 Infrastructure & DevOps Platform Suite (<leader>o) - Globally Registered

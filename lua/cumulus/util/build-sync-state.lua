@@ -112,7 +112,15 @@ function M.run()
     local base_cmd = "mvn"
     if vim.fn.filereadable(mvnw) == 1 then
       if vim.fn.executable(mvnw) == 0 then
-        vim.fn.system({ "chmod", "+x", mvnw })
+        local ok, err = pcall(function()
+          local result = vim.fn.system({ "chmod", "+x", mvnw })
+          if vim.v.shell_error ~= 0 then
+            vim.notify("Failed to chmod mvnw: " .. tostring(result), vim.log.levels.WARN)
+          end
+        end)
+        if not ok then
+          vim.notify("chmod mvnw error: " .. tostring(err), vim.log.levels.WARN)
+        end
       end
       base_cmd = "./mvnw"
     end
@@ -127,7 +135,15 @@ function M.run()
     local base_cmd = "gradle"
     if vim.fn.filereadable(gradlew) == 1 then
       if vim.fn.executable(gradlew) == 0 then
-        vim.fn.system({ "chmod", "+x", gradlew })
+        local ok, err = pcall(function()
+          local result = vim.fn.system({ "chmod", "+x", gradlew })
+          if vim.v.shell_error ~= 0 then
+            vim.notify("Failed to chmod gradlew: " .. tostring(result), vim.log.levels.WARN)
+          end
+        end)
+        if not ok then
+          vim.notify("chmod gradlew error: " .. tostring(err), vim.log.levels.WARN)
+        end
       end
       base_cmd = "./gradlew"
     end
