@@ -10,27 +10,27 @@ object CumulusCli:
   private val VERSION = "0.1.0"
 
   def main(args: Array[String]): Unit = {
-    val result = args.headOption match
-      case Some("install") => installCumulus()
-      case Some("update") => updateCumulus()
-      case Some("--version") | Some("-v") => printVersion()
-      case Some("--help") | Some("-h") => printHelp()
-      case Some(cmd) if cmd.startsWith("-") =>
-        // Pass through to nvim
-        launchNvim(args)
-      case Some(_) =>
-        // Any other single command - pass to nvim
-        launchNvim(args)
-      case None =>
-        // No args - just launch nvim
-        launchNvim(Array.empty)
+    val result = args match
+      // cumulus nvim setup/sync/status
+      case Array("nvim", "setup", _*) => setupCumulus()
+      case Array("nvim", "sync", _*) => syncCumulus()
+      case Array("nvim", "status", _*) => checkStatus()
+      case Array("nvim", "--help", _*) | Array("nvim", "-h", _*) => printNvimHelp()
+      // cumulus nvim [args] - launch nvim
+      case Array("nvim", rest @ _*) => launchNvim(rest.toArray)
+      // cumulus --help/--version
+      case Array("--help") | Array("-h") => printMainHelp()
+      case Array("--version") | Array("-v") => printVersion()
+      // cumulus (no args)
+      case Array() => printMainHelp()
+      case _ => printMainHelp()
 
     System.exit(result)
   }
 
-  private def installCumulus(): Int = {
+  private def setupCumulus(): Int = {
     println("================================================")
-    println("  Cumulus Neovim: Full Installation          ")
+    println("  Cumulus Neovim: Setup & Installation        ")
     println("================================================")
     println()
 
@@ -58,14 +58,38 @@ object CumulusCli:
       exitCode
     } catch {
       case e: Exception =>
-        println(s"✖ Installation failed: ${e.getMessage}")
+        println(s"✖ Setup failed: ${e.getMessage}")
         1
     }
   }
 
-  private def updateCumulus(): Int = {
-    println("Updating Cumulus Neovim...")
-    installCumulus() // update is same as install
+  private def syncCumulus(): Int = {
+    println("Syncing Cumulus Neovim...")
+    setupCumulus()
+  }
+
+  private def checkStatus(): Int = {
+    val repoDir = findCumulusRepo()
+    println("================================================")
+    println("  Cumulus Neovim: Status Report               ")
+    println("================================================")
+    println()
+
+    repoDir match
+      case Some(repo) =>
+        println(s"✓ Installation found: $repo")
+        val enginePath = s"$repo/engine/target/release/cumulus-engine"
+        if (os.exists(Path(enginePath))) {
+          println("✓ Engine binary: present")
+        } else {
+          println("⚠ Engine binary: not found (will be built on first use)")
+        }
+        0
+      case None =>
+        println("✖ Cumulus not installed at ~/.config/nvim")
+        println("  Run: git clone https://github.com/petrolal/cumulus.nvim ~/.config/nvim")
+        println("  Then: cumulus nvim setup")
+        1
   }
 
   private def launchNvim(args: Array[String]): Int = {
@@ -81,32 +105,59 @@ object CumulusCli:
   }
 
   private def printVersion(): Int = {
-    println(s"cn version $VERSION")
+    println(s"cumulus-nvim version $VERSION")
     0
   }
 
-  private def printHelp(): Int = {
-    println("""Cumulus Neovim CLI
-      |
-      |USAGE:
-      |    cn [OPTIONS] [ARGS]...
-      |
-      |OPTIONS:
-      |    install                 Full installation & setup
-      |    update                  Update Cumulus & all components
-      |    -v, --version           Show version
-      |    -h, --help              Show this help
-      |
-      |ARGS:
-      |    Any arguments are passed to nvim
-      |
-      |EXAMPLES:
-      |    cn install              # Full setup
-      |    cn                      # Launch nvim
-      |    cn -u init.lua          # Launch with custom init
-      |    cn --noplugin           # Launch without plugins
-      |    cn -c "set number"      # Launch with command
-      |""".stripMargin)
+  private def printMainHelp(): Int = {
+    println("""Cumulus Package Manager
+
+USAGE:
+    cumulus [COMMAND] [SUBCOMMAND] [ARGS]...
+
+COMMANDS:
+    nvim                    Manage Cumulus Neovim IDE
+    help                    Show this help
+
+EXAMPLES:
+    cumulus nvim setup      # Initialize or update Cumulus
+    cumulus nvim sync       # Sync plugins & components
+    cumulus nvim status     # Show installation status
+    cumulus nvim            # Launch Neovim
+    cumulus --help          # Show this help
+    cumulus --version       # Show version
+
+Use 'cumulus nvim --help' for Neovim-specific commands.
+""".stripMargin)
+    0
+  }
+
+  private def printNvimHelp(): Int = {
+    println("""Cumulus Neovim Management
+
+USAGE:
+    cumulus nvim [SUBCOMMAND] [ARGS]...
+
+SUBCOMMANDS:
+    setup                   Initialize or update Cumulus
+    sync                    Sync plugins & components (same as setup)
+    status                  Show installation status
+
+    (no subcommand)         Launch Neovim
+
+EXAMPLES:
+    cumulus nvim setup      # Initialize or update everything
+    cumulus nvim status     # Check what's installed
+    cumulus nvim            # Launch Neovim
+    cumulus nvim -u init.lua    # Launch with custom init
+    cumulus nvim --noplugin     # Launch without plugins
+    cumulus nvim -c "set number" # Launch with command
+
+FIRST TIME:
+    1. git clone https://github.com/petrolal/cumulus.nvim ~/.config/nvim
+    2. cumulus nvim setup   # Full setup (~5-15 min)
+    3. cumulus nvim         # Launch Cumulus IDE
+""".stripMargin)
     0
   }
 

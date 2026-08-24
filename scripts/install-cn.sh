@@ -233,7 +233,7 @@ if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua" ]; then
 fi
 
 case "${1:-}" in
-  install|update)
+  setup|sync)
     if [ -z "$REPO_DIR" ]; then
       echo "✖ Cumulus Neovim not found. Clone the repo and run: bash bootstrap.sh"
       exit 1
@@ -267,9 +267,10 @@ EOF
 
   echo ""
   echo "  Quick start:"
-  echo "    • Launch nvim: nvim"
-  echo "    • Update: cn update"
-  echo "    • Check health: nvim +checkhealth"
+  echo "    • Launch Cumulus: nvim"
+  echo "    • Check status: cn status"
+  echo "    • Update: cn setup"
+  echo "    • Get help: cn --help"
 }
 
 # ============================================================================

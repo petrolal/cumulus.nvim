@@ -15,9 +15,9 @@ bash bootstrap.sh
 
 This creates the `cn` command launcher and updates your shell PATH.
 
-### 3. Run Full Installation
+### 3. Run Setup
 ```bash
-cn install
+cn setup
 ```
 
 This single command will:
@@ -45,7 +45,7 @@ bash bootstrap.sh
   • Creates ~/.local/bin/cn
   • Updates shell PATH
         ↓
-cn install
+cn setup
   • Checks/installs deps (git, nvim, java, ripgrep)
   • Builds/downloads cumulus-engine
   • Links ~/.config/nvim → repo
@@ -62,19 +62,22 @@ nvim  (just works!)
 After installation, use the `cn` command for:
 
 ```bash
-# Launch Cumulus (same as 'nvim')
-cn
+# Setup or update Cumulus
+cn setup
 
-# Update Cumulus (reinstall everything)
-cn update
+# Check installation status
+cn status
+
+# Launch Cumulus Neovim
+cn
 
 # Pass args to nvim
 cn -u ~/.config/nvim/init.lua
 cn --noplugin
 
-# Standard nvim behavior
+# Get help
+cn --help
 cn --version
-cn -c "set number"
 ```
 
 ---
