@@ -14,10 +14,22 @@ return {
     priority = 1000,
     config = function()
       local group = vim.api.nvim_create_augroup("cumulus_theme_init", { clear = true })
+
+      -- Initialize colors on VimEnter
       vim.api.nvim_create_autocmd("VimEnter", {
         group = group,
         callback = function()
-          -- Detect current theme and initialize colors from engine
+          local theme_module = require("cumulus.theme")
+          local current_theme = theme_module.get_current_theme()
+          theme_colors.refresh_cache(current_theme)
+        end,
+      })
+
+      -- Refresh colors when theme changes
+      vim.api.nvim_create_autocmd("User", {
+        group = group,
+        pattern = "CumulusThemeChanged",
+        callback = function()
           local theme_module = require("cumulus.theme")
           local current_theme = theme_module.get_current_theme()
           theme_colors.refresh_cache(current_theme)

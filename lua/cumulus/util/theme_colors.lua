@@ -36,12 +36,12 @@ M.cache = vim.deepcopy(M.DEFAULT_COLORS)
 function M.init_theme_colors(provider)
   -- Nil guard: check engine module is available
   local engine = require("cumulus.util.engine")
-  if not engine or not engine.is_available then
+  if not engine or not engine.is_available() then
     M.cache = vim.deepcopy(M.DEFAULT_COLORS)
     return
   end
 
-  -- Safe call to manage_theme("set") which now includes highlights in response
+  -- Safe call to manage_theme("set") which returns highlights in response
   local ok, result = pcall(engine.manage_theme, "set", { theme = provider })
   if not ok or not result then
     M.cache = vim.deepcopy(M.DEFAULT_COLORS)
@@ -54,8 +54,8 @@ function M.init_theme_colors(provider)
     return
   end
 
-  -- Extract colors from highlights with fallback logic via `and` operators
-  M.cache.bg = (result.highlights.Normal and result.highlights.Normal.fg or result.highlights.Normal.bg) or M.DEFAULT_COLORS.bg
+  -- Extract colors from highlights with safe fallback logic
+  M.cache.bg = (result.highlights.Normal and result.highlights.Normal.bg) or M.DEFAULT_COLORS.bg
   M.cache.fg = (result.highlights.Normal and result.highlights.Normal.fg) or M.DEFAULT_COLORS.fg
   M.cache.fg_dim = (result.highlights.Comment and result.highlights.Comment.fg) or M.DEFAULT_COLORS.fg_dim
   M.cache.bg_cursorline = (result.highlights.CursorLine and result.highlights.CursorLine.bg) or M.DEFAULT_COLORS.bg_cursorline
@@ -75,6 +75,10 @@ end
 ---@param theme_name string Theme name (e.g., "aws-theme", "azure-theme")
 ---@return nil
 function M.refresh_cache(theme_name)
+  if not theme_name then
+    M.cache = vim.deepcopy(M.DEFAULT_COLORS)
+    return
+  end
   local clean_theme = theme_name:gsub("%-theme$", "")
   M.init_theme_colors(clean_theme)
 end

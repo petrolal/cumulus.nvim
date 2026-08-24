@@ -155,6 +155,12 @@ function M.set_theme(theme_name)
   -- Refresh theme color cache for lualine/bufferline (Story 5.1)
   local theme_colors = require("cumulus.util.theme_colors")
   theme_colors.refresh_cache(theme_name)
+
+  -- Trigger UI refresh for lualine and bufferline to pick up new colors
+  vim.cmd("doautocmd User CumulusThemeChanged")
+  if pcall(require, "lualine") then
+    require("lualine").refresh()
+  end
 end
 
 function M.load_saved_theme()
