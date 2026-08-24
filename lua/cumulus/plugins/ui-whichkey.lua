@@ -40,8 +40,15 @@ return {
       -- lua/cumulus/core/lang-keymaps.lua.
       vim.list_extend(opts.spec, require("cumulus.core.lang-keymaps").whichkey_spec())
 
-      local devops = require("cumulus.util.devops")
-      vim.list_extend(opts.spec, devops.whichkey_spec())
+      -- DevOps & Infrastructure Tooling Suite (<leader>o)
+      vim.list_extend(opts.spec, {
+        { "<leader>o", group = "devops/infra", icon = "󱁢 " },
+        { "<leader>ot", group = "terraform/opentofu", icon = "󱁢 " },
+        { "<leader>oc", group = "cloudformation/sam", icon = "󰅟 " },
+        { "<leader>oy", group = "ansible", icon = "󰚰 " },
+        { "<leader>od", group = "docker", icon = "󰡨 " },
+        { "<leader>ok", group = "helm/k8s", icon = "󱃾 " },
+      })
 
       local jvm = require("cumulus.util.jvm")
       if jvm.is_jvm_project() then

@@ -2,155 +2,147 @@
 --
 -- Interactive and non-blocking compilers, validators, linters, and runners
 -- for Terraform/OpenTofu, AWS CloudFormation/SAM, Ansible, Docker, and Helm.
+-- Uses engine.discover_devops_roots() exclusively for root discovery (no fallback).
 
 local M = {}
 
 local uv = vim.uv or vim.loop
 
-local function is_dir(path)
-  if not path or path == "" then return false end
-  local ok, stat = pcall(uv.fs_stat, path)
-  if ok and stat ~= nil then
-    return stat.type == "directory"
-  end
-  if not ok and stat then
-    -- pcall returned error message as second arg on permission denied, etc
-  end
-  return false
-end
+-- =============================================================================
+-- Engine-Driven Root Discovery (No Fallback Logic)
+-- =============================================================================
 
-local function is_file(path)
-  if not path or path == "" then return false end
-  local ok, stat = pcall(uv.fs_stat, path)
-  if ok and stat ~= nil then
-    return stat.type == "file" or stat.type == "link"
-  end
-  if not ok and stat then
-    -- pcall returned error message as second arg on permission denied, etc
-  end
-  return false
-end
-
---- Select the best matching tool root from candidate paths relative to search_dir.
---- @param candidates string[] List of absolute directory paths
---- @param search_dir string Canonical search directory
---- @return string|nil
-local function pick_best_root(candidates, search_dir)
-  if not candidates or #candidates == 0 then
-    return nil
-  end
-
-  search_dir = vim.fs.normalize(search_dir)
-
-  -- 1. Exact match
-  for _, cand in ipairs(candidates) do
-    local norm = vim.fs.normalize(cand)
-    if norm == search_dir then
-      return norm
-    end
-  end
-
-  -- 2. Ancestor match: pick the most specific (longest path) candidate that is an ancestor of search_dir
-  local best_ancestor = nil
-  for _, cand in ipairs(candidates) do
-    local norm = vim.fs.normalize(cand)
-    if search_dir == norm or search_dir:sub(1, #norm + 1) == norm .. "/" then
-      if not best_ancestor or #norm > #best_ancestor then
-        best_ancestor = norm
-      end
-    end
-  end
-  if best_ancestor then
-    return best_ancestor
-  end
-
-  -- 3. Descendant match: pick the closest (shortest path) candidate under search_dir
-  local best_descendant = nil
-  for _, cand in ipairs(candidates) do
-    local norm = vim.fs.normalize(cand)
-    if norm:sub(1, #search_dir + 1) == search_dir .. "/" then
-      if not best_descendant or #norm < #best_descendant then
-        best_descendant = norm
-      end
-    end
-  end
-  if best_descendant then
-    return best_descendant
-  end
-
-  -- 4. Fallback: return the first candidate
-  return vim.fs.normalize(candidates[1])
-end
-
---- Query engine discover-devops-roots with fallback
+--- Resolve the search directory from buffer number or path
 --- @param buf_or_path? number|string
---- @param tool_key "terraform"|"sam"|"ansible"|"docker"|"helm"
---- @param fallback_markers string[]
 --- @return string|nil
-local function query_devops_roots(buf_or_path, tool_key, fallback_markers)
-  local search_dir = M.resolve_search_dir(buf_or_path)
+local function resolve_search_dir(buf_or_path)
+  if type(buf_or_path) == "number" then
+    if vim.api.nvim_buf_is_valid(buf_or_path) then
+      local path = vim.api.nvim_buf_get_name(buf_or_path)
+      if path ~= "" then
+        return vim.fs.normalize(vim.fn.fnamemodify(path, ":h"))
+      end
+    end
+    return vim.fn.getcwd()
+  elseif type(buf_or_path) == "string" and buf_or_path ~= "" then
+    return vim.fs.normalize(buf_or_path)
+  end
+  return vim.fn.getcwd()
+end
+
+--- Discover Terraform / OpenTofu root directory using engine exclusively
+--- @param buf_or_path? number|string
+--- @return string|nil
+function M.find_tf_root(buf_or_path)
+  local search_dir = resolve_search_dir(buf_or_path)
   if not search_dir or search_dir == "" then
     return nil
   end
 
-  local ok, engine = pcall(require, "cumulus.util.engine")
-  if ok and engine.is_available and engine.is_available() then
-    local roots = engine.discover_devops_roots(search_dir, { silent = true })
-    if roots and roots[tool_key] and #roots[tool_key] > 0 then
-      local picked = pick_best_root(roots[tool_key], search_dir)
-      if picked then
-        return picked
-      end
-    end
-    if roots and roots.workspace_root then
-      return nil
-    end
+  local engine = require("cumulus.util.engine")
+  if not engine.is_available() then
+    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
+    return nil
   end
 
-  -- Graceful fallback using vim.fs.root if engine is uncompiled or unavailable
-  if fallback_markers then
-    local root = vim.fs.root(search_dir, fallback_markers)
-    if root and root ~= "" and root ~= "/" then
-      return vim.fs.normalize(root)
-    end
+  local roots = engine.discover_devops_roots(search_dir, { silent = true })
+  if roots and roots.terraform and #roots.terraform > 0 then
+    return roots.terraform[1]
   end
 
   return nil
 end
 
---- Discover Terraform / OpenTofu root directory
---- @param buf_or_path? number|string
---- @return string|nil
-function M.find_tf_root(buf_or_path)
-  return query_devops_roots(buf_or_path, "terraform", { "main.tf", "terragrunt.hcl", ".terraform" })
-end
-
---- Discover AWS CloudFormation / SAM root directory
+--- Discover AWS CloudFormation / SAM root directory using engine exclusively
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_cfn_root(buf_or_path)
-  return query_devops_roots(buf_or_path, "sam", { "template.yaml", "template.yml", "template.json", "samconfig.toml" })
+  local search_dir = resolve_search_dir(buf_or_path)
+  if not search_dir or search_dir == "" then
+    return nil
+  end
+
+  local engine = require("cumulus.util.engine")
+  if not engine.is_available() then
+    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
+    return nil
+  end
+
+  local roots = engine.discover_devops_roots(search_dir, { silent = true })
+  if roots and roots.sam and #roots.sam > 0 then
+    return roots.sam[1]
+  end
+
+  return nil
 end
 
---- Discover Ansible root directory
+--- Discover Ansible root directory using engine exclusively
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_ansible_root(buf_or_path)
-  return query_devops_roots(buf_or_path, "ansible", { "ansible.cfg", "site.yml", "site.yaml", "playbook.yml", "playbook.yaml" })
+  local search_dir = resolve_search_dir(buf_or_path)
+  if not search_dir or search_dir == "" then
+    return nil
+  end
+
+  local engine = require("cumulus.util.engine")
+  if not engine.is_available() then
+    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
+    return nil
+  end
+
+  local roots = engine.discover_devops_roots(search_dir, { silent = true })
+  if roots and roots.ansible and #roots.ansible > 0 then
+    return roots.ansible[1]
+  end
+
+  return nil
 end
 
---- Discover Docker / Compose root directory
+--- Discover Docker / Compose root directory using engine exclusively
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_docker_root(buf_or_path)
-  return query_devops_roots(buf_or_path, "docker", { "Dockerfile", "Containerfile", "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml" })
+  local search_dir = resolve_search_dir(buf_or_path)
+  if not search_dir or search_dir == "" then
+    return nil
+  end
+
+  local engine = require("cumulus.util.engine")
+  if not engine.is_available() then
+    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
+    return nil
+  end
+
+  local roots = engine.discover_devops_roots(search_dir, { silent = true })
+  if roots and roots.docker and #roots.docker > 0 then
+    return roots.docker[1]
+  end
+
+  return nil
 end
 
---- Discover Helm root directory
+--- Discover Helm root directory using engine exclusively
 --- @param buf_or_path? number|string
 --- @return string|nil
 function M.find_helm_root(buf_or_path)
-  return query_devops_roots(buf_or_path, "helm", { "Chart.yaml", "Chart.yml" })
+  local search_dir = resolve_search_dir(buf_or_path)
+  if not search_dir or search_dir == "" then
+    return nil
+  end
+
+  local engine = require("cumulus.util.engine")
+  if not engine.is_available() then
+    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
+    return nil
+  end
+
+  local roots = engine.discover_devops_roots(search_dir, { silent = true })
+  if roots and roots.helm and #roots.helm > 0 then
+    return roots.helm[1]
+  end
+
+  return nil
 end
 
 --- Run a command in an interactive, non-blocking terminal
@@ -321,11 +313,11 @@ local function resolve_cfn_target_file(root)
     return file
   end
   if root then
-    if is_file(root .. "/template.yaml") then
+    if vim.fn.filereadable(root .. "/template.yaml") == 1 then
       return root .. "/template.yaml"
-    elseif is_file(root .. "/template.yml") then
+    elseif vim.fn.filereadable(root .. "/template.yml") == 1 then
       return root .. "/template.yml"
-    elseif is_file(root .. "/template.json") then
+    elseif vim.fn.filereadable(root .. "/template.json") == 1 then
       return root .. "/template.json"
     end
   end
@@ -524,13 +516,13 @@ local function resolve_ansible_target_file(root)
     return file
   end
   if root then
-    if is_file(root .. "/site.yml") then
+    if vim.fn.filereadable(root .. "/site.yml") == 1 then
       return root .. "/site.yml"
-    elseif is_file(root .. "/site.yaml") then
+    elseif vim.fn.filereadable(root .. "/site.yaml") == 1 then
       return root .. "/site.yaml"
-    elseif is_file(root .. "/playbook.yml") then
+    elseif vim.fn.filereadable(root .. "/playbook.yml") == 1 then
       return root .. "/playbook.yml"
-    elseif is_file(root .. "/playbook.yaml") then
+    elseif vim.fn.filereadable(root .. "/playbook.yaml") == 1 then
       return root .. "/playbook.yaml"
     end
   end
@@ -679,9 +671,9 @@ local function resolve_docker_target_file(root)
     return file
   end
   if root then
-    if is_file(root .. "/Dockerfile") then
+    if vim.fn.filereadable(root .. "/Dockerfile") == 1 then
       return root .. "/Dockerfile"
-    elseif is_file(root .. "/Containerfile") then
+    elseif vim.fn.filereadable(root .. "/Containerfile") == 1 then
       return root .. "/Containerfile"
     end
   end
@@ -707,7 +699,7 @@ function M.docker_lint()
       if file and file ~= "" then
         M.run_term("hadolint " .. vim.fn.shellescape(file), { cwd = root })
       else
-        local fallback = is_file(root .. "/Containerfile") and "Containerfile" or "Dockerfile"
+        local fallback = vim.fn.filereadable(root .. "/Containerfile") == 1 and "Containerfile" or "Dockerfile"
         M.run_term("hadolint " .. fallback, { cwd = root })
       end
     else

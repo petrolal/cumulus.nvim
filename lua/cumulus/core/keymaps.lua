@@ -96,7 +96,7 @@ end
 -- ==============================================================================
 -- 󱁢 Infrastructure & DevOps Platform Suite (<leader>o) - Globally Registered
 -- ==============================================================================
-local devops = require("cumulus.util.devops")
+local devops = require("cumulus.core.devops")
 local ok, err = pcall(devops.setup_keymaps)
 if not ok then
   vim.notify("Failed to register DevOps keymaps: " .. tostring(err), vim.log.levels.WARN, { title = "Cumulus DevOps" })
