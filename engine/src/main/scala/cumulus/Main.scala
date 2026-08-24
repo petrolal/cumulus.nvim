@@ -767,19 +767,35 @@ object Main:
           val argMap = parseArgs(args.slice(1, args.length))
           val action = argMap.getOrElse("action", "get").toLowerCase
           val fileOpt = argMap.get("file")
-          val result = action match
+          action match
             case "get" =>
-              ThemeManager.getTheme(fileOpt)
+              val result = ThemeManager.getTheme(fileOpt)
+              serializeResponse(result)
             case "set" =>
-              argMap.get("theme") match
+              val result = argMap.get("theme") match
                 case Some(theme) =>
                   val variantOpt = argMap.get("variant")
                   ThemeManager.setTheme(theme, variantOpt, fileOpt)
                 case None =>
                   errorEnvelope[ThemeState]("Missing --theme argument for set action", CumulusError.INVALID_INPUT)
+              serializeResponse(result)
+            case "list" =>
+              val themes = ujson.Obj(
+                "aws" -> ujson.Arr("light", "dark"),
+                "azure" -> ujson.Arr("light", "dark"),
+                "gcp" -> ujson.Arr("light", "dark"),
+                "oci" -> ujson.Arr("light", "dark")
+              )
+              val response = ujson.Obj(
+                "success" -> true,
+                "data" -> themes,
+                "error" -> ujson.Null,
+                "error_code" -> ujson.Null
+              )
+              println(response.render())
             case other =>
-              errorEnvelope[ThemeState](s"Unknown action '$other'. Expected 'get' or 'set'", CumulusError.INVALID_INPUT)
-          serializeResponse(result)
+              val result = errorEnvelope[ThemeState](s"Unknown action '$other'. Expected 'get', 'set', or 'list'", CumulusError.INVALID_INPUT)
+              serializeResponse(result)
 
         case "cfn-inspect" | "--cfn-inspect" =>
           val argMap = parseArgs(args.slice(1, args.length))

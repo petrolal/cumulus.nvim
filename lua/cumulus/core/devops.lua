@@ -72,7 +72,7 @@ M.find_docker_root = create_root_finder("docker")
 M.find_helm_root = create_root_finder("helm")
 
 --- Run a command in an interactive, non-blocking terminal
---- Uses Snacks.terminal when available, otherwise falls back to a split buffer.
+--- Requires Snacks.terminal plugin to be loaded.
 function M.run_term(cmd, opts)
   opts = vim.tbl_extend("force", { title = "Cumulus DevOps" }, opts or {})
   require("cumulus.util.engine").run_term(cmd, opts)
@@ -663,6 +663,259 @@ function M.helm_template()
 end
 
 -- =============================================================================
+-- DevOps Tool Validation (Story 3.1: Consolidated Engine-Driven Validation)
+-- =============================================================================
+
+-- Diagnostic namespaces for each DevOps tool
+local tf_ns = vim.api.nvim_create_namespace("cumulus_terraform_validation")
+local ansible_ns = vim.api.nvim_create_namespace("cumulus_ansible_validation")
+local cfn_ns = vim.api.nvim_create_namespace("cumulus_cfn_validation")
+local docker_ns = vim.api.nvim_create_namespace("cumulus_docker_validation")
+local helm_ns = vim.api.nvim_create_namespace("cumulus_helm_validation")
+
+--- Validate Terraform configuration for structural issues AND security findings in unified flow
+function M.validate_terraform_unified()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local file_path = vim.api.nvim_buf_get_name(bufnr)
+
+  if not file_path or file_path == "" then
+    vim.notify("Terraform validation requires a file path", vim.log.levels.WARN)
+    return
+  end
+
+  if not engine.is_available() then
+    vim.notify(
+      "cumulus-engine binary missing: cannot validate Terraform files. Build via 'cd engine && sbt nativeImage' or run ':CumulusInstallEngine'",
+      vim.log.levels.WARN
+    )
+    return
+  end
+
+  -- Call both tf_inspect() and tf_security_parse() for unified results
+  local struct_result = engine.inspect_terraform(file_path, { silent = true })
+  local security_result = engine.parse_terraform_security(file_path, { silent = true })
+
+  vim.diagnostic.clear(tf_ns, bufnr)
+
+  local diags = {}
+
+  -- Add structural errors from tf_inspect
+  if struct_result and struct_result.errors and #struct_result.errors > 0 then
+    for _, err in ipairs(struct_result.errors) do
+      table.insert(diags, {
+        lnum = math.max(0, (err.line or 1) - 1),
+        col = (err.col and math.max(0, err.col - 1)) or 0,
+        message = err.message or "Terraform structural error",
+        severity = vim.diagnostic.severity.ERROR,
+        source = "terraform_inspect",
+      })
+    end
+  end
+
+  -- Add security findings from tf_security_parse
+  if security_result and security_result.findings and #security_result.findings > 0 then
+    for _, finding in ipairs(security_result.findings) do
+      local severity = vim.diagnostic.severity.WARN
+      if finding.severity == "HIGH" or finding.severity == "CRITICAL" then
+        severity = vim.diagnostic.severity.ERROR
+      end
+
+      table.insert(diags, {
+        lnum = math.max(0, (finding.line or 1) - 1),
+        col = (finding.col and math.max(0, finding.col - 1)) or 0,
+        message = (finding.message or "Security issue") .. " [" .. (finding.severity or "UNKNOWN") .. "]",
+        severity = severity,
+        source = "terraform_security",
+      })
+    end
+  end
+
+  if #diags == 0 then
+    vim.notify("Terraform validation passed", vim.log.levels.INFO)
+  else
+    vim.notify(
+      string.format("Terraform: %d issues found (structural + security)", #diags),
+      vim.log.levels.WARN
+    )
+  end
+
+  vim.diagnostic.set(tf_ns, bufnr, diags)
+end
+
+--- Validate Ansible playbook for syntax errors and deprecated modules
+function M.validate_ansible()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local file_path = vim.api.nvim_buf_get_name(bufnr)
+
+  if not file_path or file_path == "" then
+    vim.notify("Ansible validation requires a file path", vim.log.levels.WARN)
+    return
+  end
+
+  if not engine.is_available() then
+    vim.notify(
+      "cumulus-engine binary missing: cannot validate Ansible playbooks. Build via 'cd engine && sbt nativeImage' or run ':CumulusInstallEngine'",
+      vim.log.levels.WARN
+    )
+    return
+  end
+
+  local result = engine.validate_ansible_playbook(file_path, { silent = true })
+  vim.diagnostic.clear(ansible_ns, bufnr)
+
+  if not result or #result == 0 then
+    vim.notify("Ansible playbook validation passed", vim.log.levels.INFO)
+    return
+  end
+
+  local diags = {}
+  for _, issue in ipairs(result) do
+    table.insert(diags, {
+      lnum = math.max(0, (issue.line or 1) - 1),
+      col = (issue.col and math.max(0, issue.col - 1)) or 0,
+      message = issue.message or "Ansible validation error",
+      severity = vim.diagnostic.severity.WARN,
+      source = "ansible_validation",
+    })
+  end
+
+  vim.notify(string.format("Ansible: %d issues found", #diags), vim.log.levels.WARN)
+  vim.diagnostic.set(ansible_ns, bufnr, diags)
+end
+
+--- Validate CloudFormation template for linting and resource chain errors
+function M.validate_cloudformation()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local file_path = vim.api.nvim_buf_get_name(bufnr)
+
+  if not file_path or file_path == "" then
+    vim.notify("CloudFormation validation requires a file path", vim.log.levels.WARN)
+    return
+  end
+
+  if not engine.is_available() then
+    vim.notify(
+      "cumulus-engine binary missing: cannot validate CloudFormation templates. Build via 'cd engine && sbt nativeImage' or run ':CumulusInstallEngine'",
+      vim.log.levels.WARN
+    )
+    return
+  end
+
+  local result = engine.validate_cfn_template(file_path, { silent = true })
+  vim.diagnostic.clear(cfn_ns, bufnr)
+
+  if not result or #result == 0 then
+    vim.notify("CloudFormation template validation passed", vim.log.levels.INFO)
+    return
+  end
+
+  local diags = {}
+  for _, issue in ipairs(result) do
+    table.insert(diags, {
+      lnum = math.max(0, (issue.line or 1) - 1),
+      col = (issue.col and math.max(0, issue.col - 1)) or 0,
+      message = issue.message or "CloudFormation validation error",
+      severity = vim.diagnostic.severity.WARN,
+      source = "cfn_validation",
+    })
+  end
+
+  vim.notify(string.format("CloudFormation: %d issues found", #diags), vim.log.levels.WARN)
+  vim.diagnostic.set(cfn_ns, bufnr, diags)
+end
+
+--- Validate Dockerfile for best practices and multi-stage build analysis
+function M.validate_docker()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local file_path = vim.api.nvim_buf_get_name(bufnr)
+
+  if not file_path or file_path == "" then
+    vim.notify("Docker validation requires a file path", vim.log.levels.WARN)
+    return
+  end
+
+  if not engine.is_available() then
+    vim.notify(
+      "cumulus-engine binary missing: cannot validate Docker files. Build via 'cd engine && sbt nativeImage' or run ':CumulusInstallEngine'",
+      vim.log.levels.WARN
+    )
+    return
+  end
+
+  local result = engine.validate_docker(file_path, { silent = true })
+  vim.diagnostic.clear(docker_ns, bufnr)
+
+  if not result or (not result.warnings or #result.warnings == 0) then
+    vim.notify("Dockerfile validation passed", vim.log.levels.INFO)
+    return
+  end
+
+  local diags = {}
+  if result.warnings and #result.warnings > 0 then
+    for _, warning in ipairs(result.warnings) do
+      table.insert(diags, {
+        lnum = math.max(0, (warning.line or 1) - 1),
+        col = (warning.col and math.max(0, warning.col - 1)) or 0,
+        message = warning.message or "Docker best-practice warning",
+        severity = vim.diagnostic.severity.WARN,
+        source = "docker_validation",
+      })
+    end
+  end
+
+  vim.notify(string.format("Docker: %d warnings found", #diags), vim.log.levels.WARN)
+  vim.diagnostic.set(docker_ns, bufnr, diags)
+end
+
+--- Validate Helm chart for value hierarchy and compatibility issues
+function M.validate_helm()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local file_path = vim.api.nvim_buf_get_name(bufnr)
+
+  if not file_path or file_path == "" then
+    vim.notify("Helm validation requires a file path", vim.log.levels.WARN)
+    return
+  end
+
+  if not engine.is_available() then
+    vim.notify(
+      "cumulus-engine binary missing: cannot validate Helm charts. Build via 'cd engine && sbt nativeImage' or run ':CumulusInstallEngine'",
+      vim.log.levels.WARN
+    )
+    return
+  end
+
+  local result = engine.inspect_helm_chart(file_path, { silent = true })
+  vim.diagnostic.clear(helm_ns, bufnr)
+
+  if not result or (not result.compatibility or #result.compatibility == 0) then
+    vim.notify("Helm chart validation passed", vim.log.levels.INFO)
+    return
+  end
+
+  local diags = {}
+  if result.compatibility and #result.compatibility > 0 then
+    for _, issue in ipairs(result.compatibility) do
+      -- Helm diagnostics MUST include required lnum field per spec
+      if not issue.lnum and issue.line then
+        issue.lnum = issue.line
+      end
+
+      table.insert(diags, {
+        lnum = math.max(0, (issue.lnum or issue.line or 1) - 1),
+        col = (issue.col and math.max(0, issue.col - 1)) or 0,
+        message = issue.message or "Helm compatibility issue",
+        severity = vim.diagnostic.severity.WARN,
+        source = "helm_validation",
+      })
+    end
+  end
+
+  vim.notify(string.format("Helm: %d compatibility issues found", #diags), vim.log.levels.WARN)
+  vim.diagnostic.set(helm_ns, bufnr, diags)
+end
+
+-- =============================================================================
 -- Global Keymaps & WhichKey Registration
 -- =============================================================================
 
@@ -676,6 +929,11 @@ function M.whichkey_spec()
     { "<leader>oy", group = "ansible", icon = "󰚰 " },
     { "<leader>od", group = "docker", icon = "󰡨 " },
     { "<leader>ok", group = "helm/k8s", icon = "󱃾 " },
+    -- DevOps Validation Keymaps (Story 3.1: avoid collisions with existing groups)
+    { "<leader>cf", group = "cloudformation validation", icon = "󰅟 " },
+    { "<leader>ay", group = "ansible validation", icon = "󰚰 " },
+    { "<leader>dk", group = "docker validation", icon = "󰡨 " },
+    { "<leader>hm", group = "helm validation", icon = "󱃾 " },
   }
 end
 
@@ -727,6 +985,13 @@ function M.setup_keymaps(force)
   -- Helm & Kubernetes (<leader>ok)
   safe_map("n", "<leader>okl", M.helm_lint, { desc = "Helm: Lint Chart", silent = true })
   safe_map("n", "<leader>okt", M.helm_template, { desc = "Helm: Render Template", silent = true })
+
+  -- DevOps Validation Keymaps (Story 3.1: Engine-driven validation with non-colliding bindings)
+  safe_map("n", "<leader>otV", M.validate_terraform_unified, { desc = "Validate Terraform (Struct + Security)", silent = true })
+  safe_map("n", "<leader>ayV", M.validate_ansible, { desc = "Validate Ansible Playbook", silent = true })
+  safe_map("n", "<leader>cfV", M.validate_cloudformation, { desc = "Validate CloudFormation Template", silent = true })
+  safe_map("n", "<leader>dkV", M.validate_docker, { desc = "Validate Dockerfile", silent = true })
+  safe_map("n", "<leader>hmV", M.validate_helm, { desc = "Validate Helm Chart", silent = true })
 
   M.keymaps_registered = true
 end
