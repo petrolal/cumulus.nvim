@@ -10,6 +10,15 @@ local M = {}
 M.keymaps_registered = false
 M.offline_mode = false
 
+-- Consistent notification helper for JVM operations
+local function notify_error(msg)
+  engine.notify_warn(msg, "Cumulus JVM")
+end
+
+local function notify_info(msg)
+  vim.notify(msg, vim.log.levels.INFO, { title = "Cumulus JVM" })
+end
+
 --- WhichKey specification for the JVM platform keymap hierarchy
 function M.whichkey_spec()
   return {
@@ -155,6 +164,11 @@ function M.setup_keymaps()
       end,
       on_exit = function()
         vim.schedule(function()
+          -- Safety check: verify Neovim is still running (callback may fire after quit)
+          if not vim.api.nvim_get_current_buf then
+            return
+          end
+
           local log = table.concat(output_lines, "\n")
           -- Parse test output and notify results
           local entries = engine.parse_test_output(log)
@@ -329,11 +343,15 @@ function M.setup_keymaps()
     if ok then
       jdtls.pick_test()
     else
-      vim.notify("jdtls is not loaded", vim.log.levels.WARN)
+      notify_error("jdtls is not loaded")
     end
   end, { desc = "JDTLS: Pick & Run Test" })
 
   -- 3. Run & Execute (<leader>jr)
+  -- NOTE: Framework detection (Spring Boot vs Quarkus) remains in Lua for fast local detection.
+  -- Test execution detection is delegated to engine via engine.assemble_test_command().
+  -- This split reflects a pragmatic optimization: framework detection is lightweight (pom.xml
+  -- scan), while test execution coordination is complex (multiple frameworks, runner options).
   map("n", "<leader>jrs", function()
     local cwd = vim.fn.getcwd()
     local build_result = engine.discover_build_tool(cwd)
@@ -346,7 +364,7 @@ function M.setup_keymaps()
     local tool = build_result.tool
 
     if tool == "maven" then
-      -- Check if it's Quarkus or Spring Boot
+      -- Check if it's Quarkus or Spring Boot (lightweight local detection)
       local pom_path = vim.fn.findfile("pom.xml", cwd .. ";")
       if pom_path == "" then
         pom_path = vim.fn.findfile("pom.xml", vim.fn.expand("%:p:h") .. ";")
@@ -420,7 +438,7 @@ function M.setup_keymaps()
     if ok then
       jdtls.extract_variable()
     else
-      vim.notify("jdtls is not loaded", vim.log.levels.WARN)
+      notify_error("jdtls is not loaded")
     end
   end, { desc = "JDTLS: Extract Variable" })
 
@@ -429,7 +447,7 @@ function M.setup_keymaps()
     if ok then
       jdtls.extract_constant()
     else
-      vim.notify("jdtls is not loaded", vim.log.levels.WARN)
+      notify_error("jdtls is not loaded")
     end
   end, { desc = "JDTLS: Extract Constant" })
 
@@ -438,7 +456,7 @@ function M.setup_keymaps()
     if ok then
       jdtls.extract_method(true)
     else
-      vim.notify("jdtls is not loaded", vim.log.levels.WARN)
+      notify_error("jdtls is not loaded")
     end
   end, { desc = "JDTLS: Extract Method" })
 
@@ -449,7 +467,7 @@ function M.setup_keymaps()
   map("n", "<leader>jxH", function()
     local engine = require("cumulus.util.engine")
     if not _G.cumulus_jdtls_start_time then
-      vim.notify("JDTLS not started yet", vim.log.levels.WARN)
+      notify_error("JDTLS not started yet")
       return
     end
     local cwd = vim.fn.getcwd()
