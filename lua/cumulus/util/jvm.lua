@@ -80,6 +80,115 @@ function M.setup_keymaps()
     return "gradle"
   end
 
+  -- Helper function to run tests via engine APIs
+  ---@param mode "nearest"|"class"|"all"
+  local function run_tests(mode)
+    local cwd = vim.fn.getcwd()
+    local build_result = engine.discover_build_tool(cwd)
+
+    if not build_result or not build_result.tool then
+      engine.notify_warn("No Maven or Gradle project found in current directory", "Cumulus JVM")
+      return
+    end
+
+    local tool = build_result.tool
+    if tool ~= "maven" and tool ~= "gradle" then
+      engine.notify_warn("Unsupported build tool: " .. tostring(tool), "Cumulus JVM")
+      return
+    end
+
+    -- Detect test context from current buffer and cursor
+    local bufnr = vim.api.nvim_get_current_buf()
+    local file_path = vim.api.nvim_buf_get_name(bufnr)
+    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+    local test_info = engine.detect_test_context(file_path, cursor_line)
+    if not test_info then
+      test_info = {}
+    end
+
+    -- Prepare command assembly options
+    local class_arg = (mode == "nearest" or mode == "class") and test_info.class_name or nil
+    local method_arg = (mode == "nearest") and test_info.method_name or nil
+    if class_arg then
+      class_arg = vim.fn.shellescape(class_arg)
+    end
+    if method_arg then
+      method_arg = vim.fn.shellescape(method_arg)
+    end
+
+    -- Assemble test command via engine
+    local assembled = engine.assemble_test_command({
+      tool = tool,
+      ["class"] = class_arg,
+      method = method_arg,
+      dir = cwd,
+    })
+
+    if not assembled or not assembled.command then
+      engine.notify_warn("Failed to assemble test command", "Cumulus JVM")
+      return
+    end
+
+    local cmd = assembled.command
+    engine.notify_info("Running tests: " .. cmd, "Cumulus Test")
+
+    -- Run command in terminal and capture output
+    local output_lines = {}
+    engine.run_term(cmd, {
+      title = "Cumulus Test",
+      on_error = function(error)
+        engine.notify_warn("Test execution failed: " .. (error or "unknown error"), "Cumulus Test")
+      end,
+      on_stdout = function(data)
+        for _, line in ipairs(data) do
+          if line ~= "" then
+            table.insert(output_lines, line)
+          end
+        end
+      end,
+      on_stderr = function(data)
+        for _, line in ipairs(data) do
+          if line ~= "" then
+            table.insert(output_lines, line)
+          end
+        end
+      end,
+      on_exit = function()
+        vim.schedule(function()
+          local log = table.concat(output_lines, "\n")
+          -- Parse test output and notify results
+          local entries = engine.parse_test_output(log)
+          if not entries or #entries == 0 then
+            return
+          end
+
+          local failures, passed = 0, 0
+          for _, entry in ipairs(entries) do
+            if entry.status == "FAILED" then
+              failures = failures + 1
+            elseif entry.status == "PASSED" then
+              passed = passed + 1
+            end
+          end
+
+          if failures > 0 then
+            vim.notify(
+              string.format("Test Suite: %d FAILED, %d PASSED", failures, passed),
+              vim.log.levels.ERROR,
+              { id = "cumulus_test_run" }
+            )
+          else
+            vim.notify(
+              string.format("Test Suite: All %d tests PASSED", passed),
+              vim.log.levels.INFO,
+              { id = "cumulus_test_run" }
+            )
+          end
+        end)
+      end,
+    })
+  end
+
   -- 1. Build & Tasks (<leader>jb)
   map("n", "<leader>jbc", function()
     local cwd = vim.fn.getcwd()
@@ -204,15 +313,15 @@ function M.setup_keymaps()
 
   -- 2. Test Runner (<leader>jt)
   map("n", "<leader>jta", function()
-    require("cumulus.util.test-runner").run_test("all")
+    run_tests("all")
   end, { desc = "Run All Tests in Workspace" })
 
   map("n", "<leader>jtt", function()
-    require("cumulus.util.test-runner").run_test("nearest")
+    run_tests("nearest")
   end, { desc = "Run Nearest Test Method" })
 
   map("n", "<leader>jtc", function()
-    require("cumulus.util.test-runner").run_test("class")
+    run_tests("class")
   end, { desc = "Run Current Test Class" })
 
   map("n", "<leader>jtp", function()
