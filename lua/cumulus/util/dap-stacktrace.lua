@@ -39,7 +39,7 @@ function M.drill_down_at_line()
   -- Open the file and jump to line
   vim.cmd("edit " .. vim.fn.fnameescape(symbol.file_path))
   vim.api.nvim_win_set_cursor(0, { symbol.line, 0 })
-  vim.cmd("normal! zz")  -- Center view on cursor
+  vim.cmd("normal! zz") -- Center view on cursor
 end
 
 return M

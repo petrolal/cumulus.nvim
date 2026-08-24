@@ -51,8 +51,8 @@ function M.run_term(cmd, opts)
   local snacks = _G.Snacks or package.loaded["snacks"]
 
   if not snacks or not snacks.terminal then
-    local err_msg = "Snacks plugin (terminal feature) is required for this operation. " ..
-      "Install it via your plugin manager or disable terminal commands."
+    local err_msg = "Snacks plugin (terminal feature) is required for this operation. "
+      .. "Install it via your plugin manager or disable terminal commands."
     M.notify_err(err_msg)
     error(err_msg)
   end

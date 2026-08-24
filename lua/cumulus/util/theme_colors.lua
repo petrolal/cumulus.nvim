@@ -16,7 +16,7 @@ M.DEFAULT_COLORS = {
   fg_dim = "#94A3B8",
   bg_cursorline = "#122232",
   statusline_bg = "#020A12",
-  primary_color = "#FF9900",  -- AWS orange default
+  primary_color = "#FF9900", -- AWS orange default
   secondary = "#38BDF8",
   purple = "#A855F7",
   error = "#EF4444",
@@ -58,8 +58,10 @@ function M.init_theme_colors(provider)
   M.cache.bg = (result.highlights.Normal and result.highlights.Normal.bg) or M.DEFAULT_COLORS.bg
   M.cache.fg = (result.highlights.Normal and result.highlights.Normal.fg) or M.DEFAULT_COLORS.fg
   M.cache.fg_dim = (result.highlights.Comment and result.highlights.Comment.fg) or M.DEFAULT_COLORS.fg_dim
-  M.cache.bg_cursorline = (result.highlights.CursorLine and result.highlights.CursorLine.bg) or M.DEFAULT_COLORS.bg_cursorline
-  M.cache.statusline_bg = (result.highlights.StatusLine and result.highlights.StatusLine.bg) or M.DEFAULT_COLORS.statusline_bg
+  M.cache.bg_cursorline = (result.highlights.CursorLine and result.highlights.CursorLine.bg)
+    or M.DEFAULT_COLORS.bg_cursorline
+  M.cache.statusline_bg = (result.highlights.StatusLine and result.highlights.StatusLine.bg)
+    or M.DEFAULT_COLORS.statusline_bg
 
   -- Extract provider-specific primary color from CursorLineNr (each provider has distinct color)
   local cursor_line_nr_fg = result.highlights.CursorLineNr and result.highlights.CursorLineNr.fg

@@ -59,7 +59,7 @@ end
 local function load_provider_highlights(provider)
   local logfile = vim.fn.expand("~/.config/nvim/theme-debug.log")
   local function log(msg)
-    vim.fn.writefile({os.date("%H:%M:%S") .. " " .. msg}, logfile, "a")
+    vim.fn.writefile({ os.date("%H:%M:%S") .. " " .. msg }, logfile, "a")
   end
 
   local engine = require("cumulus.util.engine")
@@ -166,7 +166,7 @@ end
 function M.load_saved_theme()
   local logfile = vim.fn.expand("~/.config/nvim/theme-debug.log")
   local function log(msg)
-    vim.fn.writefile({os.date("%H:%M:%S") .. " " .. msg}, logfile, "a")
+    vim.fn.writefile({ os.date("%H:%M:%S") .. " " .. msg }, logfile, "a")
   end
 
   log("=== load_saved_theme() called ===")

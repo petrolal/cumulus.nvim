@@ -38,7 +38,11 @@ local function create_root_finder(root_key)
       return nil
     end
     if not engine.is_available() then
-      vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
+      vim.notify(
+        "DevOps root discovery unavailable: Cumulus engine not found",
+        vim.log.levels.ERROR,
+        { title = "Cumulus DevOps" }
+      )
       return nil
     end
     local roots = engine.discover_devops_roots(search_dir, { silent = true })
@@ -159,7 +163,11 @@ function M.terraform_fmt()
       local out = vim.fn.system({ tf, "fmt", file })
       local ok_reload, err_reload = pcall(vim.cmd, "edit!")
       if not ok_reload then
-        vim.notify("Failed to reload file after format: " .. err_reload, vim.log.levels.WARN, { title = "Cumulus DevOps" })
+        vim.notify(
+          "Failed to reload file after format: " .. err_reload,
+          vim.log.levels.WARN,
+          { title = "Cumulus DevOps" }
+        )
       end
       if vim.v.shell_error == 0 then
         vim.notify("Formatted with " .. tf .. " fmt", vim.log.levels.INFO, { title = "Cumulus DevOps" })
@@ -168,7 +176,11 @@ function M.terraform_fmt()
       end
     else
       if not is_tf_file then
-        vim.notify("Current file is not a Terraform (.tf, .tofu, .tfvars) file.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+        vim.notify(
+          "Current file is not a Terraform (.tf, .tofu, .tfvars) file.",
+          vim.log.levels.WARN,
+          { title = "Cumulus DevOps" }
+        )
       elseif vim.fn.filereadable(file) ~= 1 then
         vim.notify("Cannot read file: " .. file, vim.log.levels.WARN, { title = "Cumulus DevOps" })
       end
@@ -182,7 +194,11 @@ function M.terraform_lint()
     if vim.fn.executable("tflint") == 1 then
       M.run_term("tflint", { cwd = root })
     else
-      vim.notify("tflint is not installed in PATH. Install via Mason (:MasonInstall tflint).", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      vim.notify(
+        "tflint is not installed in PATH. Install via Mason (:MasonInstall tflint).",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
     end
   end)
 end
@@ -222,7 +238,11 @@ function M.is_cloudformation_buffer(buf)
   if ft == "yaml" or ft == "json" then
     local lines = vim.api.nvim_buf_get_lines(buf, 0, 30, false)
     local header = table.concat(lines, "\n")
-    if header:match("AWSTemplateFormatVersion") or header:match("AWS::Serverless") or header:match("Transform:%s*AWS::Serverless") then
+    if
+      header:match("AWSTemplateFormatVersion")
+      or header:match("AWS::Serverless")
+      or header:match("Transform:%s*AWS::Serverless")
+    then
       return true
     end
   end
@@ -254,12 +274,19 @@ function M.cfn_validate()
   with_cfn(function(root)
     local file = resolve_cfn_target_file(root)
     if not file then
-      vim.notify("No CloudFormation/SAM template file found to validate.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      vim.notify(
+        "No CloudFormation/SAM template file found to validate.",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
       return
     end
     local cwd = root or vim.fs.normalize(vim.fn.fnamemodify(file, ":h"))
     if vim.fn.executable("aws") == 1 then
-      M.run_term("aws cloudformation validate-template --template-body file://" .. vim.fn.shellescape(file), { cwd = cwd })
+      M.run_term(
+        "aws cloudformation validate-template --template-body file://" .. vim.fn.shellescape(file),
+        { cwd = cwd }
+      )
     elseif vim.fn.executable("cfn-lint") == 1 then
       M.run_term("cfn-lint " .. vim.fn.shellescape(file), { cwd = cwd })
     else
@@ -359,7 +386,11 @@ function M.sam_local_invoke()
           return
         elseif input ~= "" then
           if not input:match("^[a-zA-Z0-9_-]+$") then
-            vim.notify("Invalid Lambda function name. Only alphanumeric, underscore, and hyphen allowed.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+            vim.notify(
+              "Invalid Lambda function name. Only alphanumeric, underscore, and hyphen allowed.",
+              vim.log.levels.WARN,
+              { title = "Cumulus DevOps" }
+            )
             return
           end
           M.run_term("sam local invoke " .. vim.fn.shellescape(input) .. tmpl_flag, { cwd = root })
@@ -390,7 +421,11 @@ function M.cfn_guard_validate()
     if vim.fn.executable("cfn-guard") == 1 then
       local file = resolve_cfn_target_file(root) or (vim.fn.expand("%:p") ~= "" and vim.fn.expand("%:p") or nil)
       if not file then
-        vim.notify("No CloudFormation template found to validate with cfn-guard.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+        vim.notify(
+          "No CloudFormation template found to validate with cfn-guard.",
+          vim.log.levels.WARN,
+          { title = "Cumulus DevOps" }
+        )
         return
       end
       M.run_term("cfn-guard validate --template " .. vim.fn.shellescape(file), { cwd = root })
@@ -480,7 +515,11 @@ function M.ansible_lint()
         M.run_term("ansible-lint", { cwd = root })
       end
     else
-      vim.notify("ansible-lint is not installed in PATH. Install via Mason (:MasonInstall ansible-lint).", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      vim.notify(
+        "ansible-lint is not installed in PATH. Install via Mason (:MasonInstall ansible-lint).",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
     end
   end)
 end
@@ -534,7 +573,11 @@ function M.ansible_doc_lookup()
         end
         if input ~= "" then
           if not input:match("^[a-z0-9_.:-]+$") then
-            vim.notify("Invalid Ansible module name. Use lowercase alphanumeric, dots, underscores, hyphens, or colons.", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+            vim.notify(
+              "Invalid Ansible module name. Use lowercase alphanumeric, dots, underscores, hyphens, or colons.",
+              vim.log.levels.WARN,
+              { title = "Cumulus DevOps" }
+            )
             return
           end
           M.run_term("ansible-doc " .. vim.fn.shellescape(input), { cwd = root })
@@ -572,7 +615,11 @@ function M.ansible_vault_action()
         end
         if input ~= "" then
           if input:match("^/") or input:match("%.%.") then
-            vim.notify("Invalid path. Use relative paths within the project (e.g., 'vault/secrets.yml').", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+            vim.notify(
+              "Invalid path. Use relative paths within the project (e.g., 'vault/secrets.yml').",
+              vim.log.levels.WARN,
+              { title = "Cumulus DevOps" }
+            )
             return
           end
           local full_target = vim.fs.normalize(root .. "/" .. input)
@@ -612,7 +659,11 @@ function M.docker_build()
     local target_dir_name = raw_name:lower():gsub("[^%w%._%-]", "-"):gsub("^%-+", ""):gsub("%-+$", "")
     if target_dir_name == "" then
       target_dir_name = "app"
-      vim.notify("Using default image name 'app' (root directory name was unprintable)", vim.log.levels.INFO, { title = "Cumulus DevOps" })
+      vim.notify(
+        "Using default image name 'app' (root directory name was unprintable)",
+        vim.log.levels.INFO,
+        { title = "Cumulus DevOps" }
+      )
     end
     M.run_term("docker build -t " .. vim.fn.shellescape(target_dir_name) .. " .", { cwd = root })
   end)
@@ -629,7 +680,11 @@ function M.docker_lint()
         M.run_term("hadolint " .. fallback, { cwd = root })
       end
     else
-      vim.notify("hadolint is not installed in PATH. Install via Mason (:MasonInstall hadolint).", vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      vim.notify(
+        "hadolint is not installed in PATH. Install via Mason (:MasonInstall hadolint).",
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
     end
   end)
 end
@@ -733,10 +788,7 @@ function M.validate_terraform_unified()
   if #diags == 0 then
     vim.notify("Terraform validation passed", vim.log.levels.INFO)
   else
-    vim.notify(
-      string.format("Terraform: %d issues found (structural + security)", #diags),
-      vim.log.levels.WARN
-    )
+    vim.notify(string.format("Terraform: %d issues found (structural + security)", #diags), vim.log.levels.WARN)
   end
 
   vim.diagnostic.set(tf_ns, bufnr, diags)
@@ -945,7 +997,11 @@ function M.setup_keymaps(force)
   local function safe_map(mode, lhs, rhs, opts)
     local ok, err = pcall(vim.keymap.set, mode, lhs, rhs, opts)
     if not ok then
-      vim.notify("Failed to register keymap " .. lhs .. ": " .. tostring(err), vim.log.levels.WARN, { title = "Cumulus DevOps" })
+      vim.notify(
+        "Failed to register keymap " .. lhs .. ": " .. tostring(err),
+        vim.log.levels.WARN,
+        { title = "Cumulus DevOps" }
+      )
     end
     return ok
   end
@@ -967,7 +1023,12 @@ function M.setup_keymaps(force)
   safe_map("n", "<leader>ocb", M.sam_build, { desc = "SAM: Build", silent = true })
   safe_map("n", "<leader>oci", M.sam_local_invoke, { desc = "SAM: Local Invoke", silent = true })
   safe_map("n", "<leader>ocr", M.sam_local_start_api, { desc = "SAM: Local Start API", silent = true })
-  safe_map("n", "<leader>ocg", M.cfn_guard_validate, { desc = "CloudFormation: Policy Check (cfn-guard)", silent = true })
+  safe_map(
+    "n",
+    "<leader>ocg",
+    M.cfn_guard_validate,
+    { desc = "CloudFormation: Policy Check (cfn-guard)", silent = true }
+  )
 
   -- Ansible Automation (<leader>oy)
   safe_map("n", "<leader>oys", M.ansible_syntax_check, { desc = "Ansible: Syntax Check", silent = true })
@@ -987,7 +1048,12 @@ function M.setup_keymaps(force)
   safe_map("n", "<leader>okt", M.helm_template, { desc = "Helm: Render Template", silent = true })
 
   -- DevOps Validation Keymaps (Story 3.1: Engine-driven validation with non-colliding bindings)
-  safe_map("n", "<leader>otV", M.validate_terraform_unified, { desc = "Validate Terraform (Struct + Security)", silent = true })
+  safe_map(
+    "n",
+    "<leader>otV",
+    M.validate_terraform_unified,
+    { desc = "Validate Terraform (Struct + Security)", silent = true }
+  )
   safe_map("n", "<leader>ayV", M.validate_ansible, { desc = "Validate Ansible Playbook", silent = true })
   safe_map("n", "<leader>cfV", M.validate_cloudformation, { desc = "Validate CloudFormation Template", silent = true })
   safe_map("n", "<leader>dkV", M.validate_docker, { desc = "Validate Dockerfile", silent = true })

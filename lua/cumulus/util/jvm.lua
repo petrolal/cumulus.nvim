@@ -474,7 +474,9 @@ function M.setup_keymaps()
     local status = engine.check_jdtls_sync(cwd, _G.cumulus_jdtls_start_time)
     if status and status.sync_needed then
       vim.notify(
-        "JDTLS classpath is stale (modified: " .. (status.modified_file or "unknown") .. "). Run dependency sync and JdtRestart.",
+        "JDTLS classpath is stale (modified: "
+          .. (status.modified_file or "unknown")
+          .. "). Run dependency sync and JdtRestart.",
         vim.log.levels.WARN
       )
     else

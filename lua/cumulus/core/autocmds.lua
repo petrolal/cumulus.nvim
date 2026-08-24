@@ -43,7 +43,9 @@ vim.api.nvim_create_autocmd("VimEnter", {
   once = true,
   callback = function()
     local dir = nil
-    for _, arg in ipairs(vim.fn.argv() --[[@as string[] ]]) do
+    for _, arg in
+      ipairs(vim.fn.argv() --[[@as string[] ]])
+    do
       if vim.fn.isdirectory(arg) == 1 then
         dir = vim.fn.fnamemodify(arg, ":p")
         break
@@ -264,7 +266,8 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
     if lenses and #lenses > 0 then
       for _, lens in ipairs(lenses) do
         local lnum = math.max(0, lens.line - 1)
-        local text = string.format("Current: %s → Latest: %s [%s]", lens.current_version, lens.latest_version, lens.age_status)
+        local text =
+          string.format("Current: %s → Latest: %s [%s]", lens.current_version, lens.latest_version, lens.age_status)
         vim.api.nvim_buf_set_extmark(event.buf, dep_lens_ns, lnum, 0, {
           virt_text = { { text, "Comment" } },
           virt_text_pos = "eol",

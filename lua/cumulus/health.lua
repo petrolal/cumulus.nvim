@@ -55,13 +55,22 @@ function M.check()
   if engine.is_available() then
     local info = engine.ping()
     if info then
-      vim.health.ok(string.format("Cumulus Scala Engine ('cumulus-engine'): active (%s, v%s, Scala %s, commit %s)",
-        engine.get_bin(), info.version or "unknown", info.scala or "3.x", info.commit or "HEAD"))
+      vim.health.ok(
+        string.format(
+          "Cumulus Scala Engine ('cumulus-engine'): active (%s, v%s, Scala %s, commit %s)",
+          engine.get_bin(),
+          info.version or "unknown",
+          info.scala or "3.x",
+          info.commit or "HEAD"
+        )
+      )
     else
       vim.health.ok(string.format("Cumulus Scala Engine ('cumulus-engine'): active (%s)", engine.get_bin()))
     end
   else
-    vim.health.warn("Cumulus Scala Engine ('cumulus-engine'): not compiled or not found. Build via 'cd engine && sbt nativeImage' or run ':CumulusInstallEngine'")
+    vim.health.warn(
+      "Cumulus Scala Engine ('cumulus-engine'): not compiled or not found. Build via 'cd engine && sbt nativeImage' or run ':CumulusInstallEngine'"
+    )
   end
 
   vim.health.start("Gradle Wrapper & Build Lock (SPEC-012)")
@@ -70,23 +79,23 @@ function M.check()
     if health_response.data.gradle_wrapper then
       local gradle_info = health_response.data.gradle_wrapper
 
-    if gradle_info.local_version then
-      vim.health.ok(string.format("Local Gradle version: %s", gradle_info.local_version))
-    else
-      vim.health.warn("Local Gradle version: not found in gradle-wrapper.properties")
-    end
+      if gradle_info.local_version then
+        vim.health.ok(string.format("Local Gradle version: %s", gradle_info.local_version))
+      else
+        vim.health.warn("Local Gradle version: not found in gradle-wrapper.properties")
+      end
 
-    if gradle_info.ci_version then
-      vim.health.ok(string.format("CI Gradle version: %s", gradle_info.ci_version))
-    else
-      vim.health.info("CI Gradle version: not configured in CI workflows")
-    end
+      if gradle_info.ci_version then
+        vim.health.ok(string.format("CI Gradle version: %s", gradle_info.ci_version))
+      else
+        vim.health.info("CI Gradle version: not configured in CI workflows")
+      end
 
-    if gradle_info.sha256_configured then
-      vim.health.ok("SHA-256 checksum: configured")
-    else
-      vim.health.warn("SHA-256 checksum: NOT configured (security risk for supply chain)")
-    end
+      if gradle_info.sha256_configured then
+        vim.health.ok("SHA-256 checksum: configured")
+      else
+        vim.health.warn("SHA-256 checksum: NOT configured (security risk for supply chain)")
+      end
 
       if gradle_info.issues and #gradle_info.issues > 0 then
         for _, issue in ipairs(gradle_info.issues) do
@@ -107,10 +116,26 @@ function M.check()
   vim.health.start("AWS CloudFormation & SAM DevOps Tooling (Story 8.2)")
 
   local cfn_tools = {
-    { name = "aws", desc = "AWS CLI (required for 'aws cloudformation validate-template')", install = "Install via https://aws.amazon.com/cli/" },
-    { name = "sam", desc = "AWS SAM CLI (required for 'sam build', 'sam local invoke', 'sam validate')", install = "Install via https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html" },
-    { name = "cfn-lint", desc = "CloudFormation Linter (cfn-lint)", install = ":MasonInstall cfn-lint or pip install cfn-lint" },
-    { name = "cfn-guard", desc = "CloudFormation Guard Policy Evaluator (cfn-guard)", install = "Install via brew install cloudformation-guard or cargo install cfn-guard" },
+    {
+      name = "aws",
+      desc = "AWS CLI (required for 'aws cloudformation validate-template')",
+      install = "Install via https://aws.amazon.com/cli/",
+    },
+    {
+      name = "sam",
+      desc = "AWS SAM CLI (required for 'sam build', 'sam local invoke', 'sam validate')",
+      install = "Install via https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html",
+    },
+    {
+      name = "cfn-lint",
+      desc = "CloudFormation Linter (cfn-lint)",
+      install = ":MasonInstall cfn-lint or pip install cfn-lint",
+    },
+    {
+      name = "cfn-guard",
+      desc = "CloudFormation Guard Policy Evaluator (cfn-guard)",
+      install = "Install via brew install cloudformation-guard or cargo install cfn-guard",
+    },
   }
 
   for _, tool in ipairs(cfn_tools) do
@@ -124,11 +149,31 @@ function M.check()
   vim.health.start("Ansible Automation Tooling (Story 8.3)")
 
   local ansible_tools = {
-    { name = "ansible-playbook", desc = "Ansible Playbook CLI (required for '--syntax-check', '--check', execution)", install = "Install via pip install ansible or brew install ansible" },
-    { name = "ansible-lint", desc = "Ansible Playbook Linter", install = ":MasonInstall ansible-lint or pip install ansible-lint" },
-    { name = "ansible-inventory", desc = "Ansible Inventory CLI (required for '--graph')", install = "Included with ansible package (pip install ansible)" },
-    { name = "ansible-vault", desc = "Ansible Vault CLI (encrypt/decrypt/view secrets)", install = "Included with ansible package (pip install ansible)" },
-    { name = "ansible-doc", desc = "Ansible Module Documentation Browser", install = "Included with ansible package (pip install ansible)" },
+    {
+      name = "ansible-playbook",
+      desc = "Ansible Playbook CLI (required for '--syntax-check', '--check', execution)",
+      install = "Install via pip install ansible or brew install ansible",
+    },
+    {
+      name = "ansible-lint",
+      desc = "Ansible Playbook Linter",
+      install = ":MasonInstall ansible-lint or pip install ansible-lint",
+    },
+    {
+      name = "ansible-inventory",
+      desc = "Ansible Inventory CLI (required for '--graph')",
+      install = "Included with ansible package (pip install ansible)",
+    },
+    {
+      name = "ansible-vault",
+      desc = "Ansible Vault CLI (encrypt/decrypt/view secrets)",
+      install = "Included with ansible package (pip install ansible)",
+    },
+    {
+      name = "ansible-doc",
+      desc = "Ansible Module Documentation Browser",
+      install = "Included with ansible package (pip install ansible)",
+    },
   }
 
   for _, tool in ipairs(ansible_tools) do

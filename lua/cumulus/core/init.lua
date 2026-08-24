@@ -7,4 +7,3 @@ require("cumulus.core.autocmds")
 vim.api.nvim_create_user_command("CumulusInstallEngine", function()
   require("cumulus.util.engine").install()
 end, { desc = "Download and install pre-built cumulus-engine binary" })
-

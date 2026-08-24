@@ -24,18 +24,28 @@ return {
 
         -- Navigation
         map("n", "]c", function()
-          if vim.wo.diff then return "]c" end
-          vim.schedule(function() gs.next_hunk() end)
+          if vim.wo.diff then
+            return "]c"
+          end
+          vim.schedule(function()
+            gs.next_hunk()
+          end)
           return "<Ignore>"
         end, { expr = true, desc = "Next Hunk" })
 
         map("n", "[c", function()
-          if vim.wo.diff then return "[c" end
-          vim.schedule(function() gs.prev_hunk() end)
+          if vim.wo.diff then
+            return "[c"
+          end
+          vim.schedule(function()
+            gs.prev_hunk()
+          end)
           return "<Ignore>"
         end, { expr = true, desc = "Prev Hunk" })
 
-        map("n", "<leader>gb", function() gs.blame_line({ full = true }) end, { desc = "Blame Line" })
+        map("n", "<leader>gb", function()
+          gs.blame_line({ full = true })
+        end, { desc = "Blame Line" })
         map("n", "<leader>gB", gs.blame, { desc = "Blame Buffer Toggle" })
         map("n", "<leader>gd", gs.diffthis, { desc = "Git Diff This" })
         map("n", "<leader>ghs", gs.stage_hunk, { desc = "Stage Hunk" })

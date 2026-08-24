@@ -120,15 +120,15 @@ function M.assert_available(category)
   local category_label = category_names[category] or category
 
   local error_msg = string.format(
-    "cumulus-engine binary not found for [%s] operations\n" ..
-    "\n" ..
-    "Build with:\n" ..
-    "  cd /path/to/cumulus.nvim/engine && sbt nativeImage\n" ..
-    "\n" ..
-    "Or install via:\n" ..
-    "  :CumulusInstallEngine\n" ..
-    "\n" ..
-    "Docs: https://github.com/petrolal/cumulus.nvim/docs/engine-setup",
+    "cumulus-engine binary not found for [%s] operations\n"
+      .. "\n"
+      .. "Build with:\n"
+      .. "  cd /path/to/cumulus.nvim/engine && sbt nativeImage\n"
+      .. "\n"
+      .. "Or install via:\n"
+      .. "  :CumulusInstallEngine\n"
+      .. "\n"
+      .. "Docs: https://github.com/petrolal/cumulus.nvim/docs/engine-setup",
     category_label
   )
 
@@ -398,9 +398,8 @@ local function safe_json_decode(json_str, context, opts)
   local ok, parsed = pcall(vim.json.decode, json_str)
   if not ok or type(parsed) ~= "table" then
     if not opts.silent then
-      local msg = string.format("[cumulus] JSON decode failed%s: %s",
-        context and " (" .. context .. ")" or "",
-        tostring(parsed))
+      local msg =
+        string.format("[cumulus] JSON decode failed%s: %s", context and " (" .. context .. ")" or "", tostring(parsed))
       vim.notify(msg, vim.log.levels.WARN)
     end
     return nil
@@ -410,8 +409,8 @@ local function safe_json_decode(json_str, context, opts)
   if parsed.success == false then
     if not opts.silent then
       local error_msg = parsed.error or "Unknown error"
-      local msg = string.format("[cumulus] %s%s", error_msg,
-        parsed.error_code and (" (" .. parsed.error_code .. ")") or "")
+      local msg =
+        string.format("[cumulus] %s%s", error_msg, parsed.error_code and (" (" .. parsed.error_code .. ")") or "")
       vim.notify(msg, vim.log.levels.WARN)
     end
     return nil
@@ -419,10 +418,7 @@ local function safe_json_decode(json_str, context, opts)
 
   -- Log success if debug enabled
   if opts.debug and parsed.success then
-    vim.notify(
-      string.format("[cumulus] %s succeeded", context or "command"),
-      vim.log.levels.DEBUG
-    )
+    vim.notify(string.format("[cumulus] %s succeeded", context or "command"), vim.log.levels.DEBUG)
   end
 
   return parsed.data
@@ -449,10 +445,7 @@ local function call_engine_command(args, stdin, context, opts)
   local res = vim.system(cmd_args, { stdin = stdin, text = true }):wait()
   if res.code ~= 0 or not res.stdout or res.stdout == "" then
     if res.code ~= 0 and not opts.silent then
-      vim.notify(
-        string.format("[cumulus] engine command failed with exit code %d", res.code),
-        vim.log.levels.WARN
-      )
+      vim.notify(string.format("[cumulus] engine command failed with exit code %d", res.code), vim.log.levels.WARN)
     end
     return nil
   end
@@ -677,7 +670,11 @@ end
 ---@param cursor_line number 1-indexed line number of the cursor
 ---@return { class_name: string|nil, method_name: string|nil }|nil
 function M.detect_test_context(file_path, cursor_line)
-  return call_engine_command({ "detect-test-context", "--file", file_path, "--line", tostring(cursor_line) }, nil, "detect-test-context")
+  return call_engine_command(
+    { "detect-test-context", "--file", file_path, "--line", tostring(cursor_line) },
+    nil,
+    "detect-test-context"
+  )
 end
 
 --- Resolve direct project dependencies using Scala engine
@@ -722,7 +719,11 @@ end
 ---@param start_time number JDTLS start time (epoch seconds)
 ---@return { sync_needed: boolean, modified_file: string|nil }|nil
 function M.check_jdtls_sync(dir_path, start_time)
-  return call_engine_command({ "check-jdtls-sync", "--dir", dir_path, "--start-time", tostring(start_time) }, nil, "check-jdtls-sync")
+  return call_engine_command(
+    { "check-jdtls-sync", "--dir", dir_path, "--start-time", tostring(start_time) },
+    nil,
+    "check-jdtls-sync"
+  )
 end
 
 --- Verify Gradle wrapper configuration against CI workflows and SHA-256
@@ -751,7 +752,11 @@ end
 ---@param dir_path string Root project directory
 ---@return { file_path: string, line: number, class_name: string, method_name: string }|nil
 function M.resolve_stacktrace_symbol(line_text, dir_path)
-  return call_engine_command({ "resolve-stacktrace-symbol", "--line", line_text, "--dir", dir_path }, nil, "resolve-stacktrace-symbol")
+  return call_engine_command(
+    { "resolve-stacktrace-symbol", "--line", line_text, "--dir", dir_path },
+    nil,
+    "resolve-stacktrace-symbol"
+  )
 end
 
 --- Check dependency versions and render virtual text hints
@@ -811,10 +816,22 @@ end
 function M.assemble_test_command(opts)
   opts = opts or {}
   local args = { "assemble-test-command" }
-  if opts.tool then table.insert(args, "--tool"); table.insert(args, opts.tool) end
-  if opts["class"] then table.insert(args, "--class"); table.insert(args, opts["class"]) end
-  if opts.method then table.insert(args, "--method"); table.insert(args, opts.method) end
-  if opts.dir then table.insert(args, "--dir"); table.insert(args, opts.dir) end
+  if opts.tool then
+    table.insert(args, "--tool")
+    table.insert(args, opts.tool)
+  end
+  if opts["class"] then
+    table.insert(args, "--class")
+    table.insert(args, opts["class"])
+  end
+  if opts.method then
+    table.insert(args, "--method")
+    table.insert(args, opts.method)
+  end
+  if opts.dir then
+    table.insert(args, "--dir")
+    table.insert(args, opts.dir)
+  end
   return call_engine_command(args, nil, "assemble-test-command")
 end
 
@@ -838,9 +855,18 @@ end
 function M.manage_theme(action, opts)
   opts = opts or {}
   local args = { "manage-theme", "--action", action }
-  if opts.theme then table.insert(args, "--theme"); table.insert(args, opts.theme) end
-  if opts.variant then table.insert(args, "--variant"); table.insert(args, opts.variant) end
-  if opts.file then table.insert(args, "--file"); table.insert(args, opts.file) end
+  if opts.theme then
+    table.insert(args, "--theme")
+    table.insert(args, opts.theme)
+  end
+  if opts.variant then
+    table.insert(args, "--variant")
+    table.insert(args, opts.variant)
+  end
+  if opts.file then
+    table.insert(args, "--file")
+    table.insert(args, opts.file)
+  end
   return call_engine_command(args, nil, "manage-theme")
 end
 
@@ -1002,10 +1028,7 @@ function M.classify_workspace(dir, opts)
 
   if not ok then
     if not opts.silent then
-      vim.notify(
-        string.format("[cumulus] classify-workspace error: %s", err),
-        vim.log.levels.WARN
-      )
+      vim.notify(string.format("[cumulus] classify-workspace error: %s", err), vim.log.levels.WARN)
     end
     return nil
   end
@@ -1174,7 +1197,10 @@ function M.validate_migrations_action(dir)
 
   for _, issue in ipairs(issues) do
     local level = issue.severity == "ERROR" and vim.log.levels.ERROR or vim.log.levels.WARN
-    vim.notify(string.format("[%s] %s (%s)", issue.severity, issue.message, vim.fn.fnamemodify(issue.file, ":t")), level)
+    vim.notify(
+      string.format("[%s] %s (%s)", issue.severity, issue.message, vim.fn.fnamemodify(issue.file, ":t")),
+      level
+    )
   end
 end
 
@@ -1507,10 +1533,7 @@ local function register_commands()
   end)
 
   if not ok then
-    vim.notify(
-      string.format("[cumulus] Failed to register commands: %s", err),
-      vim.log.levels.WARN
-    )
+    vim.notify(string.format("[cumulus] Failed to register commands: %s", err), vim.log.levels.WARN)
   end
 end
 
@@ -1524,6 +1547,3 @@ setup_availability_check()
 pcall(register_commands)
 
 return M
-
-
-
