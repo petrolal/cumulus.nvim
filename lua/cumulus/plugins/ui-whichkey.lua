@@ -51,9 +51,7 @@ return {
       })
 
       local jvm = require("cumulus.util.jvm")
-      if jvm.is_jvm_project() then
-        vim.list_extend(opts.spec, jvm.whichkey_spec())
-      end
+      vim.list_extend(opts.spec, jvm.whichkey_spec())
       return opts
     end,
   },

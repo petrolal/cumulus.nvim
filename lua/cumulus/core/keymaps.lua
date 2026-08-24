@@ -72,26 +72,10 @@ map("n", "<leader>cl", "<cmd>checkhealth vim.lsp<cr>", { desc = "Lsp Info" })
 local lang_keymaps = require("cumulus.core.lang-keymaps")
 
 -- ==============================================================================
--- ⭐ JVM PLATFORM KEYMAP SUITE (<leader>j) - Project-Scoped
+-- ⭐ JVM PLATFORM KEYMAP SUITE (<leader>j) - Unconditionally Registered
 -- ==============================================================================
 local jvm = require("cumulus.util.jvm")
-
-if jvm.is_jvm_project() then
-  jvm.setup_keymaps()
-else
-  -- If opened in a non-JVM project but user later opens a JVM file or switches directory,
-  -- initialize JVM keymaps dynamically.
-  local jvm_augroup = vim.api.nvim_create_augroup("cumulus_jvm_init", { clear = true })
-  vim.api.nvim_create_autocmd({ "FileType", "DirChanged" }, {
-    group = jvm_augroup,
-    callback = function(args)
-      if jvm.is_jvm_project(args.buf) then
-        jvm.setup_keymaps()
-        pcall(vim.api.nvim_del_augroup_by_id, jvm_augroup)
-      end
-    end,
-  })
-end
+jvm.setup_keymaps()
 
 -- ==============================================================================
 -- 󱁢 Infrastructure & DevOps Platform Suite (<leader>o) - Globally Registered

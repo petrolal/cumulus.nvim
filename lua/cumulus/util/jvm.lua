@@ -1,9 +1,9 @@
--- Cumulus JVM Project & Keymap Suite Manager
+-- Cumulus JVM Platform Keymap Suite
 --
--- Architecture: Fast detection of whether a workspace belongs to a JVM-based
--- project (Maven, Gradle, SBT, or JVM language files). When in a JVM project,
--- registers the global JVM platform keymaps and WhichKey specs.
--- All build tool detection and goal/task extraction is delegated to the Scala engine.
+-- Architecture: Pure keymap registration for JVM platform operations (Maven, Gradle, SBT).
+-- Keymaps are registered unconditionally; error handling is delegated to the Scala engine
+-- via engine APIs called on keypress. Build tool detection and goal/task extraction
+-- are delegated entirely to the Scala engine.
 
 local M = {}
 
@@ -22,81 +22,6 @@ function M.whichkey_spec()
     { "<leader>jd", group = "dependencies", icon = "📦 " },
     { "<leader>ji", group = "engine & info", icon = "ℹ " },
   }
-end
-
---- Check if the workspace or current buffer belongs to a JVM project.
----@param buf_or_dir? number|string Buffer number or directory path
----@return boolean true if the workspace/buffer is a JVM project
-function M.is_jvm_project(buf_or_dir)
-  local dir
-  if type(buf_or_dir) == "number" and vim.api.nvim_buf_is_valid(buf_or_dir) then
-    local ft = vim.bo[buf_or_dir].filetype
-    if ft == "java" or ft == "kotlin" or ft == "scala" or ft == "groovy" or ft == "sbt" then
-      return true
-    end
-    dir = vim.fs.dirname(vim.api.nvim_buf_get_name(buf_or_dir))
-  elseif type(buf_or_dir) == "string" and buf_or_dir ~= "" then
-    dir = buf_or_dir
-  else
-    local cur_buf = vim.api.nvim_get_current_buf()
-    if vim.api.nvim_buf_is_valid(cur_buf) then
-      local ft = vim.bo[cur_buf].filetype
-      if ft == "java" or ft == "kotlin" or ft == "scala" or ft == "groovy" or ft == "sbt" then
-        return true
-      end
-    end
-    dir = vim.fn.getcwd()
-  end
-
-  if not dir or dir == "" then
-    dir = vim.fn.getcwd()
-  end
-
-  local ok, engine = pcall(require, "cumulus.util.engine")
-  if ok and engine.is_available and engine.is_available() then
-    local topo = engine.classify_workspace(dir)
-    if topo then
-      if topo.primary_type == "maven" or topo.primary_type == "gradle" or topo.primary_type == "sbt" then
-        return true
-      end
-      if topo.has_spring then
-        return true
-      end
-      if topo.project_types then
-        for _, ptype in ipairs(topo.project_types) do
-          if ptype == "maven" or ptype == "gradle" or ptype == "sbt" then
-            return true
-          end
-        end
-      end
-      if topo.primary_type == "devops" or (topo.primary_type == "unknown" and (not topo.project_types or #topo.project_types == 0)) then
-        return false
-      end
-    end
-
-    local res = engine.discover_build_tool(dir) or engine.discover_build_tool(vim.fn.getcwd())
-    if res and (res.tool == "maven" or res.tool == "gradle" or res.tool == "sbt" or
-                res.build_tool == "maven" or res.build_tool == "gradle" or res.build_tool == "sbt") then
-      return true
-    end
-  end
-
-  local jvm_markers = {
-    "pom.xml",
-    "mvnw",
-    "build.gradle",
-    "build.gradle.kts",
-    "settings.gradle",
-    "settings.gradle.kts",
-    "gradlew",
-    "build.sbt",
-  }
-
-  if vim.fs.root(dir, jvm_markers) or vim.fs.root(vim.fn.getcwd(), jvm_markers) then
-    return true
-  end
-
-  return false
 end
 
 --- Register all global JVM platform keymaps and WhichKey group specs
