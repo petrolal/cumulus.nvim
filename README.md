@@ -120,6 +120,159 @@ The backend engine is a compiled native binary that handles heavy parsing and ba
 
 ---
 
+## Migration Guide: Epic 4 Breaking Changes (v2026-08-24)
+
+As part of Epic 4 (Engine IPC Cleanup), several UI action functions were removed from the engine bridge (`lua/cumulus/util/engine.lua`) and moved to the plugin layer. This maintains clean architecture where the engine bridge is pure IPC marshaling only.
+
+### Removed Functions
+
+The following functions are **no longer available** in the engine module:
+- `M.select_bean()` — Interactive Spring Bean picker
+- `M.select_endpoint()` — Interactive REST endpoint picker
+- `M.optimize_imports_buffer()` — Optimize imports in current buffer
+- `M.validate_k8s_manifest_buffer()` — Validate K8s YAML in current buffer
+- `M.validate_migrations_action()` — Validate Flyway migrations
+- `M.resolve_git_conflicts()` — Interactive Git conflict resolver
+- `M.view_coverage()` — Load and display JaCoCo coverage
+- `M.search_indexed_logs()` — Search and jump to log entries
+- `M.populate_build_diagnostics()` — Parse build logs and populate diagnostics
+- `M.clear_build_diagnostics()` — Clear build diagnostics
+
+### Migration Strategy
+
+If you have custom keybindings or commands that call these removed functions, you can recreate them in your Lazy.nvim config by overriding plugins. Here are three patterns:
+
+#### Pattern 1: Register in a Custom Plugin Module
+
+Create a file `lua/cumulus/plugins/custom-ui.lua`:
+
+```lua
+return {
+  {
+    "petrolal/cumulus.nvim",
+    config = function()
+      local engine = require("cumulus.util.engine")
+      local ui = require("cumulus.util.ui")
+      
+      -- Recreate select_bean with custom UI logic
+      local function select_bean()
+        if not engine.is_available() then return end
+        local beans = engine.parse_spring_beans(vim.fn.getcwd())
+        if not beans or #beans == 0 then
+          ui.notify_warn("No Spring beans found")
+          return
+        end
+        vim.ui.select(beans, {
+          prompt = "Select Spring Bean:",
+          format_item = function(item)
+            return string.format("%s (%s)", item.bean_name, item.class_name)
+          end,
+        }, function(choice)
+          if choice and choice.file then
+            vim.cmd("edit " .. vim.fn.fnameescape(choice.file))
+            vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
+          end
+        end)
+      end
+      
+      vim.keymap.set("n", "<leader>jsb", select_bean, { desc = "Select Spring Bean" })
+    end,
+  }
+}
+```
+
+#### Pattern 2: Direct Keybinding Override
+
+In your Lazy.nvim plugin spec:
+
+```lua
+{
+  "petrolal/cumulus.nvim",
+  config = function()
+    local engine = require("cumulus.util.engine")
+    local ui = require("cumulus.util.ui")
+    
+    vim.keymap.set("n", "<leader>jse", function()
+      if not engine.is_available() then return end
+      local eps = engine.extract_endpoints(vim.fn.getcwd())
+      if not eps or #eps == 0 then
+        ui.notify_warn("No endpoints found")
+        return
+      end
+      vim.ui.select(eps, {
+        prompt = "REST Endpoints:",
+        format_item = function(item)
+          return string.format("[%s] %s", item.http_method, item.path)
+        end,
+      }, function(choice)
+        if choice and choice.file then
+          vim.cmd("edit " .. vim.fn.fnameescape(choice.file))
+          vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
+        end
+      end)
+    end, { desc = "Select REST Endpoint" })
+  end,
+}
+```
+
+#### Pattern 3: Use Lower-Level Engine Wrappers
+
+The core engine wrappers are still available:
+- `engine.parse_spring_beans(dir)` — Get Spring beans for a directory
+- `engine.extract_endpoints(dir)` — Get REST endpoints
+- `engine.optimize_imports(code)` — Optimize imports (returns modified lines)
+- `engine.validate_k8s_manifest(yaml_content)` — Validate K8s YAML
+- `engine.validate_migrations(dir)` — Validate Flyway migrations
+- `engine.parse_git_conflicts(content)` — Parse Git conflict markers
+- `engine.parse_coverage(xml_path)` — Load JaCoCo XML report
+- `engine.index_log(content)` — Index log lines
+
+Build your own UI logic using these wrappers:
+
+```lua
+local engine = require("cumulus.util.engine")
+
+local function my_custom_bean_picker()
+  local beans = engine.parse_spring_beans(vim.fn.getcwd())
+  -- ... your custom UI code here
+end
+```
+
+### Notification API Change
+
+Notification functions are now in a separate module to avoid polluting the IPC bridge:
+
+**Before (removed):**
+```lua
+local engine = require("cumulus.util.engine")
+engine.notify_info("Message")
+engine.notify_err("Error")
+engine.run_term("make build")
+```
+
+**After (use `cumulus.util.ui`):**
+```lua
+local ui = require("cumulus.util.ui")
+ui.notify_info("Message")
+ui.notify_err("Error")
+ui.run_term("make build")
+```
+
+### Snacks Terminal Plugin
+
+Terminal commands require the [Snacks](https://github.com/folke/snacks.nvim) plugin to be installed. Verify your Lazy.nvim plugin manager includes:
+
+```lua
+{
+  "folke/snacks.nvim",
+  opts = {
+    terminal = { enabled = true }
+  }
+}
+```
+
+---
+
 ## Automated Deployment (GitHub Actions)
 
 Releases are published automatically to **Maven Central** and **GitHub Releases** whenever a version tag is pushed:

@@ -190,6 +190,8 @@ function M.detect_platform()
   elseif sysname == "Darwin" then
     if machine == "arm64" or machine == "aarch64" then
       return "cumulus-engine-darwin-arm64", nil
+    elseif machine == "x86_64" then
+      return "cumulus-engine-darwin-x86_64", nil
     end
   end
 
@@ -222,20 +224,35 @@ function M.install(opts, callback)
   vim.fn.mkdir(temp_dir, "p")
   local temp_bin = temp_dir .. "/" .. target_name
   local temp_checksums = temp_dir .. "/checksums.sha256"
+  local cleanup_done = false
+
+  -- Helper to ensure temp cleanup happens once
+  local function cleanup_temp()
+    if not cleanup_done then
+      pcall(vim.fn.delete, temp_dir, "rf")
+      cleanup_done = true
+    end
+  end
 
   vim.notify(string.format("[cumulus] Downloading %s...", target_name), vim.log.levels.INFO)
 
   -- Step 1: Download checksums; Step 2: Download binary
   vim.system({ "curl", "-fsSL", base_url .. "checksums.sha256", "-o", temp_checksums }, {}, function(res_sum)
     if res_sum.code ~= 0 then
-      vim.schedule(function() vim.notify("[cumulus] Checksum download failed", vim.log.levels.ERROR); cb(false, "checksum download") end)
-      pcall(vim.fn.delete, temp_dir, "rf")
+      vim.schedule(function()
+        vim.notify("[cumulus] Checksum download failed", vim.log.levels.ERROR)
+        cb(false, "checksum download")
+        cleanup_temp()
+      end)
       return
     end
     vim.system({ "curl", "-fsSL", base_url .. target_name, "-o", temp_bin }, {}, function(res_bin)
       if res_bin.code ~= 0 then
-        vim.schedule(function() vim.notify("[cumulus] Binary download failed", vim.log.levels.ERROR); cb(false, "binary download") end)
-        pcall(vim.fn.delete, temp_dir, "rf")
+        vim.schedule(function()
+          vim.notify("[cumulus] Binary download failed", vim.log.levels.ERROR)
+          cb(false, "binary download")
+          cleanup_temp()
+        end)
         return
       end
 
@@ -246,30 +263,55 @@ function M.install(opts, callback)
       local expected_hash = nil
       for line in checksum_content:gmatch("[^\r\n]+") do
         local h, fn = line:match("^%s*([a-fA-F0-9]+)%s+%*?([%w%.%-_]+)")
-        if fn == target_name then expected_hash = h and h:lower() or nil; break end
+        if fn == target_name then expected_hash = (h and h:lower() and #h > 0) and h:lower() or nil; break end
       end
-      if not expected_hash then
-        vim.schedule(function() vim.notify("[cumulus] No checksum found", vim.log.levels.ERROR); cb(false, "checksum not found") end)
-        pcall(vim.fn.delete, temp_dir, "rf")
+      -- BUG FIX: Validate non-empty checksum before comparison
+      if not expected_hash or expected_hash == "" then
+        vim.schedule(function()
+          vim.notify("[cumulus] No checksum found for target binary", vim.log.levels.ERROR)
+          cb(false, "checksum not found")
+          cleanup_temp()
+        end)
         return
       end
 
-      if vim.fn.executable("sha256sum") ~= 1 then
-        vim.schedule(function() vim.notify("[cumulus] sha256sum required (brew install coreutils on macOS)", vim.log.levels.ERROR); cb(false, "sha256sum missing") end)
-        pcall(vim.fn.delete, temp_dir, "rf")
+      -- BUG FIX: Check for both sha256sum and shasum (macOS fallback)
+      local hash_cmd = nil
+      if vim.fn.executable("sha256sum") == 1 then
+        hash_cmd = "sha256sum"
+      elseif vim.fn.executable("shasum") == 1 then
+        hash_cmd = { "shasum", "-a", "256" }
+      else
+        vim.schedule(function()
+          vim.notify("[cumulus] sha256sum or shasum required (brew install coreutils on macOS)", vim.log.levels.ERROR)
+          cb(false, "sha256sum missing")
+          cleanup_temp()
+        end)
         return
       end
 
-      vim.system({ "sha256sum", temp_bin }, { text = true }, function(res_hash)
+      local hash_args = type(hash_cmd) == "table" and hash_cmd or { hash_cmd }
+      table.insert(hash_args, temp_bin)
+
+      vim.system(hash_args, { text = true }, function(res_hash)
         if res_hash.code ~= 0 or not res_hash.stdout then
-          vim.schedule(function() vim.notify("[cumulus] Checksum failed", vim.log.levels.ERROR); cb(false, "checksum error") end)
-          pcall(vim.fn.delete, temp_dir, "rf")
+          vim.schedule(function()
+            vim.notify("[cumulus] Hash computation failed", vim.log.levels.ERROR)
+            cb(false, "checksum error")
+            cleanup_temp()
+          end)
           return
         end
         local actual_hash = (res_hash.stdout:match("^%s*([a-fA-F0-9]+)") or ""):lower()
         if actual_hash ~= expected_hash then
-          vim.schedule(function() vim.notify("[cumulus] SHA-256 mismatch", vim.log.levels.ERROR); cb(false, "verification failed") end)
-          pcall(vim.fn.delete, temp_dir, "rf")
+          vim.schedule(function()
+            vim.notify(
+              string.format("[cumulus] SHA-256 mismatch (expected %s, got %s)", expected_hash:sub(1, 8), actual_hash:sub(1, 8)),
+              vim.log.levels.ERROR
+            )
+            cb(false, "verification failed")
+            cleanup_temp()
+          end)
           return
         end
 
@@ -280,14 +322,39 @@ function M.install(opts, callback)
         pcall(vim.fn.delete, dest_bin)
         local uv = vim.uv or vim.loop
         local ok, err = uv.fs_rename(temp_bin, dest_bin)
-        pcall(vim.fn.delete, temp_dir, "rf")
+
+        -- BUG FIX: Add fallback copy if rename fails (cross-filesystem edge case)
         if not ok then
-          vim.schedule(function() vim.notify(string.format("[cumulus] Install failed: %s", err or "unknown"), vim.log.levels.ERROR); cb(false, "install failed") end)
-          return
+          vim.notify(string.format("[cumulus] Rename failed (%s), attempting copy...", err or "unknown"), vim.log.levels.WARN)
+          local copy_ok = pcall(function()
+            local src = io.open(temp_bin, "rb")
+            if not src then error("Cannot open source file") end
+            local src_data = src:read("*a")
+            src:close()
+            if not src_data or #src_data == 0 then error("Source file is empty") end
+            local dest = io.open(dest_bin, "wb")
+            if not dest then error("Cannot open destination file") end
+            local written = dest:write(src_data)
+            dest:close()
+            if not written or written == 0 then error("Failed to write destination file") end
+          end)
+          if not copy_ok then
+            vim.schedule(function()
+              vim.notify(string.format("[cumulus] Install failed: rename and copy both failed"), vim.log.levels.ERROR)
+              cb(false, "install failed")
+              cleanup_temp()
+            end)
+            return
+          end
         end
+
+        cleanup_temp()
         pcall(uv.fs_chmod, dest_bin, 493)
         M.invalidate_cache()
-        vim.schedule(function() vim.notify(string.format("[cumulus] Installed to %s", dest_bin), vim.log.levels.INFO); cb(true, dest_bin) end)
+        vim.schedule(function()
+          vim.notify(string.format("[cumulus] Installed to %s", dest_bin), vim.log.levels.INFO)
+          cb(true, dest_bin)
+        end)
       end)
     end)
   end)
@@ -369,152 +436,120 @@ end
 -- Wrapper Function Consolidation: 1-3 line pass-throughs with minimal IPC marshaling
 -- ==============================================================================
 
---- Thin wrapper generator: creates 1-3 line pass-through functions
----@param cmd string Engine command name (e.g., "parse-pom")
----@param arg_builder fun(...)? Optional function to build args from params
----@private
-local function _make_wrapper(cmd, arg_builder)
-  return function(...)
-    local args = arg_builder and arg_builder(...) or { cmd }
-    if not arg_builder then table.insert(args, 1, cmd) end
-    return call_engine_command(args, nil, cmd)
-  end
+-- Table-driven wrapper generation for simple pass-throughs
+-- Format: { func_name = "engine-command" } for stdin-based or { func_name = { "cmd", "--flag" } } for args-based
+local function _register_simple_wrappers()
+  local stdin_wrappers = {
+    parse_build_log = function(tool, log_content) return call_engine_command({ "parse-build-log", "--tool", tool }, log_content, "parse-build-log") end,
+    parse_stacktrace = function(log_content) return call_engine_command({ "parse-stacktrace" }, log_content, "parse-stacktrace") end,
+    parse_test_output = function(log_content) return call_engine_command({ "parse-test-output" }, log_content, "parse-test-output") end,
+    parse_checkstyle = function(xml_content) return call_engine_command({ "parse-checkstyle" }, xml_content, "parse-checkstyle") end,
+    index_log = function(log_content) return call_engine_command({ "index-log" }, log_content, "index-log") end,
+    validate_k8s_manifest = function(yaml_content) return call_engine_command({ "validate-k8s-manifest" }, yaml_content, "validate-k8s-manifest") end,
+    parse_git_conflicts = function(content) return call_engine_command({ "parse-git-conflicts" }, content, "parse-git-conflicts") end,
+  }
+  local file_wrappers = {
+    parse_coverage = function(file_path) return call_engine_command({ "parse-coverage", "--file", file_path }, nil, "parse-coverage") end,
+    validate_migrations = function(dir_path) return call_engine_command({ "validate-migrations", "--dir", dir_path }, nil, "validate-migrations") end,
+    resolve_deps = function(file_path) return call_engine_command({ "resolve-deps", "--file", file_path }, nil, "resolve-deps") end,
+    compute_build_order = function(dir_path) return call_engine_command({ "compute-build-order", "--dir", dir_path }, nil, "compute-build-order") end,
+    verify_gradle_wrapper = function(dir_path) return call_engine_command({ "verify-gradle-wrapper", "--dir", dir_path }, nil, "verify-gradle-wrapper") end,
+    sanitize_session = function(file_path) return call_engine_command({ "session-sanitize", "--file", file_path }, nil, "session-sanitize") end,
+    detect_springboot_app = function(dir_path) return call_engine_command({ "detect-springboot-app", "--dir", dir_path }, nil, "detect-springboot-app") end,
+    check_dep_versions = function(file_path) return call_engine_command({ "check-dep-versions", "--file", file_path }, nil, "check-dep-versions") end,
+  }
+  for name, fn in pairs(stdin_wrappers) do M[name] = fn end
+  for name, fn in pairs(file_wrappers) do M[name] = fn end
 end
+_register_simple_wrappers()
 
--- Simple direct pass-throughs (stdin-based or minimal args)
 function M.ping()
   return call_engine_command({ "ping" }, nil, "ping")
-end
-
-function M.parse_build_log(tool, log_content)
-  return call_engine_command({ "parse-build-log", "--tool", tool }, log_content, "parse-build-log")
-end
-
-function M.parse_stacktrace(log_content)
-  return call_engine_command({ "parse-stacktrace" }, log_content, "parse-stacktrace")
-end
-
-function M.parse_test_output(log_content)
-  return call_engine_command({ "parse-test-output" }, log_content, "parse-test-output")
-end
-
-function M.parse_checkstyle(xml_content)
-  return call_engine_command({ "parse-checkstyle" }, xml_content, "parse-checkstyle")
-end
-
-function M.parse_coverage(file_path)
-  return call_engine_command({ "parse-coverage", "--file", file_path }, nil, "parse-coverage")
-end
-
-function M.validate_migrations(dir_path)
-  return call_engine_command({ "validate-migrations", "--dir", dir_path }, nil, "validate-migrations")
-end
-
-function M.index_log(log_content)
-  return call_engine_command({ "index-log" }, log_content, "index-log")
-end
-
-function M.validate_k8s_manifest(yaml_content)
-  return call_engine_command({ "validate-k8s-manifest" }, yaml_content, "validate-k8s-manifest")
-end
-
-function M.parse_git_conflicts(content)
-  return call_engine_command({ "parse-git-conflicts" }, content, "parse-git-conflicts")
 end
 
 function M.detect_test_context(file_path, cursor_line)
   return call_engine_command({ "detect-test-context", "--file", file_path, "--line", tostring(cursor_line) }, nil, "detect-test-context")
 end
 
-function M.resolve_deps(file_path)
-  return call_engine_command({ "resolve-deps", "--file", file_path }, nil, "resolve-deps")
-end
-
-function M.compute_build_order(dir_path)
-  return call_engine_command({ "compute-build-order", "--dir", dir_path }, nil, "compute-build-order")
-end
-
 function M.check_jdtls_sync(dir_path, start_time)
   return call_engine_command({ "check-jdtls-sync", "--dir", dir_path, "--start-time", tostring(start_time) }, nil, "check-jdtls-sync")
-end
-
-function M.verify_gradle_wrapper(dir_path)
-  return call_engine_command({ "verify-gradle-wrapper", "--dir", dir_path }, nil, "verify-gradle-wrapper")
-end
-
-function M.sanitize_session(file_path)
-  return call_engine_command({ "session-sanitize", "--file", file_path }, nil, "session-sanitize")
-end
-
-function M.detect_springboot_app(dir_path)
-  return call_engine_command({ "detect-springboot-app", "--dir", dir_path }, nil, "detect-springboot-app")
 end
 
 function M.resolve_stacktrace_symbol(line_text, dir_path)
   return call_engine_command({ "resolve-stacktrace-symbol", "--line", line_text, "--dir", dir_path }, nil, "resolve-stacktrace-symbol")
 end
 
-function M.check_dep_versions(file_path)
-  return call_engine_command({ "check-dep-versions", "--file", file_path }, nil, "check-dep-versions") or {}
+-- Post-processing wrappers: minimal logic with schema validation
+local function _validate_response(res, key)
+  if res and type(res) == "table" and res[key] then
+    return (type(res[key]) == "table") and res[key] or nil
+  end
+  return nil
 end
 
--- Post-processing wrappers: minimal logic only
 function M.parse_pom_goals(pom_path)
+  if not pom_path or pom_path == "" then return nil end
   local res = call_engine_command({ "parse-pom", "--file", pom_path }, nil, "parse-pom")
-  return res and (res.goals or res) or nil
+  return _validate_response(res, "goals")
 end
 
 function M.parse_gradle_tasks(content)
+  if not content or content == "" then return nil end
   local res = call_engine_command({ "parse-gradle-tasks" }, content, "parse-gradle-tasks")
-  return res and (res.tasks or res) or nil
+  return _validate_response(res, "tasks")
 end
 
 function M.parse_modules(tool, file_path)
+  if not file_path or file_path == "" then return nil end
   local res = call_engine_command({ "parse-modules", "--tool", tool, "--file", file_path }, nil, "parse-modules")
-  return res and (res.modules or res) or nil
+  return _validate_response(res, "modules")
 end
 
 function M.generate_java_header(file_path)
   local res = call_engine_command({ "generate-java-header", "--file", file_path }, nil, "generate-java-header")
-  if not res or (type(res) ~= "table" or (#res == 0 and not res.class_declaration)) then return nil end
-  if res.class_declaration then
-    local lines = {}
-    if res.package_name and res.package_name ~= "" then
-      table.insert(lines, "package " .. res.package_name .. ";")
-      table.insert(lines, "")
-    end
-    local decl = res.class_declaration:gsub("%s*{%s*}", "")
-    table.insert(lines, decl .. " {")
-    table.insert(lines, "    ")
-    table.insert(lines, "}")
-    return lines
+  if not res or type(res) ~= "table" then return nil end
+  if not res.class_declaration then return nil end
+  local lines = {}
+  if res.package_name and res.package_name ~= "" then
+    table.insert(lines, "package " .. res.package_name .. ";")
+    table.insert(lines, "")
   end
-  return res
+  local decl = res.class_declaration:gsub("%s*{%s*}", "")
+  table.insert(lines, decl .. " {")
+  table.insert(lines, "    ")
+  table.insert(lines, "}")
+  return lines
 end
 
 function M.extract_endpoints(dir_path)
+  if not dir_path or dir_path == "" then return nil end
   local res = call_engine_command({ "extract-endpoints", "--dir", dir_path }, nil, "extract-endpoints")
-  return res and (res.endpoints or res) or nil
+  return _validate_response(res, "endpoints")
 end
 
 function M.parse_spring_beans(dir_path)
+  if not dir_path or dir_path == "" then return nil end
   local res = call_engine_command({ "parse-spring-beans", "--dir", dir_path }, nil, "parse-spring-beans")
-  return res and (res.beans or res) or nil
+  return _validate_response(res, "beans")
 end
 
 function M.optimize_imports(code_content)
+  if not code_content or code_content == "" then return nil end
   local res = call_engine_command({ "optimize-imports" }, code_content, "optimize-imports")
-  return res and (res.imports or res) or nil
+  return _validate_response(res, "imports")
 end
 
 function M.extract_codelens(file_path)
+  if not file_path or file_path == "" then return nil end
   local res = call_engine_command({ "extract-codelens", "--file", file_path }, nil, "extract-codelens")
-  return res and (res.items or res) or nil
+  return _validate_response(res, "items")
 end
 
 function M.resolve_modules(dir_path)
-  local res = call_engine_command({ "resolve-modules", "--dir", dir_path or vim.fn.getcwd() }, nil, "resolve-modules", { silent = true })
-  return res and (res.modules or res) or nil
+  dir_path = dir_path or vim.fn.getcwd()
+  if dir_path == "" or vim.fn.isdirectory(dir_path) == 0 then return nil end
+  local res = call_engine_command({ "resolve-modules", "--dir", dir_path }, nil, "resolve-modules", { silent = true })
+  return _validate_response(res, "modules")
 end
 
 function M.discover_jdk(version, opts)
@@ -524,19 +559,24 @@ function M.discover_jdk(version, opts)
 end
 
 function M.discover_build_tool(dir_path, opts)
-  local res = call_engine_command({ "discover-build-tool", "--dir", dir_path or "." }, nil, "discover-build-tool", vim.tbl_extend("force", { silent = true }, opts or {}))
+  dir_path = dir_path or "."
+  if dir_path == "" or vim.fn.isdirectory(dir_path) == 0 then return nil end
+  local res = call_engine_command({ "discover-build-tool", "--dir", dir_path }, nil, "discover-build-tool", vim.tbl_extend("force", { silent = true }, opts or {}))
   if res then res.tool = res.tool or res.build_tool; res.build_tool = res.build_tool or res.tool end
   return res
 end
 
 function M.discover_workspace(dir_path, opts)
-  local res = call_engine_command({ "discover-workspace", "--dir", dir_path or "." }, nil, "discover-workspace", vim.tbl_extend("force", { silent = true }, opts or {}))
+  dir_path = dir_path or "."
+  if dir_path == "" or vim.fn.isdirectory(dir_path) == 0 then return nil end
+  local res = call_engine_command({ "discover-workspace", "--dir", dir_path }, nil, "discover-workspace", vim.tbl_extend("force", { silent = true }, opts or {}))
   if res then res.tool = res.tool or res.build_tool; res.build_tool = res.build_tool or res.tool end
   return res
 end
 
 function M.assemble_test_command(opts)
   opts = opts or {}
+  if opts.dir and (opts.dir == "" or vim.fn.isdirectory(opts.dir) == 0) then return nil end
   local args = { "assemble-test-command" }
   if opts.tool then table.insert(args, "--tool"); table.insert(args, opts.tool) end
   if opts["class"] then table.insert(args, "--class"); table.insert(args, opts["class"]) end
@@ -566,54 +606,48 @@ end
 
 function M.check_health()
   local ok, response = pcall(call_engine_command, { "check-health" }, nil, "check-health", { silent = true })
-  return ok and response or nil
+  if ok then return response else return nil end
 end
 
--- CFN/CloudFormation and DevOps wrappers (minimal file-path guards only)
-function M.inspect_cfn_template(file_path, opts)
-  if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "cfn-inspect", "--file", file_path }, nil, "cfn-inspect", opts or {})
+-- DevOps/Cloud Infrastructure wrappers (consolidated with file-path guards)
+local function _make_file_wrapper(cmd, ctx)
+  return function(file_path, opts)
+    if not file_path or file_path == "" then return nil end
+    return call_engine_command({ cmd, "--file", file_path }, nil, ctx, opts or {})
+  end
 end
 
-function M.validate_cfn_template(file_path, opts)
+function M.resolve_formatter(file_path, opts)
   if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "cfn-validate", "--file", file_path }, nil, "cfn-validate", opts or {})
+  return call_engine_command({ "resolve-formatter", "--file", file_path }, nil, "resolve-formatter", opts or {})
 end
 
-function M.inspect_ansible_playbook(file_path, opts)
-  if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "ansible-inspect", "--file", file_path }, nil, "ansible-inspect", opts or {})
+function M.discover_devops_roots(path, opts)
+  path = path or vim.fn.getcwd()
+  if path == "" or vim.fn.isdirectory(path) == 0 then return nil end
+  return call_engine_command({ "discover-devops-roots", "--path", path }, nil, "discover-devops-roots", vim.tbl_extend("force", { silent = true }, opts or {}))
 end
 
-function M.inspect_terraform(file_path, opts)
-  if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "tf-inspect", "--file", file_path }, nil, "tf-inspect", opts or {})
+function M.generate_dap_config(dir, opts)
+  dir = dir or vim.fn.getcwd()
+  if dir == "" or vim.fn.isdirectory(dir) == 0 then return nil end
+  return call_engine_command({ "generate-dap-config", "--dir", dir }, nil, "generate-dap-config", vim.tbl_extend("force", { silent = true }, opts or {}))
 end
 
-function M.parse_terraform_security(file_path, opts)
-  if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "tf-security-parse", "--file", file_path }, nil, "tf-security-parse", opts or {})
+function M.generate_theme_highlights(provider, opts)
+  if not provider or provider == "" then return nil end
+  return call_engine_command({ "generate-theme-highlights", provider }, nil, "generate-theme-highlights", opts or {})
 end
 
-function M.validate_docker(file_path, opts)
-  if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "docker-validate", "--file", file_path }, nil, "docker-validate", opts or {})
-end
-
-function M.inspect_helm_chart(file_path, opts)
-  if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "helm-inspect", "--file", file_path }, nil, "helm-inspect", opts or {})
-end
-
-function M.validate_ansible_playbook(file_path, opts)
-  if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "ansible-validate", "--file", file_path }, nil, "ansible-validate", opts or {})
-end
-
-function M.parse_ansible_inventory(file_path, opts)
-  if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "ansible-inventory-parse", "--file", file_path }, nil, "ansible-inventory-parse", opts or {})
-end
+function M.inspect_cfn_template(f, o) return _make_file_wrapper("cfn-inspect", "cfn-inspect")(f, o) end
+function M.validate_cfn_template(f, o) return _make_file_wrapper("cfn-validate", "cfn-validate")(f, o) end
+function M.inspect_ansible_playbook(f, o) return _make_file_wrapper("ansible-inspect", "ansible-inspect")(f, o) end
+function M.inspect_terraform(f, o) return _make_file_wrapper("tf-inspect", "tf-inspect")(f, o) end
+function M.parse_terraform_security(f, o) return _make_file_wrapper("tf-security-parse", "tf-security-parse")(f, o) end
+function M.validate_docker(f, o) return _make_file_wrapper("docker-validate", "docker-validate")(f, o) end
+function M.inspect_helm_chart(f, o) return _make_file_wrapper("helm-inspect", "helm-inspect")(f, o) end
+function M.validate_ansible_playbook(f, o) return _make_file_wrapper("ansible-validate", "ansible-validate")(f, o) end
+function M.parse_ansible_inventory(f, o) return _make_file_wrapper("ansible-inventory-parse", "ansible-inventory-parse")(f, o) end
 
 function M.run_command(subcommand, args, stdin, opts)
   local full_args = { subcommand }
@@ -638,7 +672,14 @@ function M.classify_workspace(dir, opts)
   _cache_metrics.cache_misses = _cache_metrics.cache_misses + 1
   opts = vim.tbl_extend("force", { silent = true }, opts or {})
   local start_time = vim.loop.now() or 0
-  local result = call_engine_command({ "classify-workspace", "--dir", dir }, nil, "classify-workspace", opts)
+  -- BUG FIX: Wrap engine call in pcall to catch errors and prevent crash
+  local ok, result = pcall(call_engine_command, { "classify-workspace", "--dir", dir }, nil, "classify-workspace", opts)
+  if not ok then
+    if not opts.silent then
+      vim.notify("[cumulus] Workspace classification failed: " .. tostring(result), vim.log.levels.WARN)
+    end
+    return nil
+  end
   if result then
     local elapsed_ms = (vim.loop.now() or 0) - start_time
     _cache_metrics.total_engine_calls_ms = _cache_metrics.total_engine_calls_ms + elapsed_ms
@@ -646,342 +687,6 @@ function M.classify_workspace(dir, opts)
     _workspace_cache[cache_key] = { classification = result, timestamp = vim.loop.now() or 0, hit_count = 0 }
   end
   return result
-end
-
-function M.resolve_formatter(file_path, opts)
-  if not file_path or file_path == "" then return nil end
-  return call_engine_command({ "resolve-formatter", "--file", file_path }, nil, "resolve-formatter", opts or {})
-end
-
-function M.discover_devops_roots(path, opts)
-  return call_engine_command({ "discover-devops-roots", "--path", path or vim.fn.getcwd() }, nil, "discover-devops-roots", vim.tbl_extend("force", { silent = true }, opts or {}))
-end
-
-function M.generate_dap_config(dir, opts)
-  return call_engine_command({ "generate-dap-config", "--dir", dir or vim.fn.getcwd() }, nil, "generate-dap-config", vim.tbl_extend("force", { silent = true }, opts or {}))
-end
-
-function M.generate_theme_highlights(provider, opts)
-  if not provider or provider == "" then return nil end
-  return call_engine_command({ "generate-theme-highlights", provider }, nil, "generate-theme-highlights", opts or {})
-end
-
--- ==============================================================================
--- ⭐ Consolidated UI Pickers & Actions (Story 13.1)
--- ==============================================================================
-
---- Select a Spring bean from the workspace dependency graph and navigate to its source.
-function M.select_bean()
-  M.assert_available("jvm-build")
-  local cwd = vim.fn.getcwd()
-  local beans = M.parse_spring_beans(cwd)
-  if not beans or #beans == 0 then
-    vim.notify("No Spring stereotypes (@Component, @Service, etc.) found", vim.log.levels.WARN)
-    return
-  end
-
-  vim.ui.select(beans, {
-    prompt = "Select Spring Bean:",
-    format_item = function(item)
-      local deps = #item.injected_deps > 0 and (" -> [" .. table.concat(item.injected_deps, ", ") .. "]") or ""
-      return string.format("%s (%s)%s", item.bean_name, item.class_name, deps)
-    end,
-  }, function(choice)
-    if choice and choice.file then
-      vim.cmd("edit " .. vim.fn.fnameescape(choice.file))
-      vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
-    end
-  end)
-end
-
---- Select a REST endpoint from the workspace and jump to its controller definition.
-function M.select_endpoint()
-  M.assert_available("jvm-build")
-  local cwd = vim.fn.getcwd()
-  local eps = M.extract_endpoints(cwd)
-  if not eps or #eps == 0 then
-    vim.notify("No Spring Boot / JAX-RS endpoints found in project", vim.log.levels.WARN)
-    return
-  end
-
-  vim.ui.select(eps, {
-    prompt = "Spring Boot REST Endpoints:",
-    format_item = function(item)
-      return string.format("[%s] %s (%s:%d)", item.http_method, item.path, item.class_name, item.line)
-    end,
-  }, function(choice)
-    if choice and choice.file then
-      vim.cmd("edit " .. vim.fn.fnameescape(choice.file))
-      vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
-    end
-  end)
-end
-
---- Optimize Java/Kotlin imports in the current active buffer.
-function M.optimize_imports_buffer()
-  M.assert_available("jvm-build")
-  local bufnr = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local content = table.concat(lines, "\n")
-
-  local new_lines = M.optimize_imports(content)
-  if new_lines and #new_lines > 0 then
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
-    vim.notify("Imports optimized successfully", vim.log.levels.INFO)
-  else
-    vim.notify("Import optimization unchanged", vim.log.levels.INFO)
-  end
-end
-
---- Validate Kubernetes manifest in the current buffer and populate diagnostics.
-local k8s_ns = vim.api.nvim_create_namespace("cumulus_k8s_validation")
-function M.validate_k8s_manifest_buffer()
-  M.assert_available("kubernetes")
-  local bufnr = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local content = table.concat(lines, "\n")
-
-  local issues = M.validate_k8s_manifest(content)
-  vim.diagnostic.clear(k8s_ns, bufnr)
-
-  if not issues or #issues == 0 then
-    vim.notify("Kubernetes manifest structure valid", vim.log.levels.INFO)
-    return
-  end
-
-  local diags = {}
-  for _, issue in ipairs(issues) do
-    table.insert(diags, {
-      lnum = math.max(0, issue.line - 1),
-      col = issue.col and math.max(0, issue.col - 1) or 0,
-      message = issue.message,
-      severity = vim.diagnostic.severity.ERROR,
-      source = "k8s_validator",
-    })
-  end
-
-  vim.diagnostic.set(k8s_ns, bufnr, diags)
-end
--- Alias for spec compatibility
-M.validate_manifest = M.validate_k8s_manifest_buffer
-
---- Validate Flyway migration scripts in default or specified directory.
----@param dir? string Optional migrations directory
-function M.validate_migrations_action(dir)
-  M.assert_available("jvm-build")
-  local cwd = vim.fn.getcwd()
-  dir = dir or (cwd .. "/src/main/resources/db/migration")
-
-  local issues = M.validate_migrations(dir)
-  if not issues or #issues == 0 then
-    vim.notify("Flyway migrations verified — 0 issues found", vim.log.levels.INFO)
-    return
-  end
-
-  for _, issue in ipairs(issues) do
-    local level = issue.severity == "ERROR" and vim.log.levels.ERROR or vim.log.levels.WARN
-    vim.notify(string.format("[%s] %s (%s)", issue.severity, issue.message, vim.fn.fnamemodify(issue.file, ":t")), level)
-  end
-end
-
---- Parse Git conflict markers in current buffer and show interactive jump picker.
-function M.resolve_git_conflicts()
-  M.assert_available("jvm-build")
-  local bufnr = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local content = table.concat(lines, "\n")
-
-  local blocks = M.parse_git_conflicts(content)
-  if not blocks or #blocks == 0 then
-    vim.notify("No Git conflict markers (<<<<<<<) found in buffer", vim.log.levels.INFO)
-    return
-  end
-
-  vim.ui.select(blocks, {
-    prompt = "Jump to Git Conflict:",
-    format_item = function(item)
-      return string.format("Line %d: %s vs %s", item.start_line, item.current_header, item.incoming_header)
-    end,
-  }, function(choice)
-    if choice then
-      vim.api.nvim_win_set_cursor(0, { choice.start_line, 0 })
-    end
-  end)
-end
--- Alias for spec compatibility
-M.resolve_conflicts = M.resolve_git_conflicts
-
---- Load JaCoCo code coverage report and populate diagnostics.
----@param xml_path? string
-local coverage_ns = vim.api.nvim_create_namespace("cumulus_coverage")
-function M.view_coverage(xml_path)
-  M.assert_available("jvm-build")
-  xml_path = xml_path or (vim.fn.getcwd() .. "/target/site/jacoco/jacoco.xml")
-
-  local entries = M.parse_coverage(xml_path)
-  if not entries or #entries == 0 then
-    vim.notify("No JaCoCo coverage report found at: " .. xml_path, vim.log.levels.WARN)
-    return
-  end
-
-  vim.diagnostic.clear(coverage_ns)
-
-  for _, entry in ipairs(entries) do
-    local bufnr = vim.fn.bufnr(entry.file, false)
-    if bufnr ~= -1 and vim.api.nvim_buf_is_valid(bufnr) then
-      local diags = {}
-      for _, lnr in ipairs(entry.missed_lines) do
-        table.insert(diags, {
-          lnum = math.max(0, lnr - 1),
-          col = 0,
-          message = "Uncovered line (JaCoCo)",
-          severity = vim.diagnostic.severity.WARN,
-          source = "JaCoCo",
-        })
-      end
-      vim.diagnostic.set(coverage_ns, bufnr, diags)
-    end
-  end
-
-  vim.notify("JaCoCo coverage loaded successfully", vim.log.levels.INFO)
-end
-M.load_coverage = M.view_coverage
-
---- Index log content in current buffer and show interactive jump picker for ERROR/WARN lines.
-function M.search_indexed_logs()
-  M.assert_available("jvm-build")
-  local bufnr = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local content = table.concat(lines, "\n")
-
-  local entries = M.index_log(content)
-  if not entries or #entries == 0 then
-    vim.notify("No ERROR/WARN messages found in log buffer", vim.log.levels.INFO)
-    return
-  end
-
-  vim.ui.select(entries, {
-    prompt = "Jump to Log Entry:",
-    format_item = function(item)
-      return string.format("Line %d [%s] %s", item.line, item.level, item.message)
-    end,
-  }, function(choice)
-    if choice then
-      vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
-    end
-  end)
-end
-M.index_current_buffer = M.search_indexed_logs
-
---- Parse build log content and populate diagnostics across project buffers
---- Consolidates all build error parsing to engine; no Lua fallback parsing remains (SPEC-1.4)
----@param tool "maven"|"gradle"|"sbt"
----@param log_content string Build log text to parse
-local build_ns = vim.api.nvim_create_namespace("cumulus_build")
-function M.populate_build_diagnostics(tool, log_content)
-  M.assert_available("jvm-build")
-  local entries = M.parse_build_log(tool, log_content)
-
-  if not entries or #entries == 0 then
-    return
-  end
-
-  -- Group diagnostics by target file buffer
-  local by_file = {}
-  for _, entry in ipairs(entries) do
-    by_file[entry.file] = by_file[entry.file] or {}
-    table.insert(by_file[entry.file], entry)
-  end
-
-  for filepath, file_entries in pairs(by_file) do
-    local bufnr = vim.fn.bufnr(filepath, true)
-    if bufnr ~= -1 and vim.api.nvim_buf_is_valid(bufnr) then
-      vim.fn.bufload(bufnr)
-      local diagnostics = {}
-      for _, e in ipairs(file_entries) do
-        table.insert(diagnostics, {
-          lnum = math.max(0, e.line - 1),
-          col = e.col and math.max(0, e.col - 1) or 0,
-          message = e.message,
-          severity = vim.diagnostic.severity.ERROR,
-          source = "cumulus_build",
-        })
-      end
-      vim.diagnostic.set(build_ns, bufnr, diagnostics)
-    end
-  end
-end
-
---- Clear build diagnostics for a buffer or all buffers
----@param bufnr? number Optional buffer number; if nil, clears all buffers
-function M.clear_build_diagnostics(bufnr)
-  if bufnr then
-    vim.diagnostic.clear(build_ns, bufnr)
-  else
-    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-      vim.diagnostic.clear(build_ns, buf)
-    end
-  end
-end
-
--- ==============================================================================
--- ⭐ Universal Notification & Terminal Bridge (Story 13.2)
--- ==============================================================================
-
---- Standardized notification dispatcher with default title and level mapping.
----@param msg string Message text
----@param level? number vim.log.levels level (default: INFO)
----@param title? string Notification title (default: "Cumulus")
----@param opts? table Additional notification options (e.g. id, timeout)
-function M.notify(msg, level, title, opts)
-  level = level or vim.log.levels.INFO
-  title = title or "Cumulus"
-  opts = vim.tbl_extend("force", { title = title }, opts or {})
-  vim.notify(msg, level, opts)
-end
-
---- Standardized info notification.
----@param msg string Message text
----@param title? string Notification title (default: "Cumulus")
----@param opts? table Additional notification options
-function M.notify_info(msg, title, opts)
-  M.notify(msg, vim.log.levels.INFO, title, opts)
-end
-
---- Standardized warning notification.
----@param msg string Message text
----@param title? string Notification title (default: "Cumulus")
----@param opts? table Additional notification options
-function M.notify_warn(msg, title, opts)
-  M.notify(msg, vim.log.levels.WARN, title, opts)
-end
-
---- Standardized error notification.
----@param msg string Message text
----@param title? string Notification title (default: "Cumulus")
----@param opts? table Additional notification options
-function M.notify_err(msg, title, opts)
-  M.notify(msg, vim.log.levels.ERROR, title, opts)
-end
-
---- Run a command in an interactive, non-blocking terminal session.
---- Requires Snacks.terminal plugin to be loaded.
----@param cmd string|string[] Command string or command argv list to execute
----@param opts? { cwd?: string, timeout?: number, title?: string, on_exit?: fun(code: number), on_stdout?: fun(data: string[]), on_stderr?: fun(data: string[]) }
----@error Raises error if Snacks plugin is not loaded
-function M.run_term(cmd, opts)
-  opts = opts or {}
-  local snacks = _G.Snacks or package.loaded["snacks"]
-
-  if not snacks or not snacks.terminal then
-    local err_msg = "Snacks plugin (terminal feature) is required for this operation. " ..
-      "Install it via your plugin manager or disable terminal commands."
-    M.notify_err(err_msg)
-    error(err_msg)
-  end
-
-  local term_cwd = opts.cwd or vim.fn.getcwd()
-  snacks.terminal(cmd, { cwd = term_cwd })
 end
 
 -- ==============================================================================
@@ -1075,6 +780,10 @@ end
 --- NOTE: Users can manually clear cache with :CumulusRefresh for project topology changes
 setup_availability_check()
 pcall(register_commands)
+
+--- Re-export run_term from ui module for backward compatibility
+--- Callers in devops.lua and jvm.lua still use require("cumulus.util.engine").run_term()
+M.run_term = require("cumulus.util.ui").run_term
 
 return M
 
