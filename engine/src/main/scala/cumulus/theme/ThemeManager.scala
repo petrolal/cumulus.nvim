@@ -199,8 +199,14 @@ object ThemeManager:
       val response = ThemeGenerator.generateThemeHighlights(state.theme)
       if response.success && response.data.isDefined then
         val highlights = response.data.get.highlights
-        state.copy(highlights = Some(highlights))
+        if highlights.nonEmpty then
+          state.copy(highlights = Some(highlights))
+        else
+          state
       else
         state
     catch
-      case _: Exception => state
+      case e: Exception =>
+        System.err.println(s"[ERROR] enrichWithHighlights failed for theme ${state.theme}: ${e.getMessage}")
+        e.printStackTrace()
+        state

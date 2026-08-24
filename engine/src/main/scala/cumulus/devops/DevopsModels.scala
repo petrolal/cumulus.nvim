@@ -130,7 +130,78 @@ case class ThemeState(
   theme: String,
   variant: Option[String] = Some("dark"),
   highlights: Option[Map[String, HighlightGroup]] = None
-) derives ReadWriter
+)
+
+object ThemeState:
+  given ThemeStateRW: ReadWriter[ThemeState] = upickle.default.readwriter[ujson.Value].bimap[ThemeState](
+    state => {
+      val highlightsValue = state.highlights match {
+        case Some(map) =>
+          val highlightObjs = upickle.core.LinkedHashMap[String, ujson.Value]()
+          for ((name, group) <- map) do
+            highlightObjs(name) = ujson.Obj(
+              "fg" -> group.fg.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+              "bg" -> group.bg.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+              "bold" -> ujson.Bool(group.bold),
+              "italic" -> ujson.Bool(group.italic),
+              "underline" -> ujson.Bool(group.underline)
+            )
+          ujson.Obj(highlightObjs)
+        case None => ujson.Null
+      }
+      ujson.Obj(
+        "theme" -> ujson.Str(state.theme),
+        "variant" -> state.variant.fold(ujson.Null: ujson.Value)(ujson.Str(_)),
+        "highlights" -> highlightsValue
+      )
+    },
+    json => {
+      val obj = json.obj
+      val theme = obj.get("theme") match {
+        case Some(ujson.Str(s)) => s
+        case _ => "aws"
+      }
+      val variant = obj.get("variant") match {
+        case Some(ujson.Str(s)) => Some(s)
+        case Some(ujson.Null) => None
+        case _ => Some("dark")
+      }
+      val highlights = obj.get("highlights") match {
+        case Some(ujson.Null) | None => None
+        case Some(ujson.Obj(map)) =>
+          val result = scala.collection.mutable.Map[String, HighlightGroup]()
+          for ((name, value) <- map) do
+            value match {
+              case ujson.Obj(props) =>
+                val fg = props.get("fg") match {
+                  case Some(ujson.Str(s)) => Some(s)
+                  case _ => None
+                }
+                val bg = props.get("bg") match {
+                  case Some(ujson.Str(s)) => Some(s)
+                  case _ => None
+                }
+                val bold = props.get("bold") match {
+                  case Some(ujson.Bool(b)) => b
+                  case _ => false
+                }
+                val italic = props.get("italic") match {
+                  case Some(ujson.Bool(b)) => b
+                  case _ => false
+                }
+                val underline = props.get("underline") match {
+                  case Some(ujson.Bool(b)) => b
+                  case _ => false
+                }
+                result(name) = HighlightGroup(fg = fg, bg = bg, bold = bold, italic = italic, underline = underline)
+              case _ =>
+            }
+          Some(result.toMap)
+        case _ => None
+      }
+      ThemeState(theme = theme, variant = variant, highlights = highlights)
+    }
+  )
 
 /**
  * Information about a CloudFormation parameter.
