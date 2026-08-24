@@ -5,6 +5,21 @@
 -- JaCoCo coverage parsing, Flyway migration validation, Spring Bean dependency graphs,
 -- log indexing, import optimization, K8s schema validation, Git conflict resolution,
 -- session sanitization, workspace discovery, theme management, test command assembly, etc.
+--
+-- ============================================================================
+-- ENGINE API CONTRACTS - CALLERS MUST VALIDATE RESPONSES
+-- ============================================================================
+-- Key APIs and their guaranteed return types:
+-- - discover_devops_roots(dir, opts) → { terraform: [], sam: [], ansible: [], docker: [], helm: [] }
+-- - discover_build_tool(cwd) → { tool: "maven"|"gradle"|nil, ... }
+-- - assemble_test_command(opts) → { command: string, ... } or nil
+-- - parse_test_output(log) → [ { status: "PASSED"|"FAILED"|..., ... } ] or nil
+-- - detect_test_context(file, line) → { class_name: string, method_name: string } or nil
+-- - resolve_modules(dir) → [ { name: string, path: string } ] or nil
+--
+-- IMPORTANT: Always validate responses before use - engine may return nil, empty tables, or
+-- unexpected structures. Use type() checks before calling # operator or indexing.
+-- ============================================================================
 
 local M = {}
 

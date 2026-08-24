@@ -28,6 +28,24 @@ local function get_first_root(roots, key)
   return items[1]
 end
 
+--- Factory function to create DevOps root finder
+--- @param root_key string Key in roots (terraform, sam, ansible, docker, helm)
+--- @return function Finder function that accepts buf_or_path parameter
+local function create_root_finder(root_key)
+  return function(buf_or_path)
+    local search_dir = resolve_search_dir(buf_or_path)
+    if not search_dir or search_dir == "" then
+      return nil
+    end
+    if not engine.is_available() then
+      vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
+      return nil
+    end
+    local roots = engine.discover_devops_roots(search_dir, { silent = true })
+    return get_first_root(roots, root_key)
+  end
+end
+
 --- Resolve the search directory from buffer number or path
 --- @param buf_or_path? number|string
 --- @return string|nil
@@ -46,95 +64,12 @@ local function resolve_search_dir(buf_or_path)
   return vim.fn.getcwd()
 end
 
---- Discover Terraform / OpenTofu root directory using engine exclusively
---- @param buf_or_path? number|string
---- @return string|nil
-function M.find_tf_root(buf_or_path)
-  local search_dir = resolve_search_dir(buf_or_path)
-  if not search_dir or search_dir == "" then
-    return nil
-  end
-
-  if not engine.is_available() then
-    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
-    return nil
-  end
-
-  local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  return get_first_root(roots, "terraform")
-end
-
---- Discover AWS CloudFormation / SAM root directory using engine exclusively
---- @param buf_or_path? number|string
---- @return string|nil
-function M.find_cfn_root(buf_or_path)
-  local search_dir = resolve_search_dir(buf_or_path)
-  if not search_dir or search_dir == "" then
-    return nil
-  end
-
-  if not engine.is_available() then
-    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
-    return nil
-  end
-
-  local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  return get_first_root(roots, "sam")
-end
-
---- Discover Ansible root directory using engine exclusively
---- @param buf_or_path? number|string
---- @return string|nil
-function M.find_ansible_root(buf_or_path)
-  local search_dir = resolve_search_dir(buf_or_path)
-  if not search_dir or search_dir == "" then
-    return nil
-  end
-
-  if not engine.is_available() then
-    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
-    return nil
-  end
-
-  local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  return get_first_root(roots, "ansible")
-end
-
---- Discover Docker / Compose root directory using engine exclusively
---- @param buf_or_path? number|string
---- @return string|nil
-function M.find_docker_root(buf_or_path)
-  local search_dir = resolve_search_dir(buf_or_path)
-  if not search_dir or search_dir == "" then
-    return nil
-  end
-
-  if not engine.is_available() then
-    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
-    return nil
-  end
-
-  local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  return get_first_root(roots, "docker")
-end
-
---- Discover Helm root directory using engine exclusively
---- @param buf_or_path? number|string
---- @return string|nil
-function M.find_helm_root(buf_or_path)
-  local search_dir = resolve_search_dir(buf_or_path)
-  if not search_dir or search_dir == "" then
-    return nil
-  end
-
-  if not engine.is_available() then
-    vim.notify("DevOps root discovery unavailable: Cumulus engine not found", vim.log.levels.ERROR, { title = "Cumulus DevOps" })
-    return nil
-  end
-
-  local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  return get_first_root(roots, "helm")
-end
+-- Root discovery functions using factory pattern to eliminate duplication
+M.find_tf_root = create_root_finder("terraform")
+M.find_cfn_root = create_root_finder("sam")
+M.find_ansible_root = create_root_finder("ansible")
+M.find_docker_root = create_root_finder("docker")
+M.find_helm_root = create_root_finder("helm")
 
 --- Run a command in an interactive, non-blocking terminal
 --- Uses Snacks.terminal when available, otherwise falls back to a split buffer.
