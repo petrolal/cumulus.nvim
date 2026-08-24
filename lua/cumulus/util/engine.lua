@@ -23,9 +23,28 @@
 
 local M = {}
 
+-- ==============================================================================
+-- Binary Cache
+-- ==============================================================================
 local cached_bin = nil
 local cache_expires_at = nil
 local CACHE_TTL_MS = 300000 -- 5 minutes: refresh cache on rebuild/reinstall during dev
+
+-- ==============================================================================
+-- Workspace Classification Cache & Metrics
+-- ==============================================================================
+-- NOTE: Cache can grow unbounded (one entry per unique workspace directory).
+-- Future enhancement: implement LRU eviction policy if memory becomes an issue.
+local _workspace_cache = {}
+-- NOTE: hit_count is tracked per cache entry for potential future eviction policy.
+-- Current usage: tracking reuse patterns within a session.
+local _cache_metrics = {
+  cache_hits = 0,
+  cache_misses = 0,
+  total_engine_calls_ms = 0,
+  num_engine_calls = 0,
+  session_start_time = vim.loop.now(),
+}
 
 --- Locates the `cumulus-engine` binary on $PATH, within engine/ target directory, or in user data dir.
 ---@return string|nil
@@ -132,6 +151,7 @@ local function setup_availability_check()
     group = group,
     callback = function()
       M.invalidate_cache()
+      M.invalidate_workspace_cache()
     end,
   })
 
@@ -139,6 +159,7 @@ local function setup_availability_check()
     group = group,
     callback = function()
       M.invalidate_cache()
+      M.invalidate_workspace_cache()
     end,
   })
 
@@ -146,6 +167,7 @@ local function setup_availability_check()
     group = group,
     callback = function()
       M.invalidate_cache()
+      M.invalidate_workspace_cache()
     end,
   })
 end
@@ -946,14 +968,64 @@ function M.run_command(subcommand, args, stdin, opts)
   return call_engine_command(full_args, stdin, subcommand, opts)
 end
 
---- Classify workspace topology and multi-project structure via Scala engine
+--- Classify workspace topology with session-scoped caching
 ---@param dir? string Root workspace directory (defaults to cwd)
 ---@param opts? { silent?: boolean }
 ---@return { root: string, primary_type: string, project_types: string[], submodules: table[], has_spring: boolean, iac_types: string[], is_multi_module: boolean }|nil
 function M.classify_workspace(dir, opts)
   dir = dir or vim.fn.getcwd()
+  local cache_key = vim.fs.normalize(dir)
+
+  -- CRITICAL: vim.fs.normalize() can return nil on invalid paths
+  if not cache_key then
+    return nil
+  end
+
+  -- Check cache hit (with type guard to prevent falsy cache entries)
+  if _workspace_cache[cache_key] and type(_workspace_cache[cache_key]) == "table" then
+    _cache_metrics.cache_hits = _cache_metrics.cache_hits + 1
+    local cached_entry = _workspace_cache[cache_key]
+    cached_entry.hit_count = (cached_entry.hit_count or 0) + 1
+    return cached_entry.classification
+  end
+
+  -- Cache miss: call engine
+  _cache_metrics.cache_misses = _cache_metrics.cache_misses + 1
   opts = vim.tbl_extend("force", { silent = true }, opts or {})
-  return call_engine_command({ "classify-workspace", "--dir", dir }, nil, "classify-workspace", opts)
+
+  -- CRITICAL: vim.loop.now() can return nil in edge cases; guard with default 0
+  local start_time = vim.loop.now() or 0
+  local result
+  local ok, err = pcall(function()
+    result = call_engine_command({ "classify-workspace", "--dir", dir }, nil, "classify-workspace", opts)
+  end)
+
+  if not ok then
+    if not opts.silent then
+      vim.notify(
+        string.format("[cumulus] classify-workspace error: %s", err),
+        vim.log.levels.WARN
+      )
+    end
+    return nil
+  end
+
+  local elapsed_ms = (vim.loop.now() or 0) - start_time
+
+  -- Update metrics only for successful calls (correctness: separate success from failures)
+  if result then
+    _cache_metrics.total_engine_calls_ms = _cache_metrics.total_engine_calls_ms + elapsed_ms
+    _cache_metrics.num_engine_calls = _cache_metrics.num_engine_calls + 1
+    -- IMPORTANT: We only cache truthy results to avoid storing error states or nil responses.
+    -- This ensures cache hits always return valid data.
+    _workspace_cache[cache_key] = {
+      classification = result,
+      timestamp = vim.loop.now() or 0,
+      hit_count = 0,
+    }
+  end
+
+  return result
 end
 
 --- Resolve formatter for a file by inspecting project configuration
@@ -1359,8 +1431,97 @@ function M.generate_theme_highlights(provider, opts)
   return call_engine_command({ "generate-theme-highlights", provider }, nil, "generate-theme-highlights", opts)
 end
 
--- Setup availability check and cache invalidation autocmds at module load
+-- ==============================================================================
+-- Workspace Cache Management & Metrics
+-- ==============================================================================
+
+--- Invalidate workspace classification cache for a specific path or all paths
+---@param path? string Optional absolute directory path to invalidate; if nil, clears all cache
+function M.invalidate_workspace_cache(path)
+  if path then
+    local cache_key = vim.fs.normalize(path)
+    -- CRITICAL: normalize can return nil; only invalidate if we got a valid key
+    if cache_key then
+      _workspace_cache[cache_key] = nil
+    end
+  else
+    -- Clear entire cache if no path specified
+    _workspace_cache = {}
+  end
+end
+
+--- Retrieve cache hit/miss metrics and performance statistics
+---@return { cache_hits: number, cache_misses: number, hit_ratio: string, avg_latency_ms: string, session_uptime_ms: number }
+function M.get_workspace_cache_metrics()
+  local total_calls = _cache_metrics.cache_hits + _cache_metrics.cache_misses
+  local hit_ratio = "N/A"
+  if total_calls > 0 then
+    hit_ratio = string.format("%.1f%%", (_cache_metrics.cache_hits / total_calls) * 100)
+  end
+
+  local avg_latency = "N/A"
+  if _cache_metrics.num_engine_calls > 0 then
+    avg_latency = string.format("%.1f ms", _cache_metrics.total_engine_calls_ms / _cache_metrics.num_engine_calls)
+  end
+
+  -- CRITICAL: session_start_time could be nil; guard with default 0
+  local session_uptime = (vim.loop.now() or 0) - (_cache_metrics.session_start_time or 0)
+
+  return {
+    cache_hits = _cache_metrics.cache_hits,
+    cache_misses = _cache_metrics.cache_misses,
+    hit_ratio = hit_ratio,
+    avg_latency_ms = avg_latency,
+    session_uptime_ms = session_uptime,
+  }
+end
+
+-- ==============================================================================
+-- User Commands
+-- ==============================================================================
+
+--- Register user commands for cache management and diagnostics
+--- Register user commands for cache management and diagnostics
+--- Wrapped in pcall to handle idempotency (multiple module reloads)
+local function register_commands()
+  local ok, err = pcall(function()
+    vim.api.nvim_create_user_command("CumulusMetrics", function()
+      local metrics = M.get_workspace_cache_metrics()
+      local output = {
+        "=== Cumulus Engine Metrics ===",
+        string.format("Cache Hits: %d", metrics.cache_hits),
+        string.format("Cache Misses: %d", metrics.cache_misses),
+        string.format("Hit Ratio: %s", metrics.hit_ratio),
+        string.format("Avg Engine Call Latency: %s", metrics.avg_latency_ms),
+        string.format("Session Uptime: %.1f s", metrics.session_uptime_ms / 1000),
+      }
+      for _, line in ipairs(output) do
+        vim.notify(line, vim.log.levels.INFO)
+      end
+    end, { desc = "Display Cumulus engine cache metrics and performance stats" })
+
+    vim.api.nvim_create_user_command("CumulusRefresh", function()
+      M.invalidate_workspace_cache()
+      vim.notify("Workspace classification cache cleared", vim.log.levels.INFO)
+    end, { desc = "Invalidate workspace classification cache" })
+  end)
+
+  if not ok then
+    vim.notify(
+      string.format("[cumulus] Failed to register commands: %s", err),
+      vim.log.levels.WARN
+    )
+  end
+end
+
+--- Setup load-time availability check and cache invalidation autocmds
+--- Cache is invalidated on:
+--- - VimEnter: session start
+--- - DirChanged: user changed directory
+--- - SessionLoadPost: session restore
+--- NOTE: Users can manually clear cache with :CumulusRefresh for project topology changes
 setup_availability_check()
+pcall(register_commands)
 
 return M
 
