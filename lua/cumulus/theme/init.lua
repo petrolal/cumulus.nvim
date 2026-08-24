@@ -13,22 +13,21 @@ local themes = {
   { name = "oci-theme", label = "🟥 Oracle Cloud Infrastructure (OCI) Theme", provider = "oci" },
 }
 
---- Apply theme highlights from engine-generated palette via vim.api.nvim_set_hl()
+--- Apply theme highlights from engine-provided palette via vim.api.nvim_set_hl()
 ---@param highlights table Map of highlight group name to HighlightGroup definition
-local function apply_highlights(highlights)
-  local logfile = vim.fn.expand("~/.config/nvim/theme-debug.log")
-  local function log(msg)
-    vim.fn.writefile({os.date("%H:%M:%S") .. " " .. msg}, logfile, "a")
-  end
-
+---@param clear_first boolean Clear old highlights before applying (default: false to avoid flicker)
+local function apply_highlights(highlights, clear_first)
   if not highlights then
-    log("apply_highlights: no highlights provided")
     return
   end
-  log("apply_highlights: starting to apply highlights")
-  log("termguicolors=" .. tostring(vim.opt.termguicolors:get()))
 
+  clear_first = clear_first or false
   vim.opt.background = "dark"
+  vim.opt.termguicolors = true
+
+  if clear_first then
+    vim.cmd("hi clear")
+  end
 
   local count = 0
   for group_name, group_def in pairs(highlights) do
@@ -50,18 +49,9 @@ local function apply_highlights(highlights)
       hl_opts.underline = true
     end
 
-    if group_name == "Normal" then
-      log("Applying Normal: " .. vim.inspect(hl_opts))
-    end
-
     pcall(vim.api.nvim_set_hl, 0, group_name, hl_opts)
     count = count + 1
   end
-  log("apply_highlights: Applied " .. count .. " highlight groups")
-
-  -- Force redraw to apply the highlights
-  vim.cmd("redraw!")
-  log("apply_highlights: redraw! executed")
 end
 
 --- Load highlights for a specific cloud provider via manage_theme
@@ -125,42 +115,46 @@ function M.get_current_theme()
 end
 
 function M.set_theme(theme_name)
+  if not theme_name or theme_name == "" then
+    vim.notify("Theme name cannot be empty", vim.log.levels.ERROR)
+    return
+  end
+
   local clean_theme = theme_name:gsub("%-theme$", "")
 
   -- Find the provider for this theme name
   local provider = nil
   for _, t in ipairs(themes) do
-    if t.name == theme_name or t.name == clean_theme .. "-theme" then
+    if t.name == theme_name or t.name == clean_theme .. "-theme" or t.provider == clean_theme then
       provider = t.provider
       break
     end
   end
 
-  -- Load provider highlights from engine
-  if provider then
-    if not load_provider_highlights(provider) then
-      vim.notify("Could not load theme highlights from engine for " .. provider, vim.log.levels.ERROR)
-      return
+  -- Validate theme exists before attempting to set
+  if not provider then
+    local valid_themes = {}
+    for _, t in ipairs(themes) do
+      table.insert(valid_themes, t.provider)
     end
-  else
-    vim.notify("Unknown theme: " .. theme_name, vim.log.levels.ERROR)
+    vim.notify(
+      "Unknown theme: " .. theme_name .. ". Valid options: " .. table.concat(valid_themes, ", "),
+      vim.log.levels.ERROR
+    )
     return
   end
 
-  vim.notify("Cloud theme set to: " .. theme_name, vim.log.levels.INFO)
+  -- Load provider highlights from engine
+  if not load_provider_highlights(provider) then
+    vim.notify("Failed to set theme '" .. theme_name .. "': engine error", vim.log.levels.ERROR)
+    return
+  end
+
+  vim.notify("Cloud theme set to: " .. clean_theme, vim.log.levels.INFO)
 
   -- Refresh theme color cache for lualine/bufferline (Story 5.1)
   local theme_colors = require("cumulus.util.theme_colors")
   theme_colors.refresh_cache(theme_name)
-
-  local engine = require("cumulus.util.engine")
-  if engine.is_available() then
-    engine.manage_theme("set", { theme = clean_theme })
-  else
-    local state_file = vim.fn.stdpath("state") .. "/cumulus_theme"
-    vim.fn.mkdir(vim.fn.fnamemodify(state_file, ":h"), "p")
-    vim.fn.writefile({ theme_name }, state_file)
-  end
 end
 
 function M.load_saved_theme()
