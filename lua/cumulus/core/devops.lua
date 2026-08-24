@@ -72,7 +72,7 @@ M.find_docker_root = create_root_finder("docker")
 M.find_helm_root = create_root_finder("helm")
 
 --- Run a command in an interactive, non-blocking terminal
---- Uses Snacks.terminal when available, otherwise falls back to a split buffer.
+--- Requires Snacks.terminal plugin to be loaded.
 function M.run_term(cmd, opts)
   opts = vim.tbl_extend("force", { title = "Cumulus DevOps" }, opts or {})
   require("cumulus.util.engine").run_term(cmd, opts)

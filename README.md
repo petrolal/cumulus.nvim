@@ -97,6 +97,15 @@ The backend engine is a compiled native binary that handles heavy parsing and ba
 - **DevOps & QA**: Flyway migration validator, Kubernetes manifest checker, JaCoCo XML code coverage overlay, and Checkstyle reporter.
 - **Environment**: Host JDK auto-discovery, JDTLS classpath sync checker, and Git conflict marker parser.
 
+### Requirements
+
+- **Snacks Plugin** (`folke/snacks.nvim`): Required for interactive terminal UI. Cumulus delegates all terminal operations to Snacks without fallback.
+- **sha256sum (macOS)**: macOS users must install gnu-coreutils for binary verification:
+  ```bash
+  brew install coreutils
+  ```
+  Linux distributions include `sha256sum` by default.
+
 ### In-Editor Engine Commands & Keymaps
 
 | Command / Keymap | Action |
