@@ -60,19 +60,21 @@ end
 --- Run test suite in terminal split.
 ---@param mode "nearest"|"class"|"all"
 function M.run_test(mode)
-  local maven = require("cumulus.util.maven")
-  local gradle = require("cumulus.util.gradle")
   local engine = require("cumulus.util.engine")
+  local cwd = vim.fn.getcwd()
+  local build_result = engine.discover_build_tool(cwd)
 
-  local is_maven = maven.find_pom()
-  local is_gradle = gradle.find_gradle()
-
-  if not is_maven and not is_gradle then
-    vim.notify("No pom.xml or build.gradle found in project", vim.log.levels.WARN)
+  if not build_result then
+    vim.notify("No Maven or Gradle project found in current directory", vim.log.levels.WARN)
     return
   end
 
-  local tool = is_maven and "maven" or "gradle"
+  local tool = build_result.tool
+  if tool ~= "maven" and tool ~= "gradle" then
+    vim.notify("Unsupported build tool: " .. tostring(tool), vim.log.levels.WARN)
+    return
+  end
+
   local info = M.detect_test_info()
   local cmd = ""
 
@@ -83,7 +85,7 @@ function M.run_test(mode)
       tool = tool,
       ["class"] = class_arg,
       method = method_arg,
-      dir = vim.fn.getcwd(),
+      dir = cwd,
     })
     if assembled and assembled.command then
       cmd = assembled.command
@@ -91,23 +93,60 @@ function M.run_test(mode)
   end
 
   if cmd == "" then
-    if is_maven then
-      local base = maven.get_mvn_cmd()
-      if mode == "nearest" and info.class_name and info.method_name then
-        cmd = base .. " test -Dtest=" .. info.class_name .. "#" .. info.method_name
-      elseif (mode == "class" or mode == "nearest") and info.class_name then
-        cmd = base .. " test -Dtest=" .. info.class_name
-      else
-        cmd = base .. " test"
+    -- Fallback if engine is not available or command assembly failed
+    local base_cmd = ""
+    local jvm = require("cumulus.util.jvm")
+    local offline_flags = jvm.offline_mode
+
+    if tool == "maven" then
+      local mvnw = cwd .. "/mvnw"
+      base_cmd = "mvn"
+      if vim.fn.filereadable(mvnw) == 1 then
+        if vim.fn.executable(mvnw) == 0 then
+          vim.fn.system({ "chmod", "+x", mvnw })
+        end
+        base_cmd = "./mvnw"
       end
-    else
-      local base = gradle.get_gradle_cmd()
+
+      -- Apply offline flag if needed
+      if offline_flags then
+        base_cmd = base_cmd .. " -o"
+      end
+
       if mode == "nearest" and info.class_name and info.method_name then
-        cmd = base .. " test --tests " .. info.class_name .. "." .. info.method_name
+        local escaped_class = vim.fn.shellescape(info.class_name)
+        local escaped_method = vim.fn.shellescape(info.method_name)
+        cmd = base_cmd .. " test -Dtest=" .. escaped_class .. "#" .. escaped_method
       elseif (mode == "class" or mode == "nearest") and info.class_name then
-        cmd = base .. " test --tests " .. info.class_name
+        local escaped_class = vim.fn.shellescape(info.class_name)
+        cmd = base_cmd .. " test -Dtest=" .. escaped_class
       else
-        cmd = base .. " test"
+        cmd = base_cmd .. " test"
+      end
+    else -- gradle
+      local gradlew = cwd .. "/gradlew"
+      base_cmd = "gradle"
+      if vim.fn.filereadable(gradlew) == 1 then
+        if vim.fn.executable(gradlew) == 0 then
+          vim.fn.system({ "chmod", "+x", gradlew })
+        end
+        base_cmd = "./gradlew"
+      end
+
+      -- Apply offline flag if needed
+      if offline_flags then
+        base_cmd = base_cmd .. " --offline"
+      end
+
+      if mode == "nearest" and info.class_name and info.method_name then
+        local escaped_class = vim.fn.shellescape(info.class_name)
+        local escaped_method = vim.fn.shellescape(info.method_name)
+        cmd = base_cmd .. " test --tests " .. escaped_class .. "." .. escaped_method
+      elseif (mode == "class" or mode == "nearest") and info.class_name then
+        local escaped_class = vim.fn.shellescape(info.class_name)
+        cmd = base_cmd .. " test --tests " .. escaped_class
+      else
+        cmd = base_cmd .. " test"
       end
     end
   end

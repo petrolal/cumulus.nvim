@@ -3,10 +3,12 @@
 -- Architecture: Fast detection of whether a workspace belongs to a JVM-based
 -- project (Maven, Gradle, SBT, or JVM language files). When in a JVM project,
 -- registers the global JVM platform keymaps and WhichKey specs.
+-- All build tool detection and goal/task extraction is delegated to the Scala engine.
 
 local M = {}
 
 M.keymaps_registered = false
+M.offline_mode = false
 
 --- WhichKey specification for the JVM platform keymap hierarchy
 function M.whichkey_spec()
@@ -105,33 +107,168 @@ function M.setup_keymaps()
   M.keymaps_registered = true
 
   local map = vim.keymap.set
+  local engine = require("cumulus.util.engine")
+
+  -- Helper function to get the appropriate build command with offline flag
+  local function get_build_cmd(base_cmd, offline)
+    -- Check network availability unless offline mode is already enabled
+    if not offline and engine.is_available() then
+      local network_ok = engine.check_network()
+      if network_ok == false then
+        offline = true
+      end
+    end
+
+    if offline then
+      if base_cmd:match("mvn") then
+        return base_cmd .. " -o"
+      elseif base_cmd:match("gradle") then
+        return base_cmd .. " --offline"
+      end
+    end
+    return base_cmd
+  end
+
+  -- Helper function to get mvnw or system mvn
+  local function get_mvn_cmd()
+    local cwd = vim.fn.getcwd()
+    local mvnw = cwd .. "/mvnw"
+    if vim.fn.filereadable(mvnw) == 1 then
+      if vim.fn.executable(mvnw) == 0 then
+        vim.fn.system({ "chmod", "+x", mvnw })
+      end
+      return "./mvnw"
+    end
+    return "mvn"
+  end
+
+  -- Helper function to get gradlew or system gradle
+  local function get_gradle_cmd()
+    local cwd = vim.fn.getcwd()
+    local gradlew = cwd .. "/gradlew"
+    if vim.fn.filereadable(gradlew) == 1 then
+      if vim.fn.executable(gradlew) == 0 then
+        vim.fn.system({ "chmod", "+x", gradlew })
+      end
+      return "./gradlew"
+    end
+    return "gradle"
+  end
 
   -- 1. Build & Tasks (<leader>jb)
   map("n", "<leader>jbc", function()
-    local maven = require("cumulus.util.maven")
-    local gradle = require("cumulus.util.gradle")
-    if maven.find_pom() then
-      maven.run_maven_cmd(maven.get_mvn_cmd() .. " clean compile")
-    elseif gradle.find_gradle() then
-      gradle.run_gradle_cmd(gradle.get_gradle_cmd() .. " clean compile")
+    local cwd = vim.fn.getcwd()
+    local build_result = engine.discover_build_tool(cwd)
+
+    if not build_result or not build_result.tool then
+      engine.notify_warn("No Maven, Gradle, or SBT project found in current directory", "Cumulus JVM")
+      return
+    end
+
+    local tool = build_result.tool
+    if tool == "maven" then
+      local base_cmd = get_build_cmd(get_mvn_cmd(), M.offline_mode)
+      engine.run_term(base_cmd .. " clean compile", { title = "Cumulus Maven" })
+    elseif tool == "gradle" then
+      local base_cmd = get_build_cmd(get_gradle_cmd(), M.offline_mode)
+      engine.run_term(base_cmd .. " clean compile", { title = "Cumulus Gradle" })
     else
-      vim.notify("No pom.xml or build.gradle found in project", vim.log.levels.WARN)
+      engine.notify_warn("Unknown build tool: " .. tostring(tool), "Cumulus JVM")
     end
   end, { desc = "Build: Clean Compile" })
 
   map("n", "<leader>jbg", function()
-    require("cumulus.util.gradle").run_gradle_task()
+    local cwd = vim.fn.getcwd()
+    local build_result = engine.discover_build_tool(cwd)
+
+    if not build_result or not build_result.tool or build_result.tool ~= "gradle" then
+      engine.notify_warn("No Gradle project found in current directory", "Cumulus JVM")
+      return
+    end
+
+    -- Run gradle tasks --all to get full task list
+    local base_cmd = get_gradle_cmd()
+    local output = vim.fn.system(base_cmd .. " tasks --all")
+
+    if vim.v.shell_error ~= 0 or not output or output == "" then
+      engine.notify_warn("Failed to fetch Gradle tasks", "Cumulus JVM")
+      return
+    end
+
+    -- Parse tasks using engine
+    local tasks = engine.parse_gradle_tasks(output)
+    if not tasks or #tasks == 0 then
+      engine.notify_warn("No Gradle tasks found or parse failed", "Cumulus JVM")
+      return
+    end
+
+    vim.notify("Loading Gradle tasks...", vim.log.levels.INFO)
+    local cmd_prefix = get_build_cmd(base_cmd, M.offline_mode)
+
+    vim.ui.select(tasks, {
+      prompt = "Select Gradle Task:",
+      format_item = function(item)
+        return cmd_prefix .. " " .. item
+      end,
+    }, function(choice)
+      if choice then
+        engine.run_term(cmd_prefix .. " " .. choice, { title = "Cumulus Gradle" })
+      end
+    end)
   end, { desc = "Gradle: Select & Run Task" })
 
   map("n", "<leader>jbm", function()
-    require("cumulus.util.maven").run_maven_goal()
+    local cwd = vim.fn.getcwd()
+    local build_result = engine.discover_build_tool(cwd)
+
+    if not build_result or not build_result.tool or build_result.tool ~= "maven" then
+      engine.notify_warn("No Maven project found in current directory", "Cumulus JVM")
+      return
+    end
+
+    -- Find pom.xml file
+    local pom_path = vim.fn.findfile("pom.xml", cwd .. ";")
+    if pom_path == "" then
+      local current_file = vim.fn.expand("%:p:h")
+      if current_file ~= "" then
+        pom_path = vim.fn.findfile("pom.xml", current_file .. ";")
+      end
+    end
+
+    if pom_path == "" then
+      engine.notify_warn("No pom.xml found in project", "Cumulus JVM")
+      return
+    end
+
+    -- Parse goals using engine
+    vim.notify("Loading Maven goals...", vim.log.levels.INFO)
+    local goals = engine.parse_pom_goals(vim.fn.fnamemodify(pom_path, ":p"))
+
+    if not goals or #goals == 0 then
+      engine.notify_warn("No Maven goals found or parse failed", "Cumulus JVM")
+      return
+    end
+
+    local base_cmd = get_mvn_cmd()
+    local cmd_prefix = get_build_cmd(base_cmd, M.offline_mode)
+
+    vim.ui.select(goals, {
+      prompt = "Select Maven Goal:",
+      format_item = function(item)
+        return cmd_prefix .. " " .. item
+      end,
+    }, function(choice)
+      if choice then
+        engine.run_term(cmd_prefix .. " " .. choice, { title = "Cumulus Maven" })
+      end
+    end)
   end, { desc = "Maven: Select & Run Goal" })
 
   map("n", "<leader>jbo", function()
-    local maven = require("cumulus.util.maven")
-    local gradle = require("cumulus.util.gradle")
-    maven.toggle_offline_mode()
-    gradle.toggle_offline_mode()
+    M.offline_mode = not M.offline_mode
+    local status = M.offline_mode and "ENABLED" or "DISABLED"
+    local flags = M.offline_mode and "(-o / --offline)" or ""
+    vim.notify("Offline Mode: " .. status .. " " .. flags, vim.log.levels.INFO)
   end, { desc = "Toggle Offline Mode (-o / --offline)" })
 
   map("n", "<leader>jbS", function()
@@ -164,34 +301,66 @@ function M.setup_keymaps()
 
   -- 3. Run & Execute (<leader>jr)
   map("n", "<leader>jrs", function()
-    local maven = require("cumulus.util.maven")
-    local gradle = require("cumulus.util.gradle")
-    if maven.find_pom() then
-      local pom_path = vim.fn.findfile("pom.xml", vim.fn.getcwd() .. ";")
-      local pom_content = pom_path ~= "" and table.concat(vim.fn.readfile(pom_path), "\n") or ""
-      if pom_content:match("quarkus%-maven%-plugin") then
-        maven.run_maven_cmd(maven.get_mvn_cmd() .. " quarkus:dev")
-      else
-        maven.run_maven_cmd(maven.get_mvn_cmd() .. " spring-boot:run")
+    local cwd = vim.fn.getcwd()
+    local build_result = engine.discover_build_tool(cwd)
+
+    if not build_result or not build_result.tool then
+      engine.notify_warn("No Maven or Gradle project found in current directory", "Cumulus JVM")
+      return
+    end
+
+    local tool = build_result.tool
+
+    if tool == "maven" then
+      -- Check if it's Quarkus or Spring Boot
+      local pom_path = vim.fn.findfile("pom.xml", cwd .. ";")
+      if pom_path == "" then
+        pom_path = vim.fn.findfile("pom.xml", vim.fn.expand("%:p:h") .. ";")
       end
-    elseif gradle.find_gradle() then
-      local gradle_file = vim.fn.findfile("build.gradle", vim.fn.getcwd() .. ";")
-      local gradle_kts = vim.fn.findfile("build.gradle.kts", vim.fn.getcwd() .. ";")
+
+      local is_quarkus = false
+      if pom_path ~= "" then
+        local ok, lines = pcall(vim.fn.readfile, pom_path)
+        if ok and lines then
+          local pom_content = table.concat(lines, "\n")
+          is_quarkus = pom_content:match("quarkus%-maven%-plugin") ~= nil
+        end
+      end
+
+      local base_cmd = get_build_cmd(get_mvn_cmd(), M.offline_mode)
+      local goal = is_quarkus and "quarkus:dev" or "spring-boot:run"
+      engine.run_term(base_cmd .. " " .. goal, { title = "Cumulus Maven" })
+    elseif tool == "gradle" then
+      -- Check if it's Quarkus or Spring Boot
+      local gradle_file = vim.fn.findfile("build.gradle", cwd .. ";")
+      local gradle_kts = vim.fn.findfile("build.gradle.kts", cwd .. ";")
       local g_path = gradle_file ~= "" and gradle_file or gradle_kts
-      local g_content = g_path ~= "" and table.concat(vim.fn.readfile(g_path), "\n") or ""
-      if g_content:match("quarkus") then
-        gradle.run_gradle_cmd(gradle.get_gradle_cmd() .. " quarkusDev")
-      else
-        gradle.run_gradle_cmd(gradle.get_gradle_cmd() .. " bootRun")
+
+      local is_quarkus = false
+      if g_path ~= "" then
+        local ok, lines = pcall(vim.fn.readfile, g_path)
+        if ok and lines then
+          local g_content = table.concat(lines, "\n")
+          is_quarkus = g_content:match("quarkus") ~= nil
+        end
       end
+
+      local base_cmd = get_build_cmd(get_gradle_cmd(), M.offline_mode)
+      local task = is_quarkus and "quarkusDev" or "bootRun"
+      engine.run_term(base_cmd .. " " .. task, { title = "Cumulus Gradle" })
     else
-      require("cumulus.util.engine").notify_warn("No pom.xml or build.gradle found in project", "Cumulus JVM")
+      engine.notify_warn("Unsupported build tool: " .. tostring(tool), "Cumulus JVM")
     end
   end, { desc = "Run Spring Boot / Quarkus App" })
 
   map("n", "<leader>jrg", function()
+    local file_path = vim.fn.expand("%:p")
+    if not file_path or file_path == "" then
+      engine.notify_warn("Current buffer is not a file", "Cumulus JVM")
+      return
+    end
     vim.cmd("update")
-    require("cumulus.util.engine").run_term("groovy " .. vim.fn.shellescape(vim.fn.expand("%:p")), { title = "Cumulus JVM" })
+    engine.run_term("groovy " .. vim.fn.shellescape(file_path), { title = "Cumulus JVM" })
   end, { desc = "Groovy: Run Current Script" })
 
   map("n", "<leader>jrd", function()

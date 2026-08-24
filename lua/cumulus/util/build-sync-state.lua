@@ -70,16 +70,58 @@ function M.run()
     return
   end
   M.syncing = true
-  local maven = require("cumulus.util.maven")
-  local gradle = require("cumulus.util.gradle")
-  if maven.find_pom() then
-    maven.sync_dependencies()
-  elseif gradle.find_gradle() then
-    gradle.sync_dependencies()
-  else
+  local engine = require("cumulus.util.engine")
+
+  -- Check if engine is available before attempting discovery
+  if not engine.is_available() then
+    M.mark_ready()
+    return
+  end
+
+  local cwd = vim.fn.getcwd()
+  local build_result = engine.discover_build_tool(cwd)
+
+  if not build_result or not build_result.tool then
     -- Nothing to sync -- don't leave the gated java/kotlin/maven keymaps
-    -- (lang-keymaps.lua) hidden forever waiting on a sync that will never
-    -- run.
+    -- (lang-keymaps.lua) hidden forever waiting on a sync that will never run.
+    M.mark_ready()
+    return
+  end
+
+  local tool = build_result.tool
+  local sync_runner = require("cumulus.util.sync-runner")
+
+  if tool == "maven" then
+    local mvnw = cwd .. "/mvnw"
+    local base_cmd = "mvn"
+    if vim.fn.filereadable(mvnw) == 1 then
+      if vim.fn.executable(mvnw) == 0 then
+        vim.fn.system({ "chmod", "+x", mvnw })
+      end
+      base_cmd = "./mvnw"
+    end
+    sync_runner.run({
+      cmd = { base_cmd, "-q", "dependency:resolve" },
+      notify_id = "cumulus_maven_sync",
+      tool_label = "Maven",
+      base_cmd = base_cmd,
+    })
+  elseif tool == "gradle" then
+    local gradlew = cwd .. "/gradlew"
+    local base_cmd = "gradle"
+    if vim.fn.filereadable(gradlew) == 1 then
+      if vim.fn.executable(gradlew) == 0 then
+        vim.fn.system({ "chmod", "+x", gradlew })
+      end
+      base_cmd = "./gradlew"
+    end
+    sync_runner.run({
+      cmd = { base_cmd, "-q", "dependencies" },
+      notify_id = "cumulus_gradle_sync",
+      tool_label = "Gradle",
+      base_cmd = base_cmd,
+    })
+  else
     M.mark_ready()
   end
 end
