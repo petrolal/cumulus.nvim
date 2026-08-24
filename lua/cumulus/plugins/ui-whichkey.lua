@@ -48,6 +48,11 @@ return {
         { "<leader>oy", group = "ansible", icon = "󰚰 " },
         { "<leader>od", group = "docker", icon = "󰡨 " },
         { "<leader>ok", group = "helm/k8s", icon = "󱃾 " },
+        -- DevOps Validation Keymaps (Story 3.1: avoid collisions with existing groups)
+        { "<leader>cf", group = "cloudformation validation", icon = "󰅟 " },
+        { "<leader>ay", group = "ansible validation", icon = "󰚰 " },
+        { "<leader>dk", group = "docker validation", icon = "󰡨 " },
+        { "<leader>hm", group = "helm validation", icon = "󱃾 " },
       })
 
       local jvm = require("cumulus.util.jvm")

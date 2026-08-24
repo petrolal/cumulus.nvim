@@ -82,6 +82,74 @@ function M.invalidate_cache()
   cache_expires_at = nil
 end
 
+--- Assert that the engine binary is available, fail-fast with category-specific error.
+---@param category string Feature category: "jvm-build", "devops", "theme", "testing", "kubernetes"
+---@error Raises error with installation guidance if engine binary not found
+function M.assert_available(category)
+  if M.is_available() then
+    return
+  end
+
+  local category_names = {
+    ["jvm-build"] = "JVM build",
+    ["devops"] = "DevOps",
+    ["theme"] = "Theme",
+    ["testing"] = "Test",
+    ["kubernetes"] = "Kubernetes",
+  }
+
+  local category_label = category_names[category] or category
+
+  local error_msg = string.format(
+    "cumulus-engine binary not found for [%s] operations\n" ..
+    "\n" ..
+    "Build with:\n" ..
+    "  cd /path/to/cumulus.nvim/engine && sbt nativeImage\n" ..
+    "\n" ..
+    "Or install via:\n" ..
+    "  :CumulusInstallEngine\n" ..
+    "\n" ..
+    "Docs: https://github.com/petrolal/cumulus.nvim/docs/engine-setup",
+    category_label
+  )
+
+  vim.notify(error_msg, vim.log.levels.ERROR)
+  error(error_msg)
+end
+
+--- Setup load-time availability check and cache invalidation autocmds.
+---@private
+local function setup_availability_check()
+  -- Initial check at module load
+  if not M.is_available() then
+    vim.notify("cumulus-engine: binary not found (will check on first use)", vim.log.levels.INFO)
+  end
+
+  -- Register autocmds for workspace cache invalidation and binary re-detection
+  local group = vim.api.nvim_create_augroup("cumulus_engine", { clear = true })
+
+  vim.api.nvim_create_autocmd("DirChanged", {
+    group = group,
+    callback = function()
+      M.invalidate_cache()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("VimEnter", {
+    group = group,
+    callback = function()
+      M.invalidate_cache()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("SessionLoadPost", {
+    group = group,
+    callback = function()
+      M.invalidate_cache()
+    end,
+  })
+end
+
 --- Detects the host platform OS and architecture for cumulus-engine binary.
 ---@return string|nil target_name Target binary name (e.g., 'cumulus-engine-linux-x86_64') or nil
 ---@return string|nil error Error message if platform is unsupported
@@ -790,6 +858,54 @@ function M.inspect_ansible_playbook(file_path, opts)
   return call_engine_command({ "ansible-inspect", "--file", file_path }, nil, "ansible-inspect", opts)
 end
 
+--- Inspect Terraform configuration for resources and errors via Scala engine
+---@param file_path string Path to Terraform file or directory
+---@param opts? { silent?: boolean }
+---@return { resources: table[], errors: table[] }|nil
+function M.inspect_terraform(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "tf-inspect", "--file", file_path }, nil, "tf-inspect", opts)
+end
+
+--- Parse Terraform security findings via Scala engine
+---@param file_path string Path to Terraform file
+---@param opts? { silent?: boolean }
+---@return { severity: string, findings: table[] }|nil
+function M.parse_terraform_security(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "tf-security-parse", "--file", file_path }, nil, "tf-security-parse", opts)
+end
+
+--- Validate Docker Dockerfile for best practices and multi-stage build analysis via Scala engine
+---@param file_path string Path to Dockerfile
+---@param opts? { silent?: boolean }
+---@return { layers: table[], warnings: table[] }|nil
+function M.validate_docker(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "docker-validate", "--file", file_path }, nil, "docker-validate", opts)
+end
+
+--- Inspect Helm chart for value hierarchies and compatibility via Scala engine
+---@param file_path string Path to Helm chart directory or values.yaml
+---@param opts? { silent?: boolean }
+---@return { charts: table[], values: table[], compatibility: table[] }|nil
+function M.inspect_helm_chart(file_path, opts)
+  if not file_path or file_path == "" then
+    return nil
+  end
+  opts = opts or {}
+  return call_engine_command({ "helm-inspect", "--file", file_path }, nil, "helm-inspect", opts)
+end
+
 --- Validate Ansible playbook offline via Scala engine
 ---@param file_path string Path to playbook YAML
 ---@param opts? { silent?: boolean }
@@ -878,8 +994,9 @@ end
 
 --- Select a Spring bean from the workspace dependency graph and navigate to its source.
 function M.select_bean()
+  M.assert_available("jvm-build")
   local cwd = vim.fn.getcwd()
-  local beans = M.is_available() and M.parse_spring_beans(cwd) or nil
+  local beans = M.parse_spring_beans(cwd)
   if not beans or #beans == 0 then
     vim.notify("No Spring stereotypes (@Component, @Service, etc.) found", vim.log.levels.WARN)
     return
@@ -901,8 +1018,9 @@ end
 
 --- Select a REST endpoint from the workspace and jump to its controller definition.
 function M.select_endpoint()
+  M.assert_available("jvm-build")
   local cwd = vim.fn.getcwd()
-  local eps = M.is_available() and M.extract_endpoints(cwd) or nil
+  local eps = M.extract_endpoints(cwd)
   if not eps or #eps == 0 then
     vim.notify("No Spring Boot / JAX-RS endpoints found in project", vim.log.levels.WARN)
     return
@@ -923,11 +1041,12 @@ end
 
 --- Optimize Java/Kotlin imports in the current active buffer.
 function M.optimize_imports_buffer()
+  M.assert_available("jvm-build")
   local bufnr = vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
 
-  local new_lines = M.is_available() and M.optimize_imports(content) or nil
+  local new_lines = M.optimize_imports(content)
   if new_lines and #new_lines > 0 then
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
     vim.notify("Imports optimized successfully", vim.log.levels.INFO)
@@ -939,11 +1058,12 @@ end
 --- Validate Kubernetes manifest in the current buffer and populate diagnostics.
 local k8s_ns = vim.api.nvim_create_namespace("cumulus_k8s_validation")
 function M.validate_k8s_manifest_buffer()
+  M.assert_available("kubernetes")
   local bufnr = vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
 
-  local issues = M.is_available() and M.validate_k8s_manifest(content) or nil
+  local issues = M.validate_k8s_manifest(content)
   vim.diagnostic.clear(k8s_ns, bufnr)
 
   if not issues or #issues == 0 then
@@ -970,10 +1090,11 @@ M.validate_manifest = M.validate_k8s_manifest_buffer
 --- Validate Flyway migration scripts in default or specified directory.
 ---@param dir? string Optional migrations directory
 function M.validate_migrations_action(dir)
+  M.assert_available("jvm-build")
   local cwd = vim.fn.getcwd()
   dir = dir or (cwd .. "/src/main/resources/db/migration")
 
-  local issues = M.is_available() and M.validate_migrations(dir) or nil
+  local issues = M.validate_migrations(dir)
   if not issues or #issues == 0 then
     vim.notify("Flyway migrations verified — 0 issues found", vim.log.levels.INFO)
     return
@@ -987,11 +1108,12 @@ end
 
 --- Parse Git conflict markers in current buffer and show interactive jump picker.
 function M.resolve_git_conflicts()
+  M.assert_available("jvm-build")
   local bufnr = vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
 
-  local blocks = M.is_available() and M.parse_git_conflicts(content) or nil
+  local blocks = M.parse_git_conflicts(content)
   if not blocks or #blocks == 0 then
     vim.notify("No Git conflict markers (<<<<<<<) found in buffer", vim.log.levels.INFO)
     return
@@ -1015,9 +1137,10 @@ M.resolve_conflicts = M.resolve_git_conflicts
 ---@param xml_path? string
 local coverage_ns = vim.api.nvim_create_namespace("cumulus_coverage")
 function M.view_coverage(xml_path)
+  M.assert_available("jvm-build")
   xml_path = xml_path or (vim.fn.getcwd() .. "/target/site/jacoco/jacoco.xml")
 
-  local entries = M.is_available() and M.parse_coverage(xml_path) or nil
+  local entries = M.parse_coverage(xml_path)
   if not entries or #entries == 0 then
     vim.notify("No JaCoCo coverage report found at: " .. xml_path, vim.log.levels.WARN)
     return
@@ -1048,11 +1171,12 @@ M.load_coverage = M.view_coverage
 
 --- Index log content in current buffer and show interactive jump picker for ERROR/WARN lines.
 function M.search_indexed_logs()
+  M.assert_available("jvm-build")
   local bufnr = vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
 
-  local entries = M.is_available() and M.index_log(content) or nil
+  local entries = M.index_log(content)
   if not entries or #entries == 0 then
     vim.notify("No ERROR/WARN messages found in log buffer", vim.log.levels.INFO)
     return
@@ -1077,14 +1201,7 @@ M.index_current_buffer = M.search_indexed_logs
 ---@param log_content string Build log text to parse
 local build_ns = vim.api.nvim_create_namespace("cumulus_build")
 function M.populate_build_diagnostics(tool, log_content)
-  if not M.is_available() then
-    vim.notify(
-      "cumulus-engine binary missing: cannot parse build diagnostics. Build via 'cd engine && sbt graalvm-native-image:packageBin' or run ':CumulusInstallEngine'",
-      vim.log.levels.WARN
-    )
-    return
-  end
-
+  M.assert_available("jvm-build")
   local entries = M.parse_build_log(tool, log_content)
 
   if not entries or #entries == 0 then
@@ -1241,6 +1358,9 @@ function M.generate_theme_highlights(provider, opts)
   opts = opts or {}
   return call_engine_command({ "generate-theme-highlights", provider }, nil, "generate-theme-highlights", opts)
 end
+
+-- Setup availability check and cache invalidation autocmds at module load
+setup_availability_check()
 
 return M
 
