@@ -64,7 +64,7 @@ local function apply_highlights(highlights)
   log("apply_highlights: redraw! executed")
 end
 
---- Load highlights for a specific cloud provider
+--- Load highlights for a specific cloud provider via manage_theme
 ---@param provider string Cloud provider: "aws", "azure", "gcp", "oci"
 local function load_provider_highlights(provider)
   local logfile = vim.fn.expand("~/.config/nvim/theme-debug.log")
@@ -73,27 +73,28 @@ local function load_provider_highlights(provider)
   end
 
   local engine = require("cumulus.util.engine")
-  if not engine.is_available() then
-    log("load_provider_highlights: Engine not available")
+  engine.assert_available("theme")
+
+  -- Set theme via engine and get highlights in response
+  log("load_provider_highlights: Calling engine.manage_theme('set', '" .. provider .. "')")
+  local result = engine.manage_theme("set", { theme = provider })
+
+  if not result then
+    log("load_provider_highlights: Engine returned nil for set")
+    vim.notify("Failed to set theme: engine error", vim.log.levels.ERROR)
     return false
   end
 
-  log("load_provider_highlights: Calling engine.generate_theme_highlights('" .. provider .. "')")
-  local result = engine.generate_theme_highlights(provider)
-
-  if result then
-    log("load_provider_highlights: Got result from engine")
-    if result.highlights then
-      log("load_provider_highlights: Result has highlights, applying...")
-      apply_highlights(result.highlights)
-      return true
-    else
-      log("load_provider_highlights: Result has no highlights field")
-    end
-  else
-    log("load_provider_highlights: Engine returned nil")
+  -- Verify set succeeded and highlights are present
+  if not result.highlights or vim.tbl_isempty(result.highlights) then
+    log("load_provider_highlights: Theme set but highlights unavailable")
+    vim.notify("Theme set but highlight definitions missing from engine", vim.log.levels.ERROR)
+    return false
   end
-  return false
+
+  log("load_provider_highlights: Got highlights from engine, applying...")
+  apply_highlights(result.highlights)
+  return true
 end
 
 function M.get_current_theme()
@@ -101,6 +102,10 @@ function M.get_current_theme()
   if engine.is_available() then
     local res = engine.manage_theme("get")
     if res and res.theme then
+      -- Also cache highlights if available from engine
+      if res.highlights and not vim.tbl_isempty(res.highlights) then
+        apply_highlights(res.highlights)
+      end
       local t = res.theme
       if not t:match("%-theme$") then
         t = t .. "-theme"
@@ -224,8 +229,9 @@ function M.setup(opts)
   local clean_theme = theme:gsub("%-theme$", "")
   for _, t in ipairs(themes) do
     if t.name == theme or t.provider == clean_theme then
-      if not load_provider_highlights(t.provider) then
-        vim.notify("Warning: Theme engine unavailable; using fallback colors", vim.log.levels.WARN)
+      local success = pcall(load_provider_highlights, t.provider)
+      if not success then
+        vim.notify("Theme unavailable: engine required for theme management", vim.log.levels.ERROR)
       end
       break
     end
