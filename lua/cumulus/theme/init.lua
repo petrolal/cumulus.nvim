@@ -137,16 +137,16 @@ function M.set_theme(theme_name)
     for _, t in ipairs(themes) do
       table.insert(valid_themes, t.provider)
     end
-    vim.notify(
-      "Unknown theme: " .. theme_name .. ". Valid options: " .. table.concat(valid_themes, ", "),
-      vim.log.levels.ERROR
-    )
+    local msg = "Unknown theme: " .. tostring(theme_name) .. ". Valid: " .. table.concat(valid_themes, ", ")
+    msg = msg:sub(1, 150)
+    vim.notify(msg, vim.log.levels.ERROR)
     return
   end
 
   -- Load provider highlights from engine
   if not load_provider_highlights(provider) then
-    vim.notify("Failed to set theme '" .. theme_name .. "': engine error", vim.log.levels.ERROR)
+    local err_msg = "Failed to set theme '" .. tostring(clean_theme) .. "': engine error"
+    vim.notify(err_msg:sub(1, 150), vim.log.levels.ERROR)
     return
   end
 
