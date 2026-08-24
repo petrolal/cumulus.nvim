@@ -31,7 +31,7 @@ ThisBuild / versionScheme := Some("early-semver")
 // PGP signing - reads from GPG keyring
 usePgpKeyHex("C7A30CAF507B01B9F4BED6C3D79966B7698B8A7D")
 
-lazy val root = (project in file("."))
+lazy val engine = (project in file("."))
   .enablePlugins(BuildInfoPlugin, NativeImagePlugin)
   .settings(
     name := "cumulus-engine",
@@ -66,5 +66,28 @@ lazy val root = (project in file("."))
       }
     ),
     buildInfoPackage := "cumulus"
+  )
+
+lazy val cli = (project in file("cumulus-cli"))
+  .enablePlugins(AssemblyPlugin)
+  .settings(
+    name := "cumulus-cli",
+    publishMavenStyle := true,
+    pomIncludeRepository := { _ => false },
+    Compile / mainClass := Some("cumulus.cli.CumulusCli"),
+    assembly / mainClass := Some("cumulus.cli.CumulusCli"),
+    assembly / assemblyJarName := "cumulus-cli.jar",
+    assembly / assemblyOption := (assembly / assemblyOption).value.withIncludeScala(true),
+    libraryDependencies ++= Seq(
+      "com.lihaoyi" %% "os-lib" % "0.9.3",
+      "org.scalameta" %% "munit" % "1.0.0-M10" % Test
+    )
+  )
+
+lazy val root = (project in file("root"))
+  .aggregate(engine, cli)
+  .settings(
+    name := "cumulus",
+    publish / skip := true
   )
 

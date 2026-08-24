@@ -17,110 +17,75 @@ object TreeSitterResolver:
    * @return Seq[TreeSitterParserSpec] of available parsers and their query files
    */
   def discoverParsers(language: String): Seq[TreeSitterParserSpec] =
-    // Guard against null/empty inputs
     if language == null || language.trim.isEmpty then
       return Seq()
 
-    language.toLowerCase match
-      case "java" => discoverJavaParsers()
-      case "kotlin" => discoverKotlinParsers()
-      case "scala" => discoverScalaParsers()
-      case "groovy" => discoverGroovyParsers()
-      case _ => Seq()
+    val normalized = language.toLowerCase
+    if !LspLanguageConfig.isSupported(normalized) then
+      return Seq()
+
+    val queryType = LspLanguageConfig.getQueryType(normalized)
+    discoverParser(normalized, queryType)
 
   /**
-   * Discover Java TreeSitter parsers.
+   * Discover a single TreeSitter parser if it exists.
    */
-  private def discoverJavaParsers(): Seq[TreeSitterParserSpec] =
-    val parsers = scala.collection.mutable.ListBuffer[TreeSitterParserSpec]()
-
-    val javaParser = checkParserExists("java")
-    if javaParser then
-      parsers += TreeSitterParserSpec(
-        parser = "java",
-        queries = "standard",
-        installed = true
-      )
-
-    parsers.toSeq
+  private def discoverParser(parserName: String, queryType: String): Seq[TreeSitterParserSpec] =
+    if checkParserExists(parserName) then
+      Seq(TreeSitterParserSpec(parser = parserName, queries = queryType, installed = true))
+    else
+      Seq()
 
   /**
-   * Discover Kotlin TreeSitter parsers.
+   * Cache for discovered TreeSitter parser paths.
+   * Avoids repeated filesystem lookups.
    */
-  private def discoverKotlinParsers(): Seq[TreeSitterParserSpec] =
-    val parsers = scala.collection.mutable.ListBuffer[TreeSitterParserSpec]()
-
-    val kotlinParser = checkParserExists("kotlin")
-    if kotlinParser then
-      parsers += TreeSitterParserSpec(
-        parser = "kotlin",
-        queries = "standard",
-        installed = true
-      )
-
-    parsers.toSeq
+  private val parserCache = scala.collection.concurrent.TrieMap[String, Boolean]()
 
   /**
-   * Discover Scala TreeSitter parsers.
+   * Cached lookup of TreeSitter parser directories.
    */
-  private def discoverScalaParsers(): Seq[TreeSitterParserSpec] =
-    val parsers = scala.collection.mutable.ListBuffer[TreeSitterParserSpec]()
-
-    val scalaParser = checkParserExists("scala")
-    if scalaParser then
-      parsers += TreeSitterParserSpec(
-        parser = "scala",
-        queries = "extended", // Scala has extended query support
-        installed = true
+  private lazy val treeSitterPaths: Seq[Path] = {
+    Try {
+      val home = System.getProperty("user.home")
+      val paths = Seq(
+        Path(s"$home/.local/share/nvim/site/pack/packer/start/nvim-treesitter/parser"),
+        Path(s"$home/.local/share/nvim/site/pack/lazy/start/nvim-treesitter/parser"),
+        Path(s"$home/.local/share/nvim/nvim-treesitter/parser")
       )
-
-    parsers.toSeq
-
-  /**
-   * Discover Groovy TreeSitter parsers.
-   */
-  private def discoverGroovyParsers(): Seq[TreeSitterParserSpec] =
-    val parsers = scala.collection.mutable.ListBuffer[TreeSitterParserSpec]()
-
-    val groovyParser = checkParserExists("groovy")
-    if groovyParser then
-      parsers += TreeSitterParserSpec(
-        parser = "groovy",
-        queries = "standard",
-        installed = true
-      )
-
-    parsers.toSeq
+      paths.filter(p => os.exists(p) && os.isDir(p))
+    }.getOrElse(Seq())
+  }
 
   /**
    * Check if a TreeSitter parser exists in nvim parser directory.
-   * Checks both the standard nvim tree-sitter location and fallback paths.
+   * Uses caching to avoid repeated filesystem lookups.
    */
   private def checkParserExists(parserName: String): Boolean =
     // Guard against null/empty inputs
     if parserName == null || parserName.trim.isEmpty then
       return false
 
-    Try {
-      val home = System.getProperty("user.home")
+    val normalized = parserName.toLowerCase
 
-      // Standard nvim tree-sitter parser location
-      val standardPath = Path(s"$home/.local/share/nvim/site/pack/packer/start/nvim-treesitter/parser")
+    // Check cache first
+    parserCache.get(normalized) match
+      case Some(cached) => cached
+      case None =>
+        // Discover and cache result
+        val exists = discoverParser(normalized)
+        parserCache(normalized) = exists
+        exists
 
-      // Alternative nvim tree-sitter locations
-      val lazyPath = Path(s"$home/.local/share/nvim/site/pack/lazy/start/nvim-treesitter/parser")
-      val nvimDataPath = Path(s"$home/.local/share/nvim/nvim-treesitter/parser")
-
-      // Check for parser.so or parser.dll
-      val paths = Seq(standardPath, lazyPath, nvimDataPath)
-      paths.exists { path =>
-        if os.exists(path) && os.isDir(path) then
-          val files = os.list(path)
-          files.exists { f =>
-            f.last.startsWith(parserName) &&
-            (f.last.contains(".so") || f.last.contains(".dll") || f.last.contains(".dylib"))
-          }
-        else
-          false
-      }
-    }.getOrElse(false)
+  /**
+   * Search for parser in cached TreeSitter paths.
+   */
+  private def discoverParser(parserName: String): Boolean =
+    treeSitterPaths.exists { path =>
+      Try {
+        os.list(path).exists { f =>
+          f.last.startsWith(parserName) &&
+          (f.last.contains(".so") || f.last.contains(".dll") || f.last.contains(".dylib"))
+        }
+      }.getOrElse(false)
+    }

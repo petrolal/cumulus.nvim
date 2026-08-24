@@ -25,7 +25,8 @@ object ThemeManager:
   def getTheme(fileOpt: Option[String] = None): CumulusResponse[ThemeState] =
     try
       val state = resolveTheme(fileOpt)
-      CumulusResponse(success = true, data = Some(state), error = None, error_code = None)
+      val stateWithHighlights = enrichWithHighlights(state)
+      CumulusResponse(success = true, data = Some(stateWithHighlights), error = None, error_code = None)
     catch
       case e: Exception =>
         CumulusResponse(success = false, data = None, error = Some(s"Error getting theme state: ${e.getMessage}"), error_code = Some("INTERNAL_ERROR"))
@@ -91,12 +92,14 @@ object ThemeManager:
       os.write.over(targetPath, outLines.mkString("\n") + "\n")
 
       val finalVariant = values.get("MODE").getOrElse(DefaultVariant)
+      val themeState = ThemeState(
+        theme = values("FLAVOR"),
+        variant = Some(finalVariant)
+      )
+      val stateWithHighlights = enrichWithHighlights(themeState)
       CumulusResponse(
         success = true,
-        data = Some(ThemeState(
-          theme = values("FLAVOR"),
-          variant = Some(finalVariant)
-        )),
+        data = Some(stateWithHighlights),
         error = None,
         error_code = None
       )
@@ -190,3 +193,14 @@ object ThemeManager:
       .map(Path(_))
       .getOrElse(os.Path(sys.props.getOrElse("user.home", "/tmp")) / ".local" / "state")
     base / "nvim" / "cumulus_theme"
+
+  private def enrichWithHighlights(state: ThemeState): ThemeState =
+    try
+      val response = ThemeGenerator.generateThemeHighlights(state.theme)
+      if response.success && response.data.isDefined then
+        val highlights = response.data.get.highlights
+        state.copy(highlights = Some(highlights))
+      else
+        state
+    catch
+      case _: Exception => state

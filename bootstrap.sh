@@ -1,201 +1,136 @@
 #!/usr/bin/env bash
+# Cumulus Neovim Bootstrap
+# Smart entry point: offers dev-init for contributors, or full installation for users
+
 set -euo pipefail
 
 echo "=================================================="
-echo "          Cumulus Neovim System Bootstrap         "
+echo "          Cumulus Neovim Bootstrap                "
 echo "=================================================="
+echo ""
 
-has_cmd() {
-  command -v "$1" >/dev/null 2>&1
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source SDKMAN if present and Java is not currently in PATH
-if ! has_cmd java; then
-  if [ -s "${SDKMAN_DIR:-$HOME/.sdkman}/bin/sdkman-init.sh" ]; then
-    # shellcheck source=/dev/null
-    source "${SDKMAN_DIR:-$HOME/.sdkman}/bin/sdkman-init.sh" 2>/dev/null || true
-  elif [ -d "${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/current/bin" ]; then
-    export PATH="${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/current/bin:$PATH"
-    export JAVA_HOME="${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/current"
-  fi
+# Detect if running in dev mode (repo cloned locally)
+if [ -d "$SCRIPT_DIR/.git" ]; then
+  echo "Repository detected. Choose your setup:"
+  echo ""
+  echo "  1) Development (recommended for contributors)"
+  echo "     bash scripts/dev-init.sh"
+  echo "     • Just symlinks config + syncs plugins"
+  echo "     • Quick & lightweight"
+  echo "     • Perfect for editing lua/"
+  echo ""
+  echo "  2) Full Installation (for end users)"
+  echo "     bash bootstrap.sh"
+  echo "     then: cn install"
+  echo "     • Installs dependencies"
+  echo "     • Builds/downloads engine"
+  echo "     • Full verification"
+  echo ""
+  echo "For development, run:"
+  echo "  bash scripts/dev-init.sh"
+  echo ""
+  exit 0
 fi
 
-# 1. Detect OS and Package Manager
-OS_TYPE="$(uname -s)"
-PKG_MGR=""
+# ============================================================================
+# Full Installation Path (for users, not in repo)
+# ============================================================================
 
-case "$OS_TYPE" in
-  Linux*)
-    if has_cmd pacman; then
-      PKG_MGR="pacman"
-    elif has_cmd apt-get; then
-      PKG_MGR="apt"
-    elif has_cmd dnf; then
-      PKG_MGR="dnf"
-    elif has_cmd yum; then
-      PKG_MGR="yum"
-    fi
-    ;;
-  Darwin*)
-    if has_cmd brew; then
-      PKG_MGR="brew"
-    else
-      echo "ℹ macOS detected but Homebrew (brew) is not installed."
-      echo "  Install Homebrew from https://brew.sh to enable automatic dependency installation."
-    fi
-    ;;
-  *)
-    echo "⚠ Unsupported operating system: $OS_TYPE"
-    ;;
-esac
+LOCAL_BIN="${HOME}/.local/bin"
+mkdir -p "$LOCAL_BIN"
 
-echo "[1/4] Detected environment: $OS_TYPE (Package Manager: ${PKG_MGR:-none})"
+CN_LAUNCHER="$LOCAL_BIN/cn"
 
-# Helper for privileged commands
-run_sudo() {
-  if [ "$(id -u)" -eq 0 ]; then
-    "$@"
-  elif has_cmd sudo; then
-    sudo "$@"
-  else
-    echo "⚠ 'sudo' not found. Attempting to run command without privileges: $*"
-    "$@" || {
-      echo "✖ Failed to execute: $* (requires root or sudo)"
-      return 1
-    }
-  fi
-}
+# Check if Coursier is available
+if command -v cs >/dev/null 2>&1; then
+  echo "→ Installing cn via Coursier..."
 
-# 2. Identify missing system packages
-echo "[2/4] Checking system prerequisites (skipping existing tools)..."
+  # Try to install from local repo if available
+  if [ -d "$SCRIPT_DIR/engine" ] && [ -f "$SCRIPT_DIR/engine/build.sbt" ]; then
+    # Build and install locally
+    cd "$SCRIPT_DIR/engine"
+    sbt "cli/assembly" >/dev/null 2>&1 || true
 
-MISSING_PKGS=()
+    if [ -f "$SCRIPT_DIR/engine/cumulus-cli/target/scala-3.5.2/cumulus-cli.jar" ]; then
+      cs install \
+        --force \
+        --directory "$LOCAL_BIN" \
+        file://"$SCRIPT_DIR/engine/cumulus-cli/target/scala-3.5.2/cumulus-cli.jar" \
+        --main-class cumulus.cli.CumulusCli \
+        --output cn 2>/dev/null || true
 
-case "$PKG_MGR" in
-  pacman)
-    has_cmd git || MISSING_PKGS+=("git")
-    has_cmd curl || MISSING_PKGS+=("curl")
-    has_cmd rg || MISSING_PKGS+=("ripgrep")
-    has_cmd nvim || MISSING_PKGS+=("neovim")
-    has_cmd java || MISSING_PKGS+=("jdk21-openjdk")
-    ;;
-  apt)
-    has_cmd git || MISSING_PKGS+=("git")
-    has_cmd curl || MISSING_PKGS+=("curl")
-    has_cmd rg || MISSING_PKGS+=("ripgrep")
-    has_cmd nvim || MISSING_PKGS+=("neovim")
-    has_cmd java || MISSING_PKGS+=("openjdk-21-jdk")
-    ;;
-  dnf|yum)
-    has_cmd git || MISSING_PKGS+=("git")
-    has_cmd curl || MISSING_PKGS+=("curl")
-    has_cmd rg || MISSING_PKGS+=("ripgrep")
-    has_cmd nvim || MISSING_PKGS+=("neovim")
-    has_cmd java || MISSING_PKGS+=("java-21-openjdk-devel")
-    ;;
-  brew)
-    has_cmd git || MISSING_PKGS+=("git")
-    has_cmd curl || MISSING_PKGS+=("curl")
-    has_cmd rg || MISSING_PKGS+=("ripgrep")
-    has_cmd nvim || MISSING_PKGS+=("neovim")
-    has_cmd java || MISSING_PKGS+=("openjdk@21")
-    ;;
-  *)
-    ;;
-esac
-
-install_packages() {
-  if [ ${#MISSING_PKGS[@]} -eq 0 ]; then
-    echo "  ✔ All core prerequisites already exist. Skipping package installation."
-    return 0
-  fi
-
-  echo "  → Missing packages detected: ${MISSING_PKGS[*]}"
-  
-  case "$PKG_MGR" in
-    pacman)
-      echo "  → Installing ${MISSING_PKGS[*]} via pacman..."
-      run_sudo pacman -S --noconfirm --needed "${MISSING_PKGS[@]}" || {
-        echo "  ⚠ Some packages could not be installed via pacman. Continuing..."
-      }
-      ;;
-    apt)
-      echo "  → Installing ${MISSING_PKGS[*]} via apt-get..."
-      run_sudo apt-get update -y || true
-      run_sudo apt-get install -y "${MISSING_PKGS[@]}" || {
-        # Fallback if openjdk-21-jdk is in MISSING_PKGS but unavailable on older distro
-        if [[ " ${MISSING_PKGS[*]} " =~ " openjdk-21-jdk " ]]; then
-          echo "  ⚠ Attempting fallback to default-jdk on older apt distributions..."
-          FALLBACK_PKGS=()
-          for p in "${MISSING_PKGS[@]}"; do
-            if [ "$p" = "openjdk-21-jdk" ]; then
-              FALLBACK_PKGS+=("default-jdk")
-            else
-              FALLBACK_PKGS+=("$p")
-            fi
-          done
-          run_sudo apt-get install -y "${FALLBACK_PKGS[@]}" || true
-        fi
-      }
-      ;;
-    dnf|yum)
-      echo "  → Installing ${MISSING_PKGS[*]} via $PKG_MGR..."
-      run_sudo "$PKG_MGR" install -y "${MISSING_PKGS[@]}" || {
-        echo "  ⚠ Some packages could not be installed via $PKG_MGR. Continuing..."
-      }
-      ;;
-    brew)
-      echo "  → Installing ${MISSING_PKGS[*]} via Homebrew..."
-      brew install "${MISSING_PKGS[@]}" || {
-        echo "  ⚠ Some packages could not be installed via brew. Continuing..."
-      }
-      if [ -d "$(brew --prefix openjdk@21 2>/dev/null)/bin" ]; then
-        export PATH="$(brew --prefix openjdk@21)/bin:$PATH"
+      if [ -f "$CN_LAUNCHER" ] && [ -x "$CN_LAUNCHER" ]; then
+        echo "✔ Installed 'cn' via Coursier"
       fi
-      ;;
-    *)
-      echo "  ℹ No supported package manager detected. Please ensure missing tools are installed manually: ${MISSING_PKGS[*]}"
-      ;;
-  esac
-}
-
-install_packages
-
-# 3. Verify System Tools
-echo "[3/4] Verifying installed toolchain..."
-
-if has_cmd nvim; then
-  echo "  ✔ Neovim: $(nvim --version | head -n 1)"
+    fi
+  fi
 else
-  echo "  ⚠ Neovim is not in PATH. Please install Neovim (>= 0.10 recommended)."
+  # Fallback: create shell script launcher
+  echo "→ Creating shell script launcher..."
+  cat << 'EOF' > "$CN_LAUNCHER"
+#!/usr/bin/env bash
+# Cumulus Neovim Launcher
+# Usage: cn [install|update|command...]
+
+REPO_DIR=""
+if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua" ]; then
+  REPO_DIR="$(readlink -f "${XDG_CONFIG_HOME:-$HOME/.config}/nvim")"
 fi
 
-if has_cmd git; then
-  echo "  ✔ Git: $(git --version)"
-else
-  echo "  ⚠ Git is missing."
+case "${1:-}" in
+  install|update)
+    if [ -z "$REPO_DIR" ]; then
+      echo "✖ Cumulus Neovim not found at ~/.config/nvim"
+      echo "Clone and try again: git clone https://github.com/petrolal/cumulus.nvim ~/.config/nvim"
+      exit 1
+    fi
+    exec bash "$REPO_DIR/scripts/install-cn.sh"
+    ;;
+  *)
+    # Just launch nvim
+    exec nvim "$@"
+    ;;
+esac
+EOF
+  chmod +x "$CN_LAUNCHER"
+  echo "✔ Created 'cn' launcher (shell script)"
 fi
 
-if has_cmd rg; then
-  echo "  ✔ Ripgrep: $(rg --version | head -n 1)"
-else
-  echo "  ℹ Ripgrep is not installed (recommended for search)."
+echo "✔ 'cn' command installed at: $CN_LAUNCHER"
+echo ""
+
+# Add to PATH if needed
+if ! echo "$PATH" | grep -q "${LOCAL_BIN//\//\\/}"; then
+  echo "→ Adding $LOCAL_BIN to PATH..."
+  for RC in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.bash_profile"; do
+    if [ -f "$RC" ]; then
+      if ! grep -q "\\.local/bin" "$RC" 2>/dev/null; then
+        {
+          echo ""
+          echo "# Cumulus: Add ~/.local/bin to PATH"
+          echo "export PATH=\"\$HOME/.local/bin:\$PATH\""
+        } >> "$RC"
+      fi
+    fi
+  done
+  echo "✔ PATH updated in shell configs"
+  echo ""
+  echo "⚠ Restart your shell or run: export PATH=\"\$HOME/.local/bin:\$PATH\""
 fi
 
-if has_cmd java; then
-  echo "  ✔ Java: $(java -version 2>&1 | head -n 1)"
-else
-  echo "  ℹ Java is not in PATH (install Java 21+ for local engine development)."
-fi
-
-# 4. Invoke Neovim Distribution Installer
-echo "[4/4] Executing Neovim distribution setup..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-
-if [ -f "$SCRIPT_DIR/scripts/install.sh" ]; then
-  chmod +x "$SCRIPT_DIR/scripts/install.sh"
-  bash "$SCRIPT_DIR/scripts/install.sh"
-else
-  echo "✖ Installer script not found at $SCRIPT_DIR/scripts/install.sh"
-  exit 1
-fi
+echo ""
+echo "=================================================="
+echo "  Next step: cn install"
+echo "=================================================="
+echo ""
+echo "This will:"
+echo "  1. Install system dependencies"
+echo "  2. Build/download the cumulus-engine"
+echo "  3. Setup Neovim configuration"
+echo "  4. Sync all plugins"
+echo "  5. Verify everything works"
+echo ""
+echo "Then simply run: nvim"
+echo ""

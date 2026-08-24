@@ -1,6 +1,7 @@
 package cumulus.devops
 
 import upickle.default.ReadWriter
+import cumulus.protocol.HighlightGroup
 
 /**
  * Represents code coverage data for a single source file parsed from JaCoCo XML.
@@ -123,11 +124,12 @@ case class DependencyLens(
 ) derives ReadWriter
 
 /**
- * Cloud theme state information.
+ * Cloud theme state information including highlight definitions.
  */
 case class ThemeState(
   theme: String,
-  variant: Option[String] = Some("dark")
+  variant: Option[String] = Some("dark"),
+  highlights: Option[Map[String, HighlightGroup]] = None
 ) derives ReadWriter
 
 /**
