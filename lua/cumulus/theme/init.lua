@@ -16,42 +16,82 @@ local themes = {
 --- Apply theme highlights from engine-generated palette via vim.api.nvim_set_hl()
 ---@param highlights table Map of highlight group name to HighlightGroup definition
 local function apply_highlights(highlights)
+  local logfile = vim.fn.expand("~/.config/nvim/theme-debug.log")
+  local function log(msg)
+    vim.fn.writefile({os.date("%H:%M:%S") .. " " .. msg}, logfile, "a")
+  end
+
   if not highlights then
+    log("apply_highlights: no highlights provided")
     return
   end
+  log("apply_highlights: starting to apply highlights")
+  log("termguicolors=" .. tostring(vim.opt.termguicolors:get()))
+
+  vim.opt.background = "dark"
+
+  local count = 0
   for group_name, group_def in pairs(highlights) do
     local hl_opts = {}
-    if group_def.fg then
+
+    if group_def.fg and group_def.fg ~= vim.NIL then
       hl_opts.fg = group_def.fg
     end
-    if group_def.bg then
+    if group_def.bg and group_def.bg ~= vim.NIL then
       hl_opts.bg = group_def.bg
     end
-    if group_def.bold then
+    if group_def.bold and group_def.bold ~= vim.NIL and group_def.bold == true then
       hl_opts.bold = true
     end
-    if group_def.italic then
+    if group_def.italic and group_def.italic ~= vim.NIL and group_def.italic == true then
       hl_opts.italic = true
     end
-    if group_def.underline then
+    if group_def.underline and group_def.underline ~= vim.NIL and group_def.underline == true then
       hl_opts.underline = true
     end
+
+    if group_name == "Normal" then
+      log("Applying Normal: " .. vim.inspect(hl_opts))
+    end
+
     pcall(vim.api.nvim_set_hl, 0, group_name, hl_opts)
+    count = count + 1
   end
+  log("apply_highlights: Applied " .. count .. " highlight groups")
+
+  -- Force redraw to apply the highlights
+  vim.cmd("redraw!")
+  log("apply_highlights: redraw! executed")
 end
 
 --- Load highlights for a specific cloud provider
 ---@param provider string Cloud provider: "aws", "azure", "gcp", "oci"
 local function load_provider_highlights(provider)
+  local logfile = vim.fn.expand("~/.config/nvim/theme-debug.log")
+  local function log(msg)
+    vim.fn.writefile({os.date("%H:%M:%S") .. " " .. msg}, logfile, "a")
+  end
+
   local engine = require("cumulus.util.engine")
   if not engine.is_available() then
+    log("load_provider_highlights: Engine not available")
     return false
   end
 
+  log("load_provider_highlights: Calling engine.generate_theme_highlights('" .. provider .. "')")
   local result = engine.generate_theme_highlights(provider)
-  if result and result.highlights then
-    apply_highlights(result.highlights)
-    return true
+
+  if result then
+    log("load_provider_highlights: Got result from engine")
+    if result.highlights then
+      log("load_provider_highlights: Result has highlights, applying...")
+      apply_highlights(result.highlights)
+      return true
+    else
+      log("load_provider_highlights: Result has no highlights field")
+    end
+  else
+    log("load_provider_highlights: Engine returned nil")
   end
   return false
 end
@@ -94,18 +134,19 @@ function M.set_theme(theme_name)
   -- Load provider highlights from engine
   if provider then
     if not load_provider_highlights(provider) then
-      vim.notify("Warning: Could not load highlights from engine for " .. provider, vim.log.levels.WARN)
+      vim.notify("Could not load theme highlights from engine for " .. provider, vim.log.levels.ERROR)
+      return
     end
-  end
-
-  -- Set colorscheme as fallback (for base colors and additional customizations)
-  local ok, _ = pcall(vim.cmd, "colorscheme " .. theme_name)
-  if not ok then
-    vim.notify("Failed to set colorscheme: " .. theme_name, vim.log.levels.ERROR)
+  else
+    vim.notify("Unknown theme: " .. theme_name, vim.log.levels.ERROR)
     return
   end
 
   vim.notify("Cloud theme set to: " .. theme_name, vim.log.levels.INFO)
+
+  -- Refresh theme color cache for lualine/bufferline (Story 5.1)
+  local theme_colors = require("cumulus.util.theme_colors")
+  theme_colors.refresh_cache(theme_name)
 
   local engine = require("cumulus.util.engine")
   if engine.is_available() then
@@ -118,20 +159,35 @@ function M.set_theme(theme_name)
 end
 
 function M.load_saved_theme()
+  local logfile = vim.fn.expand("~/.config/nvim/theme-debug.log")
+  local function log(msg)
+    vim.fn.writefile({os.date("%H:%M:%S") .. " " .. msg}, logfile, "a")
+  end
+
+  log("=== load_saved_theme() called ===")
   local theme = M.get_current_theme()
+  log("Current theme: " .. theme)
 
   -- Load provider highlights from engine
   local clean_theme = theme:gsub("%-theme$", "")
+  log("Clean theme: " .. clean_theme)
+  local loaded = false
   for _, t in ipairs(themes) do
+    log("Checking theme: name=" .. t.name .. ", provider=" .. t.provider)
     if t.name == theme or t.provider == clean_theme then
-      load_provider_highlights(t.provider)
+      log("MATCH! Loading provider: " .. t.provider)
+      if not load_provider_highlights(t.provider) then
+        log("ERROR: Failed to load highlights for " .. t.provider)
+      else
+        loaded = true
+        log("SUCCESS: Theme loaded!")
+      end
       break
     end
   end
 
-  local ok, _ = pcall(vim.cmd, "colorscheme " .. theme)
-  if not ok then
-    pcall(vim.cmd, "colorscheme aws-theme")
+  if not loaded then
+    log("ERROR: Theme not loaded")
   end
 end
 
@@ -164,18 +220,15 @@ function M.setup(opts)
   opts = opts or {}
   local theme = opts.theme or M.get_current_theme()
 
-  -- Load provider highlights from engine
+  -- Load provider highlights from engine (Story 5.1: engine-driven, no Lua fallbacks)
   local clean_theme = theme:gsub("%-theme$", "")
   for _, t in ipairs(themes) do
     if t.name == theme or t.provider == clean_theme then
-      load_provider_highlights(t.provider)
+      if not load_provider_highlights(t.provider) then
+        vim.notify("Warning: Theme engine unavailable; using fallback colors", vim.log.levels.WARN)
+      end
       break
     end
-  end
-
-  local ok, _ = pcall(vim.cmd, "colorscheme " .. theme)
-  if not ok then
-    pcall(vim.cmd, "colorscheme aws-theme")
   end
 end
 

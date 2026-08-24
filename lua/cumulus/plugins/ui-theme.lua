@@ -1,49 +1,61 @@
--- Cumulus UI Theme & Statusline Integration Specs (Story 2.2, 8.2, 8.3)
+-- Cumulus UI Theme & Statusline Integration Specs (Story 2.2, 8.2, 8.3, Story 5.1)
+--
+-- Consolidates theme color extraction to engine-generated highlights via generate-theme-highlights.
+-- Lualine and Bufferline colors are dynamically cached on VimEnter and refreshed on theme switch.
+
+local theme_colors = require("cumulus.util.theme_colors")
 
 return {
-  -- AWS Theme entry spec
+  -- Theme initialization on VimEnter (engine-driven, no static palettes)
   {
-    "cumulus/aws-theme",
+    "cumulus/theme-init",
     virtual = true,
-    -- NOTE: must load eagerly so the colorscheme applies before first paint
     lazy = false,
     priority = 1000,
     config = function()
-      require("cumulus.theme.aws").load()
+      local group = vim.api.nvim_create_augroup("cumulus_theme_init", { clear = true })
+      vim.api.nvim_create_autocmd("VimEnter", {
+        group = group,
+        callback = function()
+          -- Detect current theme and initialize colors from engine
+          local theme_module = require("cumulus.theme")
+          local current_theme = theme_module.get_current_theme()
+          theme_colors.refresh_cache(current_theme)
+        end,
+      })
     end,
   },
 
-  -- Lualine statusline with Mode Badges, Active LSP status pill & AWS Navy palette (Story 8.2)
+  -- Lualine statusline with Mode Badges, Active LSP status pill & dynamic theme colors (Story 8.2)
   {
     "nvim-lualine/lualine.nvim",
     event = "VeryLazy",
     opts = function()
-      local aws = require("cumulus.theme.aws").palette
-      local aws_lualine_theme = {
+      local lualine_theme = {
         normal = {
-          a = { fg = aws.bg, bg = aws.aws_orange, bold = true },
-          b = { fg = aws.fg, bg = aws.bg_cursorline },
-          c = { fg = aws.fg_dim, bg = aws.statusline_bg },
+          a = { fg = theme_colors.cache.bg, bg = theme_colors.cache.primary_color, bold = true },
+          b = { fg = theme_colors.cache.fg, bg = theme_colors.cache.bg_cursorline },
+          c = { fg = theme_colors.cache.fg_dim, bg = theme_colors.cache.statusline_bg },
         },
         insert = {
-          a = { fg = aws.bg, bg = aws.secondary, bold = true },
-          b = { fg = aws.fg, bg = aws.bg_cursorline },
-          c = { fg = aws.fg_dim, bg = aws.statusline_bg },
+          a = { fg = theme_colors.cache.bg, bg = theme_colors.cache.secondary, bold = true },
+          b = { fg = theme_colors.cache.fg, bg = theme_colors.cache.bg_cursorline },
+          c = { fg = theme_colors.cache.fg_dim, bg = theme_colors.cache.statusline_bg },
         },
         visual = {
-          a = { fg = aws.bg, bg = aws.purple, bold = true },
-          b = { fg = aws.fg, bg = aws.bg_cursorline },
-          c = { fg = aws.fg_dim, bg = aws.statusline_bg },
+          a = { fg = theme_colors.cache.bg, bg = theme_colors.cache.purple, bold = true },
+          b = { fg = theme_colors.cache.fg, bg = theme_colors.cache.bg_cursorline },
+          c = { fg = theme_colors.cache.fg_dim, bg = theme_colors.cache.statusline_bg },
         },
         replace = {
-          a = { fg = aws.bg, bg = aws.error, bold = true },
-          b = { fg = aws.fg, bg = aws.bg_cursorline },
-          c = { fg = aws.fg_dim, bg = aws.statusline_bg },
+          a = { fg = theme_colors.cache.bg, bg = theme_colors.cache.error, bold = true },
+          b = { fg = theme_colors.cache.fg, bg = theme_colors.cache.bg_cursorline },
+          c = { fg = theme_colors.cache.fg_dim, bg = theme_colors.cache.statusline_bg },
         },
         inactive = {
-          a = { fg = aws.fg_dim, bg = aws.statusline_bg },
-          b = { fg = aws.fg_dim, bg = aws.statusline_bg },
-          c = { fg = aws.fg_dim, bg = aws.statusline_bg },
+          a = { fg = theme_colors.cache.fg_dim, bg = theme_colors.cache.statusline_bg },
+          b = { fg = theme_colors.cache.fg_dim, bg = theme_colors.cache.statusline_bg },
+          c = { fg = theme_colors.cache.fg_dim, bg = theme_colors.cache.statusline_bg },
         },
       }
 
@@ -61,12 +73,12 @@ return {
           end
           return "󰅍 " .. table.concat(names, ", ")
         end,
-        color = { fg = aws.aws_orange, gui = "bold" },
+        color = { fg = theme_colors.cache.primary_color, gui = "bold" },
       }
 
       return {
         options = {
-          theme = aws_lualine_theme,
+          theme = lualine_theme,
           globalstatus = true,
           component_separators = { left = "│", right = "│" },
           section_separators = { left = "", right = "" },
@@ -99,13 +111,12 @@ return {
     end,
   },
 
-  -- Bufferline with Devicons, Buffer Numbers & AWS Orange active indicators (Story 8.3)
+  -- Bufferline with Devicons, Buffer Numbers & dynamic theme-colored indicators (Story 8.3)
   {
     "akinsho/bufferline.nvim",
     event = "VeryLazy",
     dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = function()
-      local aws = require("cumulus.theme.aws").palette
       return {
         options = {
           mode = "buffers",
@@ -121,12 +132,12 @@ return {
         },
         highlights = {
           buffer_selected = {
-            fg = aws.aws_orange,
+            fg = theme_colors.cache.primary_color,
             bold = true,
           },
           indicator_selected = {
-            fg = aws.aws_orange,
-            bg = aws.aws_orange,
+            fg = theme_colors.cache.primary_color,
+            bg = theme_colors.cache.primary_color,
           },
         },
       }

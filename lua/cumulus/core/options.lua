@@ -5,6 +5,9 @@ vim.g.maplocalleader = "\\"
 
 vim.g.have_nerd_font = true
 
+-- Enable 24-bit true color support for theme highlights (Story 5.1)
+vim.opt.termguicolors = true
+
 -- Sync yank/paste with the OS clipboard (fixes y/p not reaching system clipboard)
 vim.opt.clipboard = "unnamedplus"
 

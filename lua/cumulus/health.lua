@@ -139,16 +139,18 @@ function M.check()
     end
   end
 
-  vim.health.start("Cumulus Signature Cloud Themes")
+  vim.health.start("Cumulus Signature Cloud Themes (Story 5.1)")
 
+  -- Test engine theme support (Story 5.1: theme data from engine, not Lua files)
+  local engine = require("cumulus.util.engine")
+  local providers = { "aws", "azure", "gcp", "oci" }
 
-  local themes = { "aws-theme", "azure-theme", "gcp-theme", "oci-theme" }
-  for _, theme in ipairs(themes) do
-    local ok, _ = pcall(vim.cmd, "colorscheme " .. theme)
-    if ok then
-      vim.health.ok(string.format("Cloud Theme '%s': verified & loadable", theme))
+  for _, provider in ipairs(providers) do
+    local result = engine.generate_theme_highlights(provider)
+    if result and result.highlights then
+      vim.health.ok(string.format("Cloud Theme '%s-theme': engine-generated highlights available", provider))
     else
-      vim.health.error(string.format("Cloud Theme '%s': FAILED to load", theme))
+      vim.health.error(string.format("Cloud Theme '%s-theme': FAILED to load from engine", provider))
     end
   end
 end
