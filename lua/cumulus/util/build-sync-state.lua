@@ -21,6 +21,7 @@ M.ready = false
 M.syncing = false
 
 local listeners = {}
+local sync_timer = nil
 
 --- Mark the sync as finished (success, failure, or "nothing to sync") and
 --- fire every listener registered via on_ready(). Safe to call more than
@@ -28,6 +29,10 @@ local listeners = {}
 --- cleared so a stuck M.syncing flag can never outlive its sync attempt.
 function M.mark_ready()
   M.syncing = false
+  if sync_timer then
+    vim.fn.timer_stop(sync_timer)
+    sync_timer = nil
+  end
   if M.ready then
     return
   end
@@ -70,6 +75,17 @@ function M.run()
     return
   end
   M.syncing = true
+  -- Set a timeout to auto-clear the syncing flag after 60s to prevent indefinite lock
+  if sync_timer then
+    vim.fn.timer_stop(sync_timer)
+  end
+  sync_timer = vim.fn.timer_start(60000, function()
+    if M.syncing then
+      vim.notify("Cumulus: build sync timeout (60s), clearing lock", vim.log.levels.WARN)
+      M.syncing = false
+      sync_timer = nil
+    end
+  end)
   local engine = require("cumulus.util.engine")
 
   -- Check if engine is available before attempting discovery

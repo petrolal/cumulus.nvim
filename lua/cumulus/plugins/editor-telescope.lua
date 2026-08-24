@@ -58,7 +58,7 @@ return {
         end
 
         local modules = engine.resolve_modules(vim.fn.getcwd())
-        if not modules or #modules == 0 then
+        if not modules or type(modules) ~= "table" or #modules == 0 then
           vim.notify("No Maven modules found", vim.log.levels.WARN)
           return
         end
@@ -94,7 +94,7 @@ return {
         end
 
         local modules = engine.resolve_modules(vim.fn.getcwd())
-        if not modules or #modules == 0 then
+        if not modules or type(modules) ~= "table" or #modules == 0 then
           vim.notify("No Gradle modules found", vim.log.levels.WARN)
           return
         end

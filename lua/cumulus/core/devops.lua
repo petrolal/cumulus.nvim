@@ -12,6 +12,21 @@ local uv = vim.uv or vim.loop
 -- Engine-Driven Root Discovery (No Fallback Logic)
 -- =============================================================================
 
+--- Safely get first item from roots array, validating type
+--- @param roots table|nil
+--- @param key string
+--- @return string|nil
+local function get_first_root(roots, key)
+  if not roots or type(roots) ~= "table" then
+    return nil
+  end
+  local items = roots[key]
+  if not items or type(items) ~= "table" or #items == 0 then
+    return nil
+  end
+  return items[1]
+end
+
 --- Resolve the search directory from buffer number or path
 --- @param buf_or_path? number|string
 --- @return string|nil
@@ -46,11 +61,7 @@ function M.find_tf_root(buf_or_path)
   end
 
   local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  if roots and roots.terraform and #roots.terraform > 0 then
-    return roots.terraform[1]
-  end
-
-  return nil
+  return get_first_root(roots, "terraform")
 end
 
 --- Discover AWS CloudFormation / SAM root directory using engine exclusively
@@ -69,11 +80,7 @@ function M.find_cfn_root(buf_or_path)
   end
 
   local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  if roots and roots.sam and #roots.sam > 0 then
-    return roots.sam[1]
-  end
-
-  return nil
+  return get_first_root(roots, "sam")
 end
 
 --- Discover Ansible root directory using engine exclusively
@@ -92,11 +99,7 @@ function M.find_ansible_root(buf_or_path)
   end
 
   local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  if roots and roots.ansible and #roots.ansible > 0 then
-    return roots.ansible[1]
-  end
-
-  return nil
+  return get_first_root(roots, "ansible")
 end
 
 --- Discover Docker / Compose root directory using engine exclusively
@@ -115,11 +118,7 @@ function M.find_docker_root(buf_or_path)
   end
 
   local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  if roots and roots.docker and #roots.docker > 0 then
-    return roots.docker[1]
-  end
-
-  return nil
+  return get_first_root(roots, "docker")
 end
 
 --- Discover Helm root directory using engine exclusively
@@ -138,11 +137,7 @@ function M.find_helm_root(buf_or_path)
   end
 
   local roots = engine.discover_devops_roots(search_dir, { silent = true })
-  if roots and roots.helm and #roots.helm > 0 then
-    return roots.helm[1]
-  end
-
-  return nil
+  return get_first_root(roots, "helm")
 end
 
 --- Run a command in an interactive, non-blocking terminal
