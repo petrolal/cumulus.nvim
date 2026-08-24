@@ -593,6 +593,18 @@ function M.extract_codelens(file_path)
   return res.items or res
 end
 
+--- Resolve all modules in a Maven/Gradle project directory using Scala engine
+---@param dir_path string Root project directory
+---@return table|nil Module tree with { modules = array of { name = string, path = string, type = string } }
+function M.resolve_modules(dir_path)
+  dir_path = dir_path or vim.fn.getcwd()
+  local res = call_engine_command({ "resolve-modules", "--dir", dir_path }, nil, "resolve-modules", { silent = true })
+  if not res then
+    return nil
+  end
+  return res.modules or res
+end
+
 --- Solve multi-module topological build order & DAG using Scala engine
 ---@param dir_path string Root project directory
 ---@return table[]|nil Array of { step = number, module_name = string, path = string, build_command = string }
