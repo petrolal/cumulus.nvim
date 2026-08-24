@@ -30,6 +30,19 @@ object ThemeManager:
       case e: Exception =>
         CumulusResponse(success = false, data = None, error = Some(s"Error getting theme state: ${e.getMessage}"), error_code = Some("INTERNAL_ERROR"))
 
+  def listThemes(): CumulusResponse[Map[String, Seq[String]]] =
+    try
+      val themes = Map(
+        "aws" -> Seq("light", "dark"),
+        "azure" -> Seq("light", "dark"),
+        "gcp" -> Seq("light", "dark"),
+        "oci" -> Seq("light", "dark")
+      )
+      CumulusResponse(success = true, data = Some(themes), error = None, error_code = None)
+    catch
+      case e: Exception =>
+        CumulusResponse(success = false, data = None, error = Some(s"Error listing themes: ${e.getMessage}"), error_code = Some("INTERNAL_ERROR"))
+
   def setTheme(theme: String, variantOpt: Option[String] = None, fileOpt: Option[String] = None): CumulusResponse[ThemeState] =
     if theme.trim.isEmpty then
       return CumulusResponse(
