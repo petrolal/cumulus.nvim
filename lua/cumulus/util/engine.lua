@@ -1056,6 +1056,64 @@ function M.search_indexed_logs()
 end
 M.index_current_buffer = M.search_indexed_logs
 
+--- Parse build log content and populate diagnostics across project buffers
+--- Consolidates all build error parsing to engine; no Lua fallback parsing remains (SPEC-1.4)
+---@param tool "maven"|"gradle"|"sbt"
+---@param log_content string Build log text to parse
+local build_ns = vim.api.nvim_create_namespace("cumulus_build")
+function M.populate_build_diagnostics(tool, log_content)
+  if not M.is_available() then
+    vim.notify(
+      "cumulus-engine binary missing: cannot parse build diagnostics. Build via 'cd engine && sbt graalvm-native-image:packageBin' or run ':CumulusInstallEngine'",
+      vim.log.levels.WARN
+    )
+    return
+  end
+
+  local entries = M.parse_build_log(tool, log_content)
+
+  if not entries or #entries == 0 then
+    return
+  end
+
+  -- Group diagnostics by target file buffer
+  local by_file = {}
+  for _, entry in ipairs(entries) do
+    by_file[entry.file] = by_file[entry.file] or {}
+    table.insert(by_file[entry.file], entry)
+  end
+
+  for filepath, file_entries in pairs(by_file) do
+    local bufnr = vim.fn.bufnr(filepath, true)
+    if bufnr ~= -1 and vim.api.nvim_buf_is_valid(bufnr) then
+      vim.fn.bufload(bufnr)
+      local diagnostics = {}
+      for _, e in ipairs(file_entries) do
+        table.insert(diagnostics, {
+          lnum = math.max(0, e.line - 1),
+          col = e.col and math.max(0, e.col - 1) or 0,
+          message = e.message,
+          severity = vim.diagnostic.severity.ERROR,
+          source = "cumulus_build",
+        })
+      end
+      vim.diagnostic.set(build_ns, bufnr, diagnostics)
+    end
+  end
+end
+
+--- Clear build diagnostics for a buffer or all buffers
+---@param bufnr? number Optional buffer number; if nil, clears all buffers
+function M.clear_build_diagnostics(bufnr)
+  if bufnr then
+    vim.diagnostic.clear(build_ns, bufnr)
+  else
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      vim.diagnostic.clear(build_ns, buf)
+    end
+  end
+end
+
 -- ==============================================================================
 -- ⭐ Universal Notification & Terminal Bridge (Story 13.2)
 -- ==============================================================================
