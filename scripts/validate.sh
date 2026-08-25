@@ -45,6 +45,14 @@ else
   exit 1
 fi
 
+echo "[5.1/7] Verifying File Explorer (oil.nvim)..."
+if nvim -u init.lua --headless "+lua assert(pcall(require, 'oil'), 'oil module not found'); local maps = vim.api.nvim_get_keymap('n'); local found = false; for _, m in ipairs(maps) do if (m.lhs == '<Space>e' or m.lhs == ' e' or m.lhs == '<leader>e') then found = true; break end end; assert(found, '<leader>e keymap not found'); print('✔ oil.nvim and keymaps verified')" +qa; then
+  echo "✔ File Explorer PASSED."
+else
+  echo "✖ File Explorer FAILED."
+  exit 1
+fi
+
 echo "[6/7] Verifying Engine Bridge & DevOps Suite (Terraform, CloudFormation, Ansible, WhichKey, Mason & Scoped Buffers)..."
 if nvim -u init.lua --headless "+lua
   local e = require('cumulus.util.engine')

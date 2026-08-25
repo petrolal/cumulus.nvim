@@ -31,9 +31,6 @@ return {
       opts.notifier.enabled = true
       opts.notifier.timeout = 3000
 
-      opts.explorer = opts.explorer or {}
-      opts.explorer.replace_netrw = true
-
       opts.image = opts.image or {}
       opts.image.enabled = true
       opts.image.doc = { inline = true }
@@ -159,13 +156,6 @@ return {
       end
     end,
     keys = {
-      {
-        "<leader>e",
-        function()
-          Snacks.explorer()
-        end,
-        desc = "File Explorer",
-      },
       {
         "<leader>ff",
         function()
