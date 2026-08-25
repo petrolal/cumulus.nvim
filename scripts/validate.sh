@@ -94,7 +94,7 @@ if nvim -u init.lua --headless "+lua
   assert(not pcall(require, 'cumulus.util.conflicts'), 'conflicts.lua must be purged')
   assert(not pcall(require, 'cumulus.util.coverage'), 'coverage.lua must be purged')
   assert(not pcall(require, 'cumulus.util.log-indexer'), 'log-indexer.lua must be purged')
-  local devops = require('cumulus.util.devops')
+  local devops = require('cumulus.core.devops')
   assert(type(devops.cfn_validate) == 'function')
   assert(type(devops.sam_local_invoke) == 'function')
   assert(type(devops.ansible_syntax_check) == 'function')
@@ -139,15 +139,15 @@ if nvim -u init.lua --headless "+lua
   for _, key in ipairs(expected_subkeys) do
     local found = false
     for _, m in ipairs(global_maps) do
-      if m.lhs == '\''<leader>\'' .. key or m.lhs == '\''<Space>\'' .. key or m.lhs == '\'' '\'' .. key then
+      if m.lhs == '<leader>' .. key or m.lhs == '<Space>' .. key or m.lhs == ' ' .. key then
         found = true
         found_keymaps = found_keymaps + 1
         break
       end
     end
-    assert(found, '\''leader '\' .. key .. '\'' missing from global keymaps\'')
+    assert(found, 'leader ' .. key .. ' missing from global keymaps')
   end
-  assert(found_keymaps >= 26, '\''DevOps keymap count mismatch: found '\'' .. found_keymaps .. '\'' of 26\'')
+  assert(found_keymaps >= 26, 'DevOps keymap count mismatch: found ' .. found_keymaps .. ' of 26')
 
   -- Robust Mason spec lookup
   local mason_plugins = require('cumulus.plugins.tools-mason')
@@ -165,6 +165,23 @@ if nvim -u init.lua --headless "+lua
   end
   for _, req in ipairs({'terraform-ls', 'tflint', 'cfn-lint', 'ansible-language-server', 'ansible-lint', 'yaml-language-server'}) do
     assert(ensure_set[req], 'Missing Mason package: ' .. req)
+  end
+
+  -- SPEC-1.1: Advanced JVM Debugger (nvim-dap integration) -- Scala/Metals
+  assert(ensure_set['metals'], 'Missing Mason package: metals')
+  local lsp_scala_ok, lsp_scala_spec = pcall(require, 'cumulus.plugins.lsp-scala')
+  assert(lsp_scala_ok, 'cumulus.plugins.lsp-scala failed to load: ' .. tostring(lsp_scala_spec))
+  assert(type(lsp_scala_spec) == 'table' and type(lsp_scala_spec[1]) == 'table', 'lsp-scala must return a valid lazy.nvim spec table')
+  assert(lsp_scala_spec[1][1] == 'scalameta/nvim-metals', 'lsp-scala spec must declare scalameta/nvim-metals')
+  local dap_devops_ok, dap_devops_spec = pcall(require, 'cumulus.plugins.tools-dap-devops')
+  assert(dap_devops_ok, 'cumulus.plugins.tools-dap-devops failed to load: ' .. tostring(dap_devops_spec))
+  local dap_keys = dap_devops_spec[1].keys
+  local dap_key_lhs = {}
+  for _, k in ipairs(dap_keys) do
+    dap_key_lhs[k[1]] = true
+  end
+  for _, req in ipairs({'<leader>dC', '<leader>dL', '<leader>dE', '<leader>dv'}) do
+    assert(dap_key_lhs[req], 'Missing DAP keymap: ' .. req)
   end
 
   -- Robust Conform spec lookup
@@ -331,7 +348,7 @@ if nvim -u init.lua --headless "+lua
   local orig_find_docker_root = devops.find_docker_root
   devops.find_docker_root = function() return '/mock/docker/my-app' end
   devops.docker_build()
-  assert(last_executed_cmd:match('docker build %-t %'my%-app%' %.'), 'docker_build command mismatch: ' .. tostring(last_executed_cmd))
+  assert(last_executed_cmd:match('docker build %-t \'my%-app\' %.'), 'docker_build command mismatch: ' .. tostring(last_executed_cmd))
   assert(last_executed_opts and last_executed_opts.cwd == '/mock/docker/my-app', 'docker_build cwd not adopted')
 
   devops.find_docker_root = function() return nil end
@@ -379,7 +396,7 @@ if nvim -u init.lua --headless "+lua
 
   local plat = e.detect_platform() or 'unknown'
   assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered')
-  print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling, Workspace Root Discovery & Global Root Execution with Warning Toasts verified (' .. plat .. ')')
+  print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling, Workspace Root Discovery, Global Root Execution with Warning Toasts & JVM Debugger DAP (Scala/Metals) verified (' .. plat .. ')')
 
 " +qa; then
   echo "✔ Engine bridge & DevOps suite PASSED."

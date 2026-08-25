@@ -60,6 +60,46 @@ return {
         end,
         desc = "Terminate Debugging",
       },
+      {
+        "<leader>dC",
+        function()
+          local condition = vim.fn.input("Condition: ")
+          if condition:match("^%s*$") then
+            return
+          end
+          require("dap").set_breakpoint(condition)
+        end,
+        desc = "Conditional Breakpoint",
+      },
+      {
+        "<leader>dL",
+        function()
+          local log_message = vim.fn.input("Log message: ")
+          if log_message:match("^%s*$") then
+            return
+          end
+          require("dap").set_breakpoint(nil, nil, log_message)
+        end,
+        desc = "Logpoint",
+      },
+      {
+        "<leader>dE",
+        function()
+          -- nvim-dap's Session:set_exception_breakpoints already handles
+          -- the "adapter doesn't support exceptionBreakpointFilters" case
+          -- by notifying and no-op'ing, and prompts for filters from the
+          -- adapter's own advertised capabilities when none are passed.
+          require("dap").set_exception_breakpoints()
+        end,
+        desc = "Set Exception Breakpoints",
+      },
+      {
+        "<leader>dv",
+        function()
+          require("dapui").eval()
+        end,
+        desc = "Evaluate Variable Under Cursor",
+      },
     },
   },
 }
