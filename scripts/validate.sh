@@ -391,8 +391,29 @@ if nvim -u init.lua --headless "+lua
   devops.find_helm_root = orig_find_helm_root
   devops.find_cfn_root = orig_find_cfn_root
 
+  -- Story 1.2: Continuous Profiling
+  local profiling = require('cumulus.util.profiling')
+  assert(type(profiling.start) == 'function', 'profiling.start not found')
+  assert(type(profiling.stop) == 'function', 'profiling.stop not found')
+  assert(type(profiling.view) == 'function', 'profiling.view not found')
+
+  -- Verify jvm profiling keymaps
+  local jvm_wk = jvm.whichkey_spec()
+  local jvm_groups = {}
+  for _, item in ipairs(jvm_wk) do
+    jvm_groups[item[1]] = item.group
+  end
+  assert(jvm_groups['<leader>jp'] == 'profiling', '<leader>jp missing in jvm whichkey_spec')
+
+  -- Verify actual keymap registration
+  jvm.setup_keymaps()
+  assert(vim.fn.maparg('<leader>jps', 'n') ~= '', '<leader>jps keymap not registered')
+  assert(vim.fn.maparg('<leader>jpx', 'n') ~= '', '<leader>jpx keymap not registered')
+  assert(vim.fn.maparg('<leader>jpv', 'n') ~= '', '<leader>jpv keymap not registered')
+
   -- Cleanup mock workspace
   vim.fn.delete(tmp_root, 'rf')
+
 
   local plat = e.detect_platform() or 'unknown'
   assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered')

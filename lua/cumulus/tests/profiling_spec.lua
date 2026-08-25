@@ -1,0 +1,17 @@
+local assert = require("luassert")
+
+describe("cumulus.util.profiling", function()
+  it("should expose start, stop, and view API methods", function()
+    local profiling = require("cumulus.util.profiling")
+    assert.is_table(profiling)
+    assert.is_function(profiling.start)
+    assert.is_function(profiling.stop)
+    assert.is_function(profiling.view)
+  end)
+
+  it("should initialize active_pid and last_flamegraph to nil", function()
+    local profiling = require("cumulus.util.profiling")
+    assert.is_nil(profiling.active_pid)
+    assert.is_nil(profiling.last_flamegraph)
+  end)
+end)

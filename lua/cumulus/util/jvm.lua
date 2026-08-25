@@ -28,6 +28,7 @@ function M.whichkey_spec()
     { "<leader>jr", group = "run & execute", icon = "󰐊 " },
     { "<leader>js", group = "spring & frameworks", icon = "󱎘 " },
     { "<leader>jx", group = "refactor & jdtls", icon = "󰨞 " },
+    { "<leader>jp", group = "profiling", icon = "⚡ " },
     { "<leader>jd", group = "dependencies", icon = "📦 " },
     { "<leader>ji", group = "engine & info", icon = "ℹ " },
   }
@@ -484,7 +485,20 @@ function M.setup_keymaps()
     end
   end, { desc = "JDTLS: Check Classpath Sync" })
 
-  -- 6. Dependencies (<leader>jd)
+  -- 6. Profiling (<leader>jp)
+  map("n", "<leader>jps", function()
+    require("cumulus.util.profiling").start()
+  end, { desc = "Profiler: Start" })
+
+  map("n", "<leader>jpx", function()
+    require("cumulus.util.profiling").stop()
+  end, { desc = "Profiler: Stop" })
+
+  map("n", "<leader>jpv", function()
+    require("cumulus.util.profiling").view()
+  end, { desc = "Profiler: View Flamegraph" })
+
+  -- 7. Dependencies (<leader>jd)
   map("n", "<leader>jdu", function()
     local filepath = vim.api.nvim_buf_get_name(0)
     local engine = require("cumulus.util.engine")
