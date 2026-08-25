@@ -1,25 +1,32 @@
-tt.*
-.tests
-doc/tags
-debug
-.repro
-foo.*
-*.log
-data
-target/
-**/target/
-engine/target/
-engine/project/target/
-.bsp/
-.metals/
-.bloop/
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.netrwhist
+Session.vim
+.nvim/
+.nvimrc
+.exrc
 
-# Dotfiles project-specific artifacts
-.agent/
-.agents/
-.claude/
-_bmad/
-_bmad-output/
-AGENTS.md
-CLAUDE.md
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
+# Lua & Build artifacts
+luac.out
+*.luac
+
+# Ensure BMAD and AI agent artifacts are strictly tracked 
+# (Per user request to push BMAD and AI files)
+!_bmad/
+!_bmad-output/
+!.agents/
+!*.memlog.md
+!AGENTS.md
