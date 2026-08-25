@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-25-2026 02:55
-last_updated: 08-25-2026 09:42
+last_updated: 08-25-2026 18:36
 project: cumulus.nvim
 project_key: cumulus
 tracking_system: local
@@ -37,11 +37,11 @@ story_location: EPICS_AND_STORIES.md
 development_status:
   epic-1: in-progress
   1-1-advanced-jvm-debugger-nvim-dap-integration: done
-  1-2-continuous-profiling-flamegraphs: review
+  1-2-continuous-profiling-flamegraphs: done
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-project-wide-safe-rename-move: backlog
+  epic-2: in-progress
+  2-1-project-wide-safe-rename-move: review
   2-2-intelligent-extraction-methods-variables-interfaces: backlog
   epic-2-retrospective: optional
 

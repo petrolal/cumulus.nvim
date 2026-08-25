@@ -1,0 +1,417 @@
+-- SPEC-2.1: Project-Wide Safe Rename (Java & Kotlin) -- static shape tests
+--
+-- Scoped to what plenary's busted harness can reliably verify: module shape,
+-- pure-function classification logic, and the buffer-local keymap wiring in
+-- ftplugin/java.lua / lsp-kotlin.lua. Like the repo's other *_spec.lua
+-- files, this avoids driving a real jdtls/kotlin_language_server client --
+-- that behavioral coverage (a live rename against a fixture project,
+-- confirmed through the quickfix preview) lives in
+-- scripts/validate-refactor.sh, which runs in its own fresh `nvim
+-- --headless` process. `scan_root_async` itself IS exercised directly here
+-- (it only needs `rg`/`grep` + real files on disk, no LSP), since it's the
+-- most bug-prone piece (duplicate-occurrence and package-scoping fixes).
+
+describe("Refactor (SPEC-2.1)", function()
+  describe("cumulus.util.refactor", function()
+    it("should expose project_rename and the internal rename pipeline", function()
+      local refactor = require("cumulus.util.refactor")
+      assert.is_table(refactor)
+      assert.is_function(refactor.project_rename)
+      assert.is_function(refactor.find_jvm_client)
+      assert.is_function(refactor.workspace_edit_to_locations)
+      assert.is_function(refactor.filter_overlapping_spring_items)
+      assert.is_function(refactor.apply_spring_edits)
+      assert.is_function(refactor.spring_items_to_qf)
+      assert.is_number(refactor.RENAME_TIMEOUT_MS)
+    end)
+
+    it("should notify and return without erroring when no JVM LSP is attached", function()
+      local refactor = require("cumulus.util.refactor")
+      vim.cmd("enew")
+      -- A fresh scratch buffer has no LSP clients attached at all.
+      assert.is_nil(refactor.find_jvm_client(vim.api.nvim_get_current_buf()))
+      assert.has_no.errors(function()
+        refactor.project_rename("NewName")
+      end)
+    end)
+
+    it("should reject a second project_rename while one is already in flight (M._busy)", function()
+      local refactor = require("cumulus.util.refactor")
+      local notified = {}
+      local orig_notify = vim.notify
+      vim.notify = function(msg, level)
+        table.insert(notified, { msg = msg, level = level })
+      end
+
+      refactor._busy = true
+      refactor.project_rename("Whatever")
+      refactor._busy = false
+
+      vim.notify = orig_notify
+      assert.are.equal(1, #notified)
+      assert.are.equal(vim.log.levels.WARN, notified[1].level)
+      assert.is_truthy(notified[1].msg:match("already in progress"))
+    end)
+
+    it("should flatten a WorkspaceEdit's `changes` into uri/range locations", function()
+      local refactor = require("cumulus.util.refactor")
+      local edit = {
+        changes = {
+          ["file:///a/Foo.java"] = {
+            { range = { start = { line = 1, character = 0 }, ["end"] = { line = 1, character = 3 } } },
+          },
+        },
+      }
+      local locations = refactor.workspace_edit_to_locations(edit)
+      assert.are.equal(1, #locations)
+      assert.are.equal("file:///a/Foo.java", locations[1].uri)
+      assert.are.equal(1, locations[1].range.start.line)
+    end)
+
+    it("should not drop a location under a generated/build directory", function()
+      local refactor = require("cumulus.util.refactor")
+      local edit = {
+        changes = {
+          ["file:///proj/target/generated-sources/Foo.java"] = {
+            { range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 3 } } },
+          },
+          ["file:///proj/build/classes/java/main/Foo.java"] = {
+            { range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 3 } } },
+          },
+        },
+      }
+      local locations = refactor.workspace_edit_to_locations(edit)
+      assert.are.equal(2, #locations)
+      local uris = { locations[1].uri, locations[2].uri }
+      assert.is_truthy(vim.tbl_contains(uris, "file:///proj/target/generated-sources/Foo.java"))
+      assert.is_truthy(vim.tbl_contains(uris, "file:///proj/build/classes/java/main/Foo.java"))
+    end)
+
+    it("should flatten a WorkspaceEdit's `documentChanges` (TextDocumentEdit) into locations", function()
+      local refactor = require("cumulus.util.refactor")
+      local edit = {
+        documentChanges = {
+          {
+            textDocument = { uri = "file:///a/Foo.java", version = 1 },
+            edits = {
+              { range = { start = { line = 4, character = 2 }, ["end"] = { line = 4, character = 5 } } },
+            },
+          },
+          -- Resource operations (rename/create/delete) must be ignored --
+          -- file-move handling is explicitly out of scope for this spec.
+          { kind = "rename", oldUri = "file:///a/Old.java", newUri = "file:///a/New.java" },
+        },
+      }
+      local locations = refactor.workspace_edit_to_locations(edit)
+      assert.are.equal(1, #locations)
+      assert.are.equal(4, locations[1].range.start.line)
+    end)
+
+    it("filter_overlapping_spring_items should drop a Spring item overlapping an LSP-covered range", function()
+      local refactor = require("cumulus.util.refactor")
+      local lsp_items = {
+        { filename = "/a/Foo.java", lnum = 5, col = 10, end_col = 20 },
+      }
+      local spring_items = {
+        { file = "/a/Foo.java", lnum = 5, col = 12, end_col = 22, kind = "stereotype", text = "x" }, -- overlaps
+        { file = "/a/Foo.java", lnum = 5, col = 25, end_col = 30, kind = "stereotype", text = "x" }, -- disjoint
+        { file = "/a/Bar.xml", lnum = 5, col = 10, end_col = 20, kind = "xml_bean", text = "x" }, -- different file
+      }
+      local filtered = refactor.filter_overlapping_spring_items(lsp_items, spring_items)
+      assert.are.equal(2, #filtered)
+      for _, item in ipairs(filtered) do
+        assert.is_not.same(12, item.col) -- the overlapping one must be gone
+      end
+    end)
+
+    it("spring_items_to_qf should tag each item with a kind label and preserve position", function()
+      local refactor = require("cumulus.util.refactor")
+      local qf = refactor.spring_items_to_qf({
+        {
+          file = "/a/beans.xml",
+          lnum = 2,
+          col = 46,
+          end_col = 56,
+          kind = "xml_bean",
+          text = '<bean class="...FooService"/>',
+        },
+      })
+      assert.are.equal(1, #qf)
+      assert.are.equal("/a/beans.xml", qf[1].filename)
+      assert.are.equal(2, qf[1].lnum)
+      assert.are.equal(46, qf[1].col)
+      assert.is_truthy(qf[1].text:match("^%[Spring XML bean%]"))
+    end)
+
+    it(
+      "apply_spring_edits should rename BOTH occurrences on a line with the symbol twice, without corruption",
+      function()
+        local refactor = require("cumulus.util.refactor")
+        local ts = require("cumulus.util.refactor-treesitter")
+        local file = vim.fn.tempname() .. ".java"
+        vim.fn.writefile({
+          "public class Consumer {",
+          "  @Autowired",
+          "  private FooService fooService = FooService.createDefault();",
+          "}",
+        }, file)
+
+        local lines = vim.fn.readfile(file)
+        local kind, occurrences = ts.classify_jvm_line(lines, 3, "FooService")
+        assert.are.equal("autowired", kind)
+        assert.are.equal(2, #occurrences)
+
+        local items = {}
+        for _, occ in ipairs(occurrences) do
+          items[#items + 1] =
+            { file = file, lnum = 3, col = occ.col, end_col = occ.end_col, kind = kind, text = lines[3] }
+        end
+
+        local applied, failed = refactor.apply_spring_edits(items, "BarServiceRenamedLonger")
+        assert.are.equal(2, applied)
+        assert.are.equal(0, #failed)
+
+        local bufnr = vim.fn.bufadd(file)
+        vim.fn.bufload(bufnr)
+        local result_line = vim.api.nvim_buf_get_lines(bufnr, 2, 3, false)[1]
+        assert.are.equal(
+          "  private BarServiceRenamedLonger fooService = BarServiceRenamedLonger.createDefault();",
+          result_line
+        )
+
+        os.remove(file)
+      end
+    )
+
+    it("apply_spring_edits should report a failed file rather than silently under-counting", function()
+      local refactor = require("cumulus.util.refactor")
+      local items = {
+        {
+          file = "/nonexistent/path/that/cannot/exist/Foo.xml",
+          lnum = 1,
+          col = 1,
+          end_col = 4,
+          kind = "xml_bean",
+          text = "x",
+        },
+      }
+      local applied, failed = refactor.apply_spring_edits(items, "New")
+      assert.are.equal(0, applied)
+      assert.are.equal(1, #failed)
+    end)
+  end)
+
+  describe("cumulus.util.refactor-treesitter", function()
+    it("should expose the scan/classification API", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      assert.is_table(ts)
+      assert.is_function(ts.scan_root_async)
+      assert.is_function(ts.raw_hits_async)
+      assert.is_function(ts.classify_xml_line)
+      assert.is_function(ts.classify_jvm_line)
+      assert.is_function(ts.file_package)
+      assert.is_function(ts.is_inside_xml_comment)
+      assert.is_table(ts.STEREOTYPE_ANNOTATIONS)
+    end)
+
+    it('should classify a Spring XML <bean class="..."> entry referencing the symbol', function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      local line = '  <bean id="fooService" class="com.example.FooService"/>'
+      local occurrences = ts.classify_xml_line(line, "FooService")
+      assert.are.equal(1, #occurrences)
+      local col, end_col = occurrences[1].col, occurrences[1].end_col
+      assert.are.equal("FooService", line:sub(col, end_col - 1))
+      assert.are.equal("com.example", occurrences[1].package)
+    end)
+
+    it("should not classify an XML line that merely mentions the symbol outside a bean class attribute", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      local line = "  <!-- FooService is wired below -->"
+      assert.is_nil(ts.classify_xml_line(line, "FooService"))
+    end)
+
+    it("should treat a bare simple-name (no package) bean class attribute as package-undeterminable", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      local line = '  <bean id="fooService" class="FooService"/>'
+      local occurrences = ts.classify_xml_line(line, "FooService")
+      assert.are.equal(1, #occurrences)
+      assert.is_nil(occurrences[1].package)
+    end)
+
+    it("is_inside_xml_comment should detect a bean entry inside a single-line XML comment", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      local lines = { "<beans>", '<!-- <bean id="x" class="com.example.FooService"/> -->', "</beans>" }
+      assert.is_true(ts.is_inside_xml_comment(lines, 2, 30))
+    end)
+
+    it("is_inside_xml_comment should not flag a live (non-commented) bean entry", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      local lines = { "<beans>", '<bean id="x" class="com.example.FooService"/>', "</beans>" }
+      assert.is_false(ts.is_inside_xml_comment(lines, 2, 20))
+    end)
+
+    it("should classify an @Autowired field of the renamed type", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      local lines = {
+        "public class Consumer {",
+        "  @Autowired",
+        "  private FooService fooService;",
+        "}",
+      }
+      local kind, occurrences = ts.classify_jvm_line(lines, 3, "FooService")
+      assert.are.equal("autowired", kind)
+      assert.are.equal(1, #occurrences)
+      assert.are.equal("FooService", lines[3]:sub(occurrences[1].col, occurrences[1].end_col - 1))
+    end)
+
+    it("should classify BOTH occurrences when the renamed type appears twice on one line", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      local lines = {
+        "public class Consumer {",
+        "  @Autowired",
+        "  private FooService fooService = FooService.createDefault();",
+        "}",
+      }
+      local kind, occurrences = ts.classify_jvm_line(lines, 3, "FooService")
+      assert.are.equal("autowired", kind)
+      assert.are.equal(2, #occurrences)
+      assert.is_true(occurrences[1].end_col <= occurrences[2].col) -- non-overlapping, in order
+      for _, occ in ipairs(occurrences) do
+        assert.are.equal("FooService", lines[3]:sub(occ.col, occ.end_col - 1))
+      end
+    end)
+
+    it("should classify a stereotype-annotated class declaration", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      local lines = {
+        "package com.example;",
+        "",
+        "@Service",
+        "public class FooService {",
+        "}",
+      }
+      local kind, occurrences = ts.classify_jvm_line(lines, 4, "FooService")
+      assert.are.equal("stereotype", kind)
+      assert.are.equal(1, #occurrences)
+    end)
+
+    it("should not classify a field of the renamed type without @Autowired or a stereotype", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      local lines = {
+        "public class Consumer {",
+        "  private FooService fooService;",
+        "}",
+      }
+      local kind = ts.classify_jvm_line(lines, 2, "FooService")
+      assert.is_nil(kind)
+    end)
+
+    it("file_package should extract a Java/Kotlin package declaration", function()
+      local ts = require("cumulus.util.refactor-treesitter")
+      assert.are.equal("com.example", ts.file_package({ "package com.example;", "", "class Foo {}" }))
+      assert.are.equal("com.example.sub", ts.file_package({ "package com.example.sub", "class Foo" }))
+      assert.is_nil(ts.file_package({ "class Foo {}" }))
+    end)
+
+    it(
+      "scan_root_async should package-scope Spring matches: renaming com.example.FooService must not touch com.other.FooService",
+      function()
+        local ts = require("cumulus.util.refactor-treesitter")
+        local root = vim.fn.tempname()
+        vim.fn.mkdir(root .. "/com/example", "p")
+        vim.fn.mkdir(root .. "/com/other", "p")
+
+        vim.fn.writefile({
+          "package com.example;",
+          "",
+          "import org.springframework.beans.factory.annotation.Autowired;",
+          "",
+          "public class Consumer {",
+          "  @Autowired",
+          "  private FooService fooService;",
+          "}",
+        }, root .. "/com/example/Consumer.java")
+
+        vim.fn.writefile({
+          "package com.other;",
+          "",
+          "import org.springframework.beans.factory.annotation.Autowired;",
+          "",
+          "public class OtherConsumer {",
+          "  @Autowired",
+          "  private FooService fooService;",
+          "}",
+        }, root .. "/com/other/OtherConsumer.java")
+
+        vim.fn.writefile({
+          "<beans>",
+          '    <bean id="fooService" class="com.example.FooService"/>',
+          '    <bean id="otherFooService" class="com.other.FooService"/>',
+          "</beans>",
+        }, root .. "/beans.xml")
+
+        local result = nil
+        ts.scan_root_async(root, "FooService", "com.example", function(items)
+          result = items
+        end)
+
+        vim.wait(10000, function()
+          return result ~= nil
+        end, 50)
+
+        assert.is_not_nil(result, "scan_root_async did not complete within the wait window")
+        assert.are.equal(2, #result)
+        for _, item in ipairs(result) do
+          assert.is_falsy(item.file:find("com/other", 1, true))
+        end
+
+        vim.fn.delete(root, "rf")
+      end
+    )
+  end)
+
+  describe("Buffer-local <leader>cr override wiring", function()
+    it("ftplugin/java.lua should bind <leader>cr to refactor.project_rename inside on_attach", function()
+      local f = io.open("ftplugin/java.lua", "r")
+      assert.is_not_nil(f)
+      local content = f:read("*a")
+      f:close()
+      assert.is_truthy(content:match('"<leader>cr"'))
+      assert.is_truthy(content:match('require%("cumulus%.util%.refactor"%)%.project_rename'))
+    end)
+
+    it(
+      "lsp-kotlin.lua's on_attach should install a REAL buffer-local <leader>cr mapping that dispatches into refactor.project_rename",
+      function()
+        local lsp_kotlin = require("cumulus.plugins.lsp-kotlin")
+        local on_attach = lsp_kotlin[2].opts.servers.kotlin_language_server.on_attach
+        assert.is_function(on_attach)
+
+        vim.cmd("enew")
+        local bufnr = vim.api.nvim_get_current_buf()
+        local stub_client = {
+          server_capabilities = {},
+          config = { root_dir = vim.fn.getcwd() },
+        }
+        on_attach(stub_client, bufnr)
+
+        local mapping = vim.fn.maparg("<leader>cr", "n", false, true)
+        assert.is_table(mapping)
+        assert.are.equal(1, mapping.buffer)
+        assert.is_function(mapping.callback)
+
+        local refactor = require("cumulus.util.refactor")
+        local called = false
+        local orig_project_rename = refactor.project_rename
+        refactor.project_rename = function(...)
+          called = true
+        end
+
+        mapping.callback()
+
+        refactor.project_rename = orig_project_rename
+        assert.is_true(called, "the buffer-local <leader>cr mapping must call refactor.project_rename")
+      end
+    )
+  end)
+end)

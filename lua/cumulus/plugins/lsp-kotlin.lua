@@ -43,7 +43,7 @@ return {
             end
             return { JAVA_HOME = java21_home }
           end)(),
-          on_attach = function(client, _)
+          on_attach = function(client, bufnr)
             client.server_capabilities.documentHighlightProvider = false
 
             local root = client.config.root_dir or vim.fn.getcwd()
@@ -53,6 +53,14 @@ return {
                 vim.fn.delete(f)
               end
             end
+
+            -- SPEC-2.1: Project-Wide Safe Rename -- mirror the same
+            -- buffer-local <leader>cr override installed for JDTLS in
+            -- ftplugin/java.lua. Global <leader>cr for non-JVM filetypes
+            -- stays untouched.
+            vim.keymap.set("n", "<leader>cr", function()
+              require("cumulus.util.refactor").project_rename()
+            end, { buffer = bufnr, desc = "Project-Wide Rename (Kotlin)" })
           end,
           settings = {
             kotlin = {

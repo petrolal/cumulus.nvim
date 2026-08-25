@@ -57,6 +57,14 @@ local config = {
     end
     -- Attach notification is handled generically for every LSP client
     -- (including jdtls) by the LspAttach autocmd in lsp-core.lua.
+
+    -- SPEC-2.1: Project-Wide Safe Rename -- buffer-local override of the
+    -- global <leader>cr (plain vim.lsp.buf.rename() in core/keymaps.lua).
+    -- Only this Java buffer gets the project-wide, preview-then-confirm
+    -- flow; the global mapping for non-JVM filetypes is untouched.
+    vim.keymap.set("n", "<leader>cr", function()
+      require("cumulus.util.refactor").project_rename()
+    end, { buffer = bufnr, desc = "Project-Wide Rename (Java)" })
   end,
 }
 
