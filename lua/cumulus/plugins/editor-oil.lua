@@ -6,7 +6,9 @@ return {
   },
   init = function()
     local opened_dir = false
-    for _, arg in ipairs(vim.fn.argv() --[[@as string[] ]]) do
+    for _, arg in
+      ipairs(vim.fn.argv() --[[@as string[] ]])
+    do
       if vim.fn.isdirectory(arg) == 1 then
         opened_dir = true
         break

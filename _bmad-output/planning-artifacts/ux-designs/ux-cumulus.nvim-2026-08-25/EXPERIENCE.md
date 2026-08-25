@@ -12,7 +12,7 @@ Visual identity and theme rules live in `{DESIGN.md}`.
 
 The interface is divided into functional zones:
 - **Editor Canvas**: The central area for code buffers.
-- **Left Sidebar**: Project navigation (`neo-tree` or `oil.nvim`), toggled via keymap.
+- **Left Sidebar**: Project navigation via `oil.nvim`, toggled via keymap.
 - **Right Sidebar**: Secondary structure (e.g., Outline/Symbols, DAP UI variables).
 - **Bottom Drawer**: Output consoles, build logs, terminal, and test runners (`neotest`).
 - **Floating Modals**: Ephemeral pickers (Spring Beans, REST Endpoints, Code Actions).

@@ -21,3 +21,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
   summary: Wire an oil.nvim move/rename action hook (`refactor.on_file_moved`) that asynchronously fixes a moved Java/Kotlin file's package declaration and cross-file importers.
   evidence: Split off to keep the spec within the 900-1600 token target; the project-wide rename (LSP + Spring-reference validation + quickfix preview) is the larger, more novel piece and stands alone as a shippable goal. The move-hook is independently shippable once oil.nvim's actual installed-version action/callback API is confirmed at implementation time.
+- source_spec: `/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces.md`
+  summary: Execute validate-*.sh scripts in the main validate.sh suite.
+  evidence: scripts/validate-extract.sh and lua/cumulus/tests/extract_spec.lua are not currently run automatically by validate.sh, meaning regressions might ship undetected.

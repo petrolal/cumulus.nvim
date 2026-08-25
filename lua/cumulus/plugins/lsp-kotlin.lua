@@ -61,6 +61,14 @@ return {
             vim.keymap.set("n", "<leader>cr", function()
               require("cumulus.util.refactor").project_rename()
             end, { buffer = bufnr, desc = "Project-Wide Rename (Kotlin)" })
+
+            -- SPEC-2.2: Intelligent Extraction
+            vim.keymap.set("n", "<leader>ce", function()
+              require("cumulus.util.extract").extract_interface()
+            end, { buffer = bufnr, desc = "Extract Interface (Kotlin)" })
+            vim.keymap.set("n", "<leader>ci", function()
+              require("cumulus.util.extract").inline()
+            end, { buffer = bufnr, desc = "Inline (Kotlin)" })
           end,
           settings = {
             kotlin = {
