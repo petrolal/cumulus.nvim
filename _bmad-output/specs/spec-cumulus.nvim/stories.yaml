@@ -1,0 +1,40 @@
+stories:
+  - id: 1-1-stateless-file-management
+    title: "Stateless File Management (oil.nvim)"
+    description: "Replace neo-tree with oil.nvim to enforce buffer-based file mutations."
+    spec_checkpoint: "Verify oil.nvim is configured and neo-tree is removed in the Lazy specs."
+    done_checkpoint: "Can open a directory as a buffer, create a file, and save without errors."
+    invoke_dev_with: "Ensure <leader>e is mapped to open oil.nvim."
+    status: draft
+    capabilities: ["CAP-4"]
+    constraints: ["AD-05"]
+
+  - id: 1-2-native-spring-discovery
+    title: "Native Spring Boot Discovery"
+    description: "Implement pure Lua Tree-sitter parsing for Spring Beans/Endpoints and wire to Telescope."
+    spec_checkpoint: "Review the Tree-sitter queries for Java/Kotlin annotations."
+    done_checkpoint: "Can parse a Spring Controller and select an endpoint via Telescope picker."
+    invoke_dev_with: "No Scala engine calls. Use vim.treesitter.query.parse."
+    status: draft
+    capabilities: ["CAP-2"]
+    constraints: ["AD-06", "AD-07"]
+
+  - id: 1-3-dynamic-cloud-theming
+    title: "Dynamic Cloud Theming Overlays"
+    description: "Implement <leader>ct to switch UI highlight groups (AWS/Azure/GCP/OCI)."
+    spec_checkpoint: "Verify the highlight groups map to the specific hex codes from DESIGN.md."
+    done_checkpoint: "Toggling <leader>ct changes border colors of Snacks notifications and Lualine."
+    invoke_dev_with: "Use standard vim.api.nvim_set_hl."
+    status: draft
+    capabilities: ["CAP-1"]
+    constraints: ["AD-06"]
+
+  - id: 1-4-event-driven-headless-builds
+    title: "Event-Driven Headless Builds"
+    description: "Run Maven/Gradle via vim.system and emit autocommands to populate quickfix."
+    spec_checkpoint: "Verify the autocommand structure and vim.system asynchronous usage."
+    done_checkpoint: "Running a broken Maven build populates the quickfix list without freezing Neovim."
+    invoke_dev_with: "Do not use :terminal. Ensure vim.schedule is used for the quickfix update."
+    status: draft
+    capabilities: ["CAP-3"]
+    constraints: ["AD-01", "AD-03"]

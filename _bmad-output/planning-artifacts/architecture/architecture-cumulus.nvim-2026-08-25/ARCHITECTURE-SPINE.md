@@ -6,7 +6,7 @@ updated: 2026-08-25
 # Architecture Spine: Cumulus.nvim
 
 **Paradigm:** Event-Driven, Stateless UI Architecture  
-**Primary Driver:** Absolute editor stability and zero-blocking UI constraints during heavy JVM/Cloud operations.
+**Primary Driver:** Absolute editor stability, native Neovim standards, and zero-blocking UI constraints during heavy JVM/Cloud operations.
 
 ## Architectural Decisions (Invariants)
 
@@ -30,17 +30,34 @@ updated: 2026-08-25
 - **Binds:** Any feature or utility requiring project knowledge.
 - **Prevents:** Global in-memory state caches, desync bugs, and the use of flaky Neovim file-watchers.
 
+### AD-05: Buffer-Based Explorer Workflows
+- **Rule:** Directory navigation and file management must be handled via `oil.nvim`, treating the file system as standard Neovim buffers.
+- **Binds:** File management and project exploration features.
+- **Prevents:** Stateful, traditional sidebar abstraction layers (e.g., `neo-tree`) that deviate from standard Neovim mode interactions.
+
+### AD-06: Direct UI Coupling
+- **Rule:** Feature modules should call UI primitives (`snacks.nvim`, `telescope.nvim`) directly.
+- **Binds:** Any feature presenting data to the user.
+- **Prevents:** Over-engineered facade or adapter layers (`cumulus.ui`) intended to "future-proof" UI framework swaps.
+
+### AD-07: Strict Native Intelligence
+- **Rule:** New feature logic, AST parsing, and project discovery must be implemented in pure Lua (leveraging Tree-sitter) or delegated to standard LSPs.
+- **Binds:** All new feature development (e.g., Spring endpoint discovery).
+- **Prevents:** Adding any new surface area to the legacy Scala `cumulus-engine` or introducing external Bash/Python parsing scripts.
+
 ## Structural Seed
 
 ```mermaid
 graph TD
     subgraph UI Layer
-        UI[Native UI / Quickfix]
+        UI[Native UI / Quickfix / Snacks / Telescope]
+        Oil[Oil.nvim Buffers]
     end
 
     subgraph Core
         EH[Event Hub / Autocmds]
         Exec[Headless Executor - vim.system]
+        Lua[Pure Lua / Tree-sitter Logic]
     end
 
     subgraph Plugins
@@ -53,12 +70,14 @@ graph TD
     end
 
     Exec -- Emits Event --> EH
+    Lua -- Emits Event --> EH
     EH -- Schedules Render --> UI
     LSP -- Queries Truth --> Disk
+    Lua -- Parses AST --> Disk
     Exec -- Executes --> Disk
+    Oil -- Mutates --> Disk
     Lazy -. Lazy loads on Filetype .-> LSP
 ```
 
 ## Deferred Decisions
-- **Specific Notification UI Plugin:** Whether to use `noice.nvim`, `snacks.nvim`, or standard `vim.notify` is left to implementation, as long as it adheres to the headless event-driven paradigm (AD-01, AD-03).
-- **Maven/Gradle Generator Implementation Details:** The exact Telescope layout and archetype fetching mechanism is deferred to the specific epic/feature design.
+- **Legacy Engine Cleanup:** The exact timeline and method for ripping out the remaining `engine.lua` facade is deferred to a future epic, provided AD-07 prevents it from growing.

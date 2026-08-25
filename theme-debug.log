@@ -7,3 +7,21 @@
 03:53:00 load_provider_highlights: Theme set but highlights unavailable
 03:53:00 ERROR: Failed to load highlights for aws
 03:53:00 ERROR: Theme not loaded
+04:16:26 === load_saved_theme() called ===
+04:16:26 Current theme: aws-theme
+04:16:26 Clean theme: aws
+04:16:26 Checking theme: name=aws-theme, provider=aws
+04:16:26 MATCH! Loading provider: aws
+04:16:26 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+04:16:26 load_provider_highlights: Theme set but highlights unavailable
+04:16:26 ERROR: Failed to load highlights for aws
+04:16:26 ERROR: Theme not loaded
+04:16:29 === load_saved_theme() called ===
+04:16:29 Current theme: aws-theme
+04:16:29 Clean theme: aws
+04:16:29 Checking theme: name=aws-theme, provider=aws
+04:16:29 MATCH! Loading provider: aws
+04:16:29 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+04:16:29 load_provider_highlights: Theme set but highlights unavailable
+04:16:29 ERROR: Failed to load highlights for aws
+04:16:29 ERROR: Theme not loaded
