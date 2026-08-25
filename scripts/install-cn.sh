@@ -115,63 +115,6 @@ check_and_install_deps() {
   echo "  ✔ Dependencies verified"
 }
 
-# ============================================================================
-# PART 2: Cumulus Engine
-# ============================================================================
-install_engine() {
-  echo "[2/5] Installing cumulus-engine..."
-
-  DATA_BIN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/nvim/cumulus/bin"
-  DATA_BIN="$DATA_BIN_DIR/cumulus-engine"
-
-  if has_cmd cumulus-engine; then
-    echo "  ✔ cumulus-engine already in PATH"
-    return 0
-  fi
-
-  if [ -x "$DATA_BIN" ]; then
-    echo "  ✔ cumulus-engine already installed at $DATA_BIN"
-    return 0
-  fi
-
-  # Try to build locally if sbt is available
-  if has_cmd sbt && [ -d "$REPO_DIR/engine" ]; then
-    echo "  → Building locally with sbt..."
-    if (cd "$REPO_DIR/engine" && sbt test >/dev/null 2>&1); then
-      echo "  ✔ Engine built and tested locally"
-      return 0
-    fi
-  fi
-
-  # Download pre-built binary
-  echo "  → Downloading pre-built binary..."
-  OS="$(uname -s)"
-  ARCH="$(uname -m)"
-  TARGET=""
-
-  case "$OS:$ARCH" in
-    Linux:x86_64) TARGET="cumulus-engine-linux-x86_64" ;;
-    Linux:aarch64|Linux:arm64) TARGET="cumulus-engine-linux-aarch64" ;;
-    Darwin:arm64|Darwin:aarch64) TARGET="cumulus-engine-darwin-arm64" ;;
-  esac
-
-  if [ -n "$TARGET" ] && has_cmd curl; then
-    mkdir -p "$DATA_BIN_DIR"
-    TMP_DIR="$(mktemp -d)"
-    BASE_URL="https://github.com/petrolal/cumulus.nvim/releases/latest/download"
-
-    if curl -fsSL "$BASE_URL/$TARGET" -o "$TMP_DIR/$TARGET" 2>/dev/null; then
-      mv "$TMP_DIR/$TARGET" "$DATA_BIN"
-      chmod +x "$DATA_BIN"
-      echo "  ✔ Engine installed to $DATA_BIN"
-      rm -rf "$TMP_DIR"
-      return 0
-    fi
-    rm -rf "$TMP_DIR"
-  fi
-
-  echo "  ⚠ Could not auto-install engine. Run inside Neovim: :CumulusInstallEngine"
-}
 
 # ============================================================================
 # PART 3: Configuration
@@ -306,7 +249,6 @@ verify_install() {
 # ============================================================================
 main() {
   check_and_install_deps || exit 1
-  install_engine || true
   setup_config
   sync_plugins || true
   setup_launcher

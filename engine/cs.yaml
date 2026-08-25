@@ -1,7 +1,0 @@
-# Coursier Configuration for cumulus-cli
-# Define how the cn command is installed and managed
-
-apps:
-  - name: cn
-    main-class: cumulus.cli.CumulusCli
-    description: Cumulus Neovim launcher and installer

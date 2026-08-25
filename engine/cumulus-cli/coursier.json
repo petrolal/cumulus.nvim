@@ -1,9 +1,0 @@
-{
-  "name": "cn",
-  "description": "Cumulus Neovim launcher and installer",
-  "mainClass": "cumulus.cli.CumulusCli",
-  "scalaVersion": "3.5.2",
-  "organization": "io.github.petrolal",
-  "artifact": "cumulus-cli_3",
-  "version": "0.1.0"
-}

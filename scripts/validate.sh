@@ -388,19 +388,7 @@ else
   exit 1
 fi
 
-echo "[7/7] Verifying Native Helper Engine (cumulus-engine)..."
-if command -v sbt >/dev/null 2>&1 && [ -d engine ]; then
-  if (cd engine && sbt test); then
-    echo "✔ Scala native helper build & unit tests PASSED."
-  else
-    echo "✖ Scala native helper build or tests FAILED."
-    exit 1
-  fi
-else
-  echo "ℹ sbt not found or engine directory missing -- skipping native engine test suite."
-fi
-
 echo "=========================================="
-echo " ALL 7 VALIDATIONS PASSED SUCCESSFULLY!"
+echo " ALL VALIDATIONS PASSED SUCCESSFULLY!"
 echo "=========================================="
 
