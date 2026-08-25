@@ -1,0 +1,9 @@
+03:53:00 === load_saved_theme() called ===
+03:53:00 Current theme: aws-theme
+03:53:00 Clean theme: aws
+03:53:00 Checking theme: name=aws-theme, provider=aws
+03:53:00 MATCH! Loading provider: aws
+03:53:00 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+03:53:00 load_provider_highlights: Theme set but highlights unavailable
+03:53:00 ERROR: Failed to load highlights for aws
+03:53:00 ERROR: Theme not loaded
