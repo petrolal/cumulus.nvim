@@ -8,6 +8,12 @@
 -- application.properties and application.yml/application.yaml with a usable
 -- spring.datasource.* block, the .properties values win and the YAML
 -- file(s) are ignored entirely.
+--
+-- `${ENV_VAR}` / `${ENV_VAR:default}` placeholders (the standard, extremely
+-- common Spring Boot idiom for datasource credentials) are resolved against
+-- the current process environment, mirroring Spring's own
+-- PropertySourcesPlaceholderConfigurer semantics -- see resolve_placeholders
+-- below.
 
 local ui = require("cumulus.util.ui")
 
@@ -151,6 +157,33 @@ local function url_encode(str)
   end))
 end
 
+--- Resolve Spring `${ENV_VAR}` / `${ENV_VAR:default}` placeholders in a
+--- config value against the current process environment, mirroring Spring
+--- Boot's own PropertySourcesPlaceholderConfigurer semantics: a set,
+--- non-empty environment variable always wins; otherwise the literal text
+--- after the first `:` (which may itself contain `:` or `/`, e.g. a full
+--- JDBC URL default) is used; a placeholder with no default and no matching
+--- environment variable is left as `${VAR_NAME}` and reported as unresolved.
+--- Values with no `${...}` at all pass through unchanged.
+---@param value string
+---@return string resolved
+---@return string[] unresolved names of `${VAR}`/`${VAR:default}` placeholders that could not be resolved
+local function resolve_placeholders(value)
+  local unresolved = {}
+  local resolved = value:gsub("%${([^}:]+):?([^}]*)}", function(var_name, default)
+    local env_val = vim.env[var_name]
+    if env_val and env_val ~= "" then
+      return env_val
+    elseif default ~= "" then
+      return default
+    else
+      table.insert(unresolved, var_name)
+      return "${" .. var_name .. "}"
+    end
+  end)
+  return resolved, unresolved
+end
+
 --- Convert a JDBC-style URL (`jdbc:postgresql://host:port/db`) plus
 --- credentials into dadbod's own connection URL convention
 --- (`driver://user:password@host:port/db`) by stripping the `jdbc:` prefix
@@ -224,7 +257,27 @@ local function build_entry(name, raw, source_path)
     return nil
   end
 
-  local url = jdbc_to_dadbod_url(raw.url, raw.username, raw.password)
+  local unresolved_vars = {}
+  local resolved_url, unresolved_url = resolve_placeholders(raw.url)
+  local resolved_username, unresolved_username = resolve_placeholders(raw.username)
+  local resolved_password, unresolved_password = resolve_placeholders(raw.password)
+  vim.list_extend(unresolved_vars, unresolved_url)
+  vim.list_extend(unresolved_vars, unresolved_username)
+  vim.list_extend(unresolved_vars, unresolved_password)
+
+  if #unresolved_vars > 0 then
+    ui.notify_warn(
+      string.format(
+        "Spring datasource in %s references environment variable(s) with no default and not set in this "
+          .. "session (%s) -- skipping this connection",
+        source_path,
+        table.concat(unresolved_vars, ", ")
+      )
+    )
+    return nil
+  end
+
+  local url = jdbc_to_dadbod_url(resolved_url, resolved_username, resolved_password)
   if not url then
     ui.notify_warn("Could not parse spring.datasource.url in " .. source_path .. " -- skipping this connection")
     return nil

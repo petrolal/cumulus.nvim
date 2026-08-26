@@ -68,6 +68,13 @@ baseline_commit: 'c39dd536efc5af54b0880b0b718d5ff48a3ab626'
 - Given a `.sql` buffer with an active DB connection, when the user triggers completion mid-query, then `vim-dadbod-completion` schema-aware suggestions appear alongside existing LSP/buffer sources.
 - Given `scripts/validate-db.sh` is run, then it exits 0 on success and exits non-zero (via `cquit 1`) on any assertion failure.
 
+## Spec Change Log
+
+- **Finding (post-ship, field report):** real-world `application.yaml` files (e.g. this project's own `ahun-duty-service`/`ahun-members-service`) wrap every `spring.datasource.*` value in Spring's standard `${ENV_VAR}` / `${ENV_VAR:default}` placeholder syntax. `discover_datasources` had no placeholder resolution, so `jdbc_to_dadbod_url` failed to match the scheme regex against the literal `${...}` text and every such project silently got "Could not parse spring.datasource.url" instead of a working connection — defeating the story's core credential-auto-discovery AC for what turned out to be the common case, not an edge case.
+- **Amendment:** added `resolve_placeholders` to `lua/cumulus/util/db.lua`, applied to `url`/`username`/`password` in `build_entry` before URL construction. Resolution mirrors Spring's own `PropertySourcesPlaceholderConfigurer`: a set, non-empty environment variable wins; otherwise the literal text after the first `:` (itself possibly containing `:`/`/`, e.g. a full JDBC URL default) is used; a placeholder with no default and no matching environment variable is left unresolved and reported by name in a dedicated warning (distinct from the generic "could not parse" message, so the user knows exactly which env var to set).
+- **Known-bad state avoided:** silently skipping (or worse, misreporting as a URL-syntax problem) the single most common real-world `application.yaml` shape.
+- **KEEP:** everything else in `db.lua` (pure-Lua-only, no engine, stateless discovery, percent-encoding, `.properties`-over-YAML precedence, `.yml`/`.yaml` equivalence) is unchanged and still correct — this amendment only adds a resolution step ahead of the existing URL-building logic.
+
 ## Design Notes
 
 Connection URL format follows dadbod's own convention (`driver://user:password@host:port/database`); `db.lua` should build this string directly from the extracted `spring.datasource.url` (already JDBC-style, e.g. `jdbc:postgresql://localhost:5432/mydb`) plus username/password rather than inventing a new format — strip the `jdbc:` prefix and splice in credentials.

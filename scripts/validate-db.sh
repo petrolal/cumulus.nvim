@@ -91,7 +91,29 @@ spring.datasource.username=user@corp
 spring.datasource.password=p@ss:word/1
 PROPS
 
-echo "[1/11] Static: db.lua module shape + tools-dadbod.lua wiring (supplementary only -- the real wiring behavior is exercised functionally below)..."
+# -- Spring ${VAR:default} placeholders (the real-world idiom this repo's
+# own field-testing hit: application.yaml commonly wraps every datasource
+# value in an env-var-with-default placeholder) --------------------------
+mkdir -p "$FIXTURE_ROOT/placeholder-with-default/src/main/resources"
+cat > "$FIXTURE_ROOT/placeholder-with-default/src/main/resources/application.yaml" <<'YAML'
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ahun_duty}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+YAML
+
+# -- Spring ${VAR} placeholders with NO default and no matching env var --
+mkdir -p "$FIXTURE_ROOT/placeholder-unresolved/src/main/resources"
+cat > "$FIXTURE_ROOT/placeholder-unresolved/src/main/resources/application.yaml" <<'YAML'
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+YAML
+
+echo "[1/13] Static: db.lua module shape + tools-dadbod.lua wiring (supplementary only -- the real wiring behavior is exercised functionally below)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -112,7 +134,7 @@ else
 end
 " -c "qa!"
 
-echo "[2/11] Functional: vim-dadbod-completion cmp source registration -- fresh buffer, no duplication on re-fire, and a buffer whose filetype was already sql BEFORE config() ran..."
+echo "[2/13] Functional: vim-dadbod-completion cmp source registration -- fresh buffer, no duplication on re-fire, and a buffer whose filetype was already sql BEFORE config() ran..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local spec = require('cumulus.plugins.tools-dadbod')
@@ -174,7 +196,7 @@ else
 end
 " -c "qa!"
 
-echo "[3/11] Functional: nvim-treesitter ensure_installed (resolved via the plugin spec's own opts function) contains \"sql\"..."
+echo "[3/13] Functional: nvim-treesitter ensure_installed (resolved via the plugin spec's own opts function) contains \"sql\"..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local spec = require('cumulus.plugins.tools-dadbod')
@@ -193,7 +215,7 @@ else
 end
 " -c "qa!"
 
-echo "[4/11] Functional: init() end-to-end sets vim.g.dbs to exactly what discover_datasources() returns for the project cwd..."
+echo "[4/13] Functional: init() end-to-end sets vim.g.dbs to exactly what discover_datasources() returns for the project cwd..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local root = '$FIXTURE_ROOT/props-only'
@@ -219,7 +241,7 @@ else
 end
 " -c "qa!"
 
-echo "[5/11] Functional: init() surfaces a WARN notification (and leaves vim.g.dbs unset) instead of silently swallowing a discover_datasources() error..."
+echo "[5/13] Functional: init() surfaces a WARN notification (and leaves vim.g.dbs unset) instead of silently swallowing a discover_datasources() error..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   package.loaded['cumulus.util.db'] = { discover_datasources = function() error('simulated discovery bug') end }
@@ -250,7 +272,7 @@ else
 end
 " -c "qa!"
 
-echo "[6/11] Behavioral: application.properties only -> one dadbod-style connection..."
+echo "[6/13] Behavioral: application.properties only -> one dadbod-style connection..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -271,7 +293,7 @@ else
 end
 " -c "qa!"
 
-echo "[7/11] Behavioral: application.yml AND application.yaml (both nested-indentation extensions Spring Boot recognizes) each produce one connection..."
+echo "[7/13] Behavioral: application.yml AND application.yaml (both nested-indentation extensions Spring Boot recognizes) each produce one connection..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -300,7 +322,7 @@ else
 end
 " -c "qa!"
 
-echo "[8/11] Behavioral: both application.properties and application.yml present -> properties wins, yml ignored..."
+echo "[8/13] Behavioral: both application.properties and application.yml present -> properties wins, yml ignored..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -321,7 +343,7 @@ else
 end
 " -c "qa!"
 
-echo "[9/11] Behavioral: no spring.datasource.* keys anywhere -> discover_datasources() returns an empty table, not an error (vim.g.dbs wiring itself is covered by [4/11]/[5/11], not asserted here)..."
+echo "[9/13] Behavioral: no spring.datasource.* keys anywhere -> discover_datasources() returns an empty table, not an error (vim.g.dbs wiring itself is covered by [4/13]/[5/13], not asserted here)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -338,7 +360,7 @@ else
 end
 " -c "qa!"
 
-echo "[10/11] Behavioral: partial/malformed datasource block (url without username/password) is skipped with a warning, no crash..."
+echo "[10/13] Behavioral: partial/malformed datasource block (url without username/password) is skipped with a warning, no crash..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local notified = {}
@@ -370,7 +392,7 @@ else
 end
 " -c "qa!"
 
-echo "[11/11] Behavioral: credentials containing URL-reserved characters (@, :, /) are percent-encoded, not spliced in raw..."
+echo "[11/13] Behavioral: credentials containing URL-reserved characters (@, :, /) are percent-encoded, not spliced in raw..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -387,6 +409,70 @@ if not ok then
   vim.cmd('cquit 1')
 else
   print('OK: reserved characters in username/password are percent-encoded before splicing into the connection URL')
+end
+" -c "qa!"
+
+echo "[12/13] Behavioral: \${VAR:default} placeholders resolve via the env var when set, else the literal default; JDBC-url-shaped defaults (containing their own ':' and '/') resolve intact..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  local root = '$FIXTURE_ROOT/placeholder-with-default'
+
+  -- No matching env vars set -> falls back to the literal defaults.
+  local dbs = db.discover_datasources(root)
+  assert(#dbs == 1, 'expected exactly 1 entry via defaults, got ' .. #dbs)
+  assert(
+    dbs[1].url == 'postgresql://postgres:postgres@localhost:5432/ahun_duty',
+    'defaults did not resolve correctly, got: ' .. tostring(dbs[1].url)
+  )
+
+  -- A set, non-empty env var must win over the placeholder's own default.
+  vim.env.SPRING_DATASOURCE_USERNAME = 'envwins'
+  local dbs2 = db.discover_datasources(root)
+  vim.env.SPRING_DATASOURCE_USERNAME = nil
+  assert(#dbs2 == 1, 'expected exactly 1 entry with env override, got ' .. #dbs2)
+  assert(
+    dbs2[1].url == 'postgresql://envwins:postgres@localhost:5432/ahun_duty',
+    'a set environment variable must override the placeholder default, got: ' .. tostring(dbs2[1].url)
+  )
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: \${VAR:default} placeholders resolve via env-var-wins-over-default, JDBC-shaped defaults intact')
+end
+" -c "qa!"
+
+echo "[13/13] Behavioral: \${VAR} placeholder with no default and no matching env var is skipped with a warning naming the unresolved variable(s) (not the generic 'could not parse' message)..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local notified = {}
+  local orig_notify = vim.notify
+  vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
+
+  local db = require('cumulus.util.db')
+  local root = '$FIXTURE_ROOT/placeholder-unresolved'
+  local dbs = db.discover_datasources(root)
+
+  vim.notify = orig_notify
+
+  assert(type(dbs) == 'table', 'discover_datasources must always return a table')
+  assert(#dbs == 0, 'an unresolved placeholder with no default must be skipped entirely, got ' .. #dbs .. ' entries')
+
+  local saw_specific_warn = false
+  for _, n in ipairs(notified) do
+    if n.level == vim.log.levels.WARN and tostring(n.msg):match('SPRING_DATASOURCE_URL') then
+      saw_specific_warn = true
+    end
+  end
+  assert(saw_specific_warn, 'expected a WARN notification naming the unresolved SPRING_DATASOURCE_URL variable')
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: unresolved \${VAR} placeholder (no default, no env) skipped with a warning naming the variable')
 end
 " -c "qa!"
 
