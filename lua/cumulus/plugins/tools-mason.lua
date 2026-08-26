@@ -27,7 +27,6 @@ local ensure_installed = {
   "kotlin-language-server",
   "kotlin-debug-adapter",
   "ktlint",
-  "metals",
   "groovy-language-server",
   "npm-groovy-lint",
   "superhtml",

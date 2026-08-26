@@ -176,7 +176,6 @@ if nvim -u init.lua --headless "+lua
   end
 
   -- SPEC-1.1: Advanced JVM Debugger (nvim-dap integration) -- Scala/Metals
-  assert(ensure_set['metals'], 'Missing Mason package: metals')
   local lsp_scala_ok, lsp_scala_spec = pcall(require, 'cumulus.plugins.lsp-scala')
   assert(lsp_scala_ok, 'cumulus.plugins.lsp-scala failed to load: ' .. tostring(lsp_scala_spec))
   assert(type(lsp_scala_spec) == 'table' and type(lsp_scala_spec[1]) == 'table', 'lsp-scala must return a valid lazy.nvim spec table')
