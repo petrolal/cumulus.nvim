@@ -113,7 +113,26 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
 YAML
 
-echo "[1/13] Static: db.lua module shape + tools-dadbod.lua wiring (supplementary only -- the real wiring behavior is exercised functionally below)..."
+# -- ${VAR} placeholders with NO default, resolved via a project-root .env
+# file instead -- the documented local-dev convention this repo's own
+# real-world field-testing project (ahun-members-service) actually uses.
+mkdir -p "$FIXTURE_ROOT/dotenv-resolved/src/main/resources"
+cat > "$FIXTURE_ROOT/dotenv-resolved/src/main/resources/application.yaml" <<'YAML'
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+YAML
+cat > "$FIXTURE_ROOT/dotenv-resolved/.env" <<'ENV'
+# comment and blank line should be ignored
+
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/ahun_members_service
+SPRING_DATASOURCE_USERNAME=ahun
+SPRING_DATASOURCE_PASSWORD="ahun"
+ENV
+
+echo "[1/14] Static: db.lua module shape + tools-dadbod.lua wiring (supplementary only -- the real wiring behavior is exercised functionally below)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -134,7 +153,7 @@ else
 end
 " -c "qa!"
 
-echo "[2/13] Functional: vim-dadbod-completion cmp source registration -- fresh buffer, no duplication on re-fire, and a buffer whose filetype was already sql BEFORE config() ran..."
+echo "[2/14] Functional: vim-dadbod-completion cmp source registration -- fresh buffer, no duplication on re-fire, and a buffer whose filetype was already sql BEFORE config() ran..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local spec = require('cumulus.plugins.tools-dadbod')
@@ -196,7 +215,7 @@ else
 end
 " -c "qa!"
 
-echo "[3/13] Functional: nvim-treesitter ensure_installed (resolved via the plugin spec's own opts function) contains \"sql\"..."
+echo "[3/14] Functional: nvim-treesitter ensure_installed (resolved via the plugin spec's own opts function) contains \"sql\"..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local spec = require('cumulus.plugins.tools-dadbod')
@@ -215,7 +234,7 @@ else
 end
 " -c "qa!"
 
-echo "[4/13] Functional: init() end-to-end sets vim.g.dbs to exactly what discover_datasources() returns for the project cwd..."
+echo "[4/14] Functional: init() end-to-end sets vim.g.dbs to exactly what discover_datasources() returns for the project cwd..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local root = '$FIXTURE_ROOT/props-only'
@@ -241,7 +260,7 @@ else
 end
 " -c "qa!"
 
-echo "[5/13] Functional: init() surfaces a WARN notification (and leaves vim.g.dbs unset) instead of silently swallowing a discover_datasources() error..."
+echo "[5/14] Functional: init() surfaces a WARN notification (and leaves vim.g.dbs unset) instead of silently swallowing a discover_datasources() error..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   package.loaded['cumulus.util.db'] = { discover_datasources = function() error('simulated discovery bug') end }
@@ -272,7 +291,7 @@ else
 end
 " -c "qa!"
 
-echo "[6/13] Behavioral: application.properties only -> one dadbod-style connection..."
+echo "[6/14] Behavioral: application.properties only -> one dadbod-style connection..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -293,7 +312,7 @@ else
 end
 " -c "qa!"
 
-echo "[7/13] Behavioral: application.yml AND application.yaml (both nested-indentation extensions Spring Boot recognizes) each produce one connection..."
+echo "[7/14] Behavioral: application.yml AND application.yaml (both nested-indentation extensions Spring Boot recognizes) each produce one connection..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -322,7 +341,7 @@ else
 end
 " -c "qa!"
 
-echo "[8/13] Behavioral: both application.properties and application.yml present -> properties wins, yml ignored..."
+echo "[8/14] Behavioral: both application.properties and application.yml present -> properties wins, yml ignored..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -343,7 +362,7 @@ else
 end
 " -c "qa!"
 
-echo "[9/13] Behavioral: no spring.datasource.* keys anywhere -> discover_datasources() returns an empty table, not an error (vim.g.dbs wiring itself is covered by [4/13]/[5/13], not asserted here)..."
+echo "[9/14] Behavioral: no spring.datasource.* keys anywhere -> discover_datasources() returns an empty table, not an error (vim.g.dbs wiring itself is covered by [4/14]/[5/14], not asserted here)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -360,7 +379,7 @@ else
 end
 " -c "qa!"
 
-echo "[10/13] Behavioral: partial/malformed datasource block (url without username/password) is skipped with a warning, no crash..."
+echo "[10/14] Behavioral: partial/malformed datasource block (url without username/password) is skipped with a warning, no crash..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local notified = {}
@@ -392,7 +411,7 @@ else
 end
 " -c "qa!"
 
-echo "[11/13] Behavioral: credentials containing URL-reserved characters (@, :, /) are percent-encoded, not spliced in raw..."
+echo "[11/14] Behavioral: credentials containing URL-reserved characters (@, :, /) are percent-encoded, not spliced in raw..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -412,7 +431,7 @@ else
 end
 " -c "qa!"
 
-echo "[12/13] Behavioral: \${VAR:default} placeholders resolve via the env var when set, else the literal default; JDBC-url-shaped defaults (containing their own ':' and '/') resolve intact..."
+echo "[12/14] Behavioral: \${VAR:default} placeholders resolve via the env var when set, else the literal default; JDBC-url-shaped defaults (containing their own ':' and '/') resolve intact..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -444,7 +463,7 @@ else
 end
 " -c "qa!"
 
-echo "[13/13] Behavioral: \${VAR} placeholder with no default and no matching env var is skipped with a warning naming the unresolved variable(s) (not the generic 'could not parse' message)..."
+echo "[13/14] Behavioral: \${VAR} placeholder with no default and no matching env var is skipped with a warning naming the unresolved variable(s) (not the generic 'could not parse' message)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local notified = {}
@@ -473,6 +492,37 @@ if not ok then
   vim.cmd('cquit 1')
 else
   print('OK: unresolved \${VAR} placeholder (no default, no env) skipped with a warning naming the variable')
+end
+" -c "qa!"
+
+echo "[14/14] Behavioral: \${VAR} placeholders with no default resolve via a project-root .env file (export prefix, comments, quoted values all handled); a real env var still wins over .env..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  local root = '$FIXTURE_ROOT/dotenv-resolved'
+
+  local dbs = db.discover_datasources(root)
+  assert(#dbs == 1, 'expected exactly 1 entry via .env resolution, got ' .. #dbs)
+  assert(
+    dbs[1].url == 'postgresql://ahun:ahun@localhost:5432/ahun_members_service',
+    '.env values did not resolve correctly, got: ' .. tostring(dbs[1].url)
+  )
+
+  -- A real process env var must still take precedence over the .env file.
+  vim.env.SPRING_DATASOURCE_USERNAME = 'realenvwins'
+  local dbs2 = db.discover_datasources(root)
+  vim.env.SPRING_DATASOURCE_USERNAME = nil
+  assert(#dbs2 == 1, 'expected exactly 1 entry, got ' .. #dbs2)
+  assert(
+    dbs2[1].url == 'postgresql://realenvwins:ahun@localhost:5432/ahun_members_service',
+    'a real environment variable must win over the .env file, got: ' .. tostring(dbs2[1].url)
+  )
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: .env file resolves unresolved placeholders; a real env var still takes precedence over it')
 end
 " -c "qa!"
 

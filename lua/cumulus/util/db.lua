@@ -157,29 +157,77 @@ local function url_encode(str)
   end))
 end
 
+--- Parse a plain `.env` file (`KEY=VALUE` lines, `#` comments, an optional
+--- leading `export `, optional surrounding quotes on the value) into a
+--- lookup table. Not a full dotenv implementation -- no variable
+--- interpolation, no multi-line values -- just enough to resolve the
+--- `${VAR}` placeholders discover_datasources() needs.
+---@param lines string[]
+---@return table<string, string>
+local function parse_dotenv_lines(lines)
+  local values = {}
+  for _, line in ipairs(lines) do
+    local trimmed = line:match("^%s*(.-)%s*$")
+    if trimmed ~= "" and not trimmed:match("^#") then
+      trimmed = trimmed:gsub("^export%s+", "")
+      local key, val = trimmed:match("^([%w_]+)%s*=%s*(.-)%s*$")
+      if key then
+        values[key] = unquote(val)
+      end
+    end
+  end
+  return values
+end
+
+--- Load `root_dir/.env`, if present, as a fallback `${VAR}` resolution
+--- source. Very common in local Spring Boot dev (IntelliJ's EnvFile plugin,
+--- `direnv`, manually-sourced `.env` files, etc. all populate exactly this
+--- shape) for projects that document "create a .env file" rather than
+--- exporting SPRING_DATASOURCE_* in the shell cumulus.nvim itself inherits.
+---@param root_dir string
+---@return table<string, string>
+local function load_dotenv(root_dir)
+  local path = root_dir .. "/.env"
+  if vim.fn.filereadable(path) ~= 1 then
+    return {}
+  end
+  local ok, lines = pcall(vim.fn.readfile, path)
+  if not ok then
+    return {}
+  end
+  return parse_dotenv_lines(lines)
+end
+
 --- Resolve Spring `${ENV_VAR}` / `${ENV_VAR:default}` placeholders in a
---- config value against the current process environment, mirroring Spring
---- Boot's own PropertySourcesPlaceholderConfigurer semantics: a set,
---- non-empty environment variable always wins; otherwise the literal text
---- after the first `:` (which may itself contain `:` or `/`, e.g. a full
---- JDBC URL default) is used; a placeholder with no default and no matching
---- environment variable is left as `${VAR_NAME}` and reported as unresolved.
---- Values with no `${...}` at all pass through unchanged.
+--- config value, mirroring Spring Boot's own
+--- PropertySourcesPlaceholderConfigurer semantics: a set, non-empty process
+--- environment variable always wins; otherwise a matching key in the
+--- project's `root_dir/.env` file (if any) is used, since that's how these
+--- variables actually reach the app in the common local-dev setup; otherwise
+--- the literal text after the first `:` (which may itself contain `:` or
+--- `/`, e.g. a full JDBC URL default) is used; a placeholder with no default
+--- and no match anywhere is left as `${VAR_NAME}` and reported as
+--- unresolved. Values with no `${...}` at all pass through unchanged.
 ---@param value string
+---@param dotenv table<string, string> from load_dotenv()
 ---@return string resolved
 ---@return string[] unresolved names of `${VAR}`/`${VAR:default}` placeholders that could not be resolved
-local function resolve_placeholders(value)
+local function resolve_placeholders(value, dotenv)
   local unresolved = {}
   local resolved = value:gsub("%${([^}:]+):?([^}]*)}", function(var_name, default)
     local env_val = vim.env[var_name]
     if env_val and env_val ~= "" then
       return env_val
-    elseif default ~= "" then
-      return default
-    else
-      table.insert(unresolved, var_name)
-      return "${" .. var_name .. "}"
     end
+    local dotenv_val = dotenv[var_name]
+    if dotenv_val and dotenv_val ~= "" then
+      return dotenv_val
+    end
+    if default ~= "" then
+      return default
+    end
+    table.insert(unresolved, var_name)
+    return "${" .. var_name .. "}"
   end)
   return resolved, unresolved
 end
@@ -226,8 +274,9 @@ end
 ---@param name string
 ---@param raw { url?: string, username?: string, password?: string }
 ---@param source_path string
+---@param dotenv table<string, string> from load_dotenv()
 ---@return { name: string, url: string }?
-local function build_entry(name, raw, source_path)
+local function build_entry(name, raw, source_path, dotenv)
   local has_url = raw.url ~= nil
   local has_username = raw.username ~= nil
   local has_password = raw.password ~= nil
@@ -258,9 +307,9 @@ local function build_entry(name, raw, source_path)
   end
 
   local unresolved_vars = {}
-  local resolved_url, unresolved_url = resolve_placeholders(raw.url)
-  local resolved_username, unresolved_username = resolve_placeholders(raw.username)
-  local resolved_password, unresolved_password = resolve_placeholders(raw.password)
+  local resolved_url, unresolved_url = resolve_placeholders(raw.url, dotenv)
+  local resolved_username, unresolved_username = resolve_placeholders(raw.username, dotenv)
+  local resolved_password, unresolved_password = resolve_placeholders(raw.password, dotenv)
   vim.list_extend(unresolved_vars, unresolved_url)
   vim.list_extend(unresolved_vars, unresolved_username)
   vim.list_extend(unresolved_vars, unresolved_password)
@@ -268,8 +317,9 @@ local function build_entry(name, raw, source_path)
   if #unresolved_vars > 0 then
     ui.notify_warn(
       string.format(
-        "Spring datasource in %s references environment variable(s) with no default and not set in this "
-          .. "session (%s) -- skipping this connection",
+        "Spring datasource in %s references environment variable(s) not set in this session or in a "
+          .. "project-root .env file, with no default (%s) -- skipping this connection. Set them in your "
+          .. "shell, add a .env file at the project root, or add `:default` fallbacks in the config.",
         source_path,
         table.concat(unresolved_vars, ", ")
       )
@@ -297,11 +347,12 @@ end
 ---@return { name: string, url: string }[]
 function M.discover_datasources(root_dir)
   local dbs = {}
+  local dotenv = load_dotenv(root_dir)
 
   local prop_files = find_files(root_dir, "application.properties")
   for _, path in ipairs(prop_files) do
     local raw = parse_properties_lines(vim.fn.readfile(path))
-    local entry = build_entry(entry_name(root_dir, path, #prop_files), raw, path)
+    local entry = build_entry(entry_name(root_dir, path, #prop_files), raw, path, dotenv)
     if entry then
       table.insert(dbs, entry)
     end
@@ -318,7 +369,7 @@ function M.discover_datasources(root_dir)
   vim.list_extend(yml_files, find_files(root_dir, "application.yaml"))
   for _, path in ipairs(yml_files) do
     local raw = parse_yaml_lines(vim.fn.readfile(path))
-    local entry = build_entry(entry_name(root_dir, path, #yml_files), raw, path)
+    local entry = build_entry(entry_name(root_dir, path, #yml_files), raw, path, dotenv)
     if entry then
       table.insert(dbs, entry)
     end
