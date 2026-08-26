@@ -434,33 +434,6 @@ function M.setup_keymaps()
   end, { desc = "Flyway: Validate Migrations" })
 
   -- 5. Refactoring & JDTLS (<leader>jx)
-  map("n", "<leader>jxv", function()
-    local ok, jdtls = pcall(require, "jdtls")
-    if ok then
-      jdtls.extract_variable()
-    else
-      notify_error("jdtls is not loaded")
-    end
-  end, { desc = "JDTLS: Extract Variable" })
-
-  map("n", "<leader>jxc", function()
-    local ok, jdtls = pcall(require, "jdtls")
-    if ok then
-      jdtls.extract_constant()
-    else
-      notify_error("jdtls is not loaded")
-    end
-  end, { desc = "JDTLS: Extract Constant" })
-
-  map("v", "<leader>jxm", function()
-    local ok, jdtls = pcall(require, "jdtls")
-    if ok then
-      jdtls.extract_method(true)
-    else
-      notify_error("jdtls is not loaded")
-    end
-  end, { desc = "JDTLS: Extract Method" })
-
   map("n", "<leader>jxo", function()
     require("cumulus.util.engine").optimize_imports_buffer()
   end, { desc = "Optimize Java/Kotlin Imports" })

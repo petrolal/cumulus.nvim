@@ -28,6 +28,24 @@ local function get_first_root(roots, key)
   return items[1]
 end
 
+--- Resolve the search directory from buffer number or path
+--- @param buf_or_path? number|string
+--- @return string|nil
+local function resolve_search_dir(buf_or_path)
+  if type(buf_or_path) == "number" then
+    if vim.api.nvim_buf_is_valid(buf_or_path) then
+      local path = vim.api.nvim_buf_get_name(buf_or_path)
+      if path ~= "" then
+        return vim.fs.normalize(vim.fn.fnamemodify(path, ":h"))
+      end
+    end
+    return vim.fn.getcwd()
+  elseif type(buf_or_path) == "string" and buf_or_path ~= "" then
+    return vim.fs.normalize(buf_or_path)
+  end
+  return vim.fn.getcwd()
+end
+
 --- Factory function to create DevOps root finder
 --- @param root_key string Key in roots (terraform, sam, ansible, docker, helm)
 --- @return function Finder function that accepts buf_or_path parameter
@@ -48,24 +66,6 @@ local function create_root_finder(root_key)
     local roots = engine.discover_devops_roots(search_dir, { silent = true })
     return get_first_root(roots, root_key)
   end
-end
-
---- Resolve the search directory from buffer number or path
---- @param buf_or_path? number|string
---- @return string|nil
-local function resolve_search_dir(buf_or_path)
-  if type(buf_or_path) == "number" then
-    if vim.api.nvim_buf_is_valid(buf_or_path) then
-      local path = vim.api.nvim_buf_get_name(buf_or_path)
-      if path ~= "" then
-        return vim.fs.normalize(vim.fn.fnamemodify(path, ":h"))
-      end
-    end
-    return vim.fn.getcwd()
-  elseif type(buf_or_path) == "string" and buf_or_path ~= "" then
-    return vim.fs.normalize(buf_or_path)
-  end
-  return vim.fn.getcwd()
 end
 
 -- Root discovery functions using factory pattern to eliminate duplication

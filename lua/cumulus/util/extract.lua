@@ -16,7 +16,7 @@ local function notify_info(msg)
   vim.notify(msg, vim.log.levels.INFO, { title = "Cumulus Extract" })
 end
 
-local function handle_action_response(bufnr, jvm_client, action_name, responses, kind_prefix)
+local function handle_action_response(bufnr, jvm_client, action_name, responses, kind_prefix, title_substring)
   local resp = responses[jvm_client.id]
   if not resp or resp.err then
     local detail = resp and resp.err and resp.err.message or "no response from language server"
@@ -34,7 +34,9 @@ local function handle_action_response(bufnr, jvm_client, action_name, responses,
 
   local target_action = nil
   for _, action in ipairs(actions) do
-    if action.kind and vim.startswith(action.kind, kind_prefix) then
+    local kind_match = action.kind and vim.startswith(action.kind, kind_prefix)
+    local title_match = not title_substring or (action.title and string.find(action.title, title_substring, 1, true))
+    if kind_match and title_match then
       target_action = action
       break
     end
@@ -132,7 +134,7 @@ function M._show_preview(workspace_edit, jvm_client, action_name)
   end)
 end
 
-local function do_action(action_name, kind_prefix)
+local function do_action(action_name, kind_prefix, title_substring, is_visual)
   if M._busy then
     notify_warn("An action is already in progress -- please wait for it to finish")
     return
@@ -150,6 +152,19 @@ local function do_action(action_name, kind_prefix)
   M._busy = true
 
   local params = vim.lsp.util.make_range_params(win, jvm_client.offset_encoding)
+  
+  -- If in visual mode, make_range_params only uses cursor position, so we override it with '< and '>
+  if is_visual then
+    local start_pos = vim.api.nvim_buf_get_mark(bufnr, "<")
+    local end_pos = vim.api.nvim_buf_get_mark(bufnr, ">")
+    if start_pos[1] > 0 and end_pos[1] > 0 then
+      params.range = {
+        start = { line = start_pos[1] - 1, character = start_pos[2] },
+        ["end"] = { line = end_pos[1] - 1, character = end_pos[2] + 1 },
+      }
+    end
+  end
+
   params.context = {
     diagnostics = vim.diagnostic.get(bufnr, { lnum = params.range.start.line }),
     only = { kind_prefix },
@@ -178,17 +193,29 @@ local function do_action(action_name, kind_prefix)
     end
     responded = true
     vim.schedule(function()
-      handle_action_response(bufnr, jvm_client, action_name, responses, kind_prefix)
+      handle_action_response(bufnr, jvm_client, action_name, responses, kind_prefix, title_substring)
     end)
   end)
 end
 
-function M.extract_interface()
-  do_action("Extract interface", "refactor.extract.interface")
+function M.extract_interface(is_visual)
+  do_action("Extract interface", "refactor.extract.interface", nil, is_visual)
 end
 
-function M.inline()
-  do_action("Inline", "refactor.inline")
+function M.inline(is_visual)
+  do_action("Inline", "refactor.inline", nil, is_visual)
+end
+
+function M.extract_method(is_visual)
+  do_action("Extract method", "refactor.extract", "Extract to method", is_visual)
+end
+
+function M.extract_variable(is_visual)
+  do_action("Extract variable", "refactor.extract", "Extract to local variable", is_visual)
+end
+
+function M.extract_constant(is_visual)
+  do_action("Extract constant", "refactor.extract", "Extract to constant", is_visual)
 end
 
 return M
