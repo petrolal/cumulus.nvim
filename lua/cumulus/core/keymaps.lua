@@ -139,6 +139,71 @@ map("n", "<leader>Du", "<cmd>DBUIToggle<cr>", { desc = "Toggle Database UI" })
 map("n", "<leader>Df", "<cmd>DBUIFindBuffer<cr>", { desc = "Find DB Buffer" })
 map("n", "<leader>Da", "<cmd>DBUIAddConnection<cr>", { desc = "Add DB Connection" })
 
+-- HTTP Client & REST API Explorer Keymaps (kulala.nvim -- SPEC-3.2). The
+-- plugin itself is wired up in tools-http.lua; the two custom pieces this
+-- story adds (OpenAPI-to-.http generation, jq response filtering) live in
+-- cumulus.util.openapi / cumulus.util.http. Response/generated-template
+-- output always renders in a persistent split, never a floating window,
+-- per this epic's established UX pattern.
+local function cumulus_http_open_in_split(text, filetype, name_hint)
+  -- Vertical, matching tools-http.lua's kulala.nvim `split_direction = "right"`
+  -- so generated-template/jq-filtered output opens in the same orientation
+  -- as kulala's own response split.
+  vim.cmd("botright vsplit")
+  local bufnr = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_win_set_buf(0, bufnr)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(text, "\n", { plain = true }))
+  vim.bo[bufnr].filetype = filetype
+  vim.bo[bufnr].swapfile = false
+  vim.bo[bufnr].modified = false
+  pcall(vim.api.nvim_buf_set_name, bufnr, name_hint .. "-" .. tostring(bufnr))
+end
+
+map("n", "<leader>Hr", function()
+  if vim.bo.filetype ~= "http" then
+    require("cumulus.util.ui").notify_err(
+      "Open a .http file first -- <leader>Hr only runs requests from a .http buffer"
+    )
+    return
+  end
+  local ok, kulala = pcall(require, "kulala")
+  if not ok then
+    require("cumulus.util.ui").notify_err("kulala.nvim is not available -- open a .http file first")
+    return
+  end
+  kulala.run()
+end, { desc = "Run HTTP Request" })
+
+map("n", "<leader>Ho", function()
+  vim.ui.input({ prompt = "OpenAPI JSON spec path: ", completion = "file" }, function(spec_path)
+    if not spec_path or spec_path == "" then
+      return
+    end
+    local http_text = require("cumulus.util.openapi").generate_http_from_spec(spec_path)
+    if not http_text then
+      return -- cumulus.util.openapi already warned via ui.notify_warn
+    end
+    cumulus_http_open_in_split(http_text, "http", "generated")
+    require("cumulus.util.ui").notify_info("Generated .http request template from " .. spec_path)
+  end)
+end, { desc = "Generate .http from OpenAPI Spec" })
+
+map("n", "<leader>Hj", function()
+  local json_text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  if json_text == "" then
+    require("cumulus.util.ui").notify_warn("Current buffer is empty -- nothing to filter")
+    return
+  end
+  vim.ui.input({ prompt = "jq filter (e.g. .data): " }, function(filter_expr)
+    if not filter_expr or filter_expr == "" then
+      return
+    end
+    require("cumulus.util.http").jq_filter(json_text, filter_expr, function(result_text)
+      cumulus_http_open_in_split(result_text, "json", "jq-filtered")
+    end)
+  end)
+end, { desc = "jq-Filter Last Response" })
+
 -- Autoformat toggle (Story 34.2): <leader>uf toggles for the current
 -- buffer only, <leader>uF toggles the global default
 map("n", "<leader>uf", function()

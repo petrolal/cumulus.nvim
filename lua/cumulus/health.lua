@@ -184,6 +184,31 @@ function M.check()
     end
   end
 
+  vim.health.start("Cumulus HTTP Client & REST API Explorer (Story 3.2)")
+
+  local http_tools = {
+    {
+      name = "jq",
+      desc = "jq JSON processor (required for the <leader>Hj response-filtering keymap)",
+      install = "Install via apt install jq / brew install jq / pacman -S jq",
+    },
+  }
+
+  for _, tool in ipairs(http_tools) do
+    if vim.fn.executable(tool.name) == 1 then
+      vim.health.ok(string.format("%s: installed and executable", tool.name))
+    else
+      vim.health.info(string.format("%s: NOT found on $PATH (%s. Suggestion: %s)", tool.name, tool.desc, tool.install))
+    end
+  end
+
+  local kulala_ok = pcall(require, "kulala")
+  if kulala_ok then
+    vim.health.ok("kulala.nvim: resolvable (.http execution engine available)")
+  else
+    vim.health.warn("kulala.nvim: not resolvable -- open a .http file to lazy-load it, or run :Lazy sync")
+  end
+
   vim.health.start("Cumulus Signature Cloud Themes (Story 5.1)")
 
   -- Test engine theme support (Story 5.1: theme data from engine, not Lua files)

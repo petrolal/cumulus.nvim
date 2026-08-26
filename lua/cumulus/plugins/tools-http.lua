@@ -1,0 +1,35 @@
+-- Cumulus HTTP Client & REST API Explorer (Postman/IntelliJ HTTP Client
+-- Parity) -- SPEC-3.2
+--
+-- kulala.nvim is the sole .http execution/response engine (never a
+-- hand-written HTTP request executor, per the spec's "Never" boundary).
+-- This file only wires the plugin up; the custom pieces this story adds
+-- (OpenAPI-spec-to-.http generation, jq response filtering) live in
+-- cumulus.util.openapi / cumulus.util.http and are driven from the
+-- <leader>H keymap group in core/keymaps.lua -- mirroring how
+-- tools-dadbod.lua owns only the plugin spec while <leader>D's actual
+-- keymaps live in keymaps.lua.
+
+return {
+  {
+    "mistweaverco/kulala.nvim",
+    -- Lazy-load on .http buffers only -- never on the wider set kulala's
+    -- own README suggests (http/rest/javascript/lua), since this story's
+    -- scope is the .http workflow, not kulala's JS/TS scripting surface.
+    ft = { "http" },
+    opts = {
+      ui = {
+        -- Force a persistent split, never a floating window, per this
+        -- epic's established response-display UX pattern. "split" is a
+        -- documented kulala.nvim option (kulala/config/defaults.lua's
+        -- ui.display_mode, one of "split"|"float"), so no custom
+        -- workaround is needed here.
+        display_mode = "split",
+        split_direction = "right",
+      },
+    },
+    config = function(_, opts)
+      require("kulala").setup(opts)
+    end,
+  },
+}
