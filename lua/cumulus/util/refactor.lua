@@ -267,14 +267,18 @@ function M.project_rename(new_name)
   end
 
   if new_name == nil then
+    M._busy = true
     vim.ui.input({ prompt = "Project-wide rename '" .. old_name .. "' to: ", default = old_name }, function(input)
       if not input or input == "" then
+        M._busy = false
         return
       end
       if input == old_name then
         notify_info("New name is the same as the current name -- nothing to do")
+        M._busy = false
         return
       end
+      -- _do_rename already sets M._busy = true, so this is just safe pass
       M._do_rename(bufnr, win, jvm_client, old_name, input)
     end)
     return

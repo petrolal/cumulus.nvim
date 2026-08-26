@@ -82,7 +82,7 @@ end
 ---@param lines string[]
 ---@return string|nil
 function M.file_package(lines)
-  for i = 1, math.min(#lines, 20) do
+  for i = 1, #lines do
     local line = lines[i]
     if line then
       local pkg = line:match("^%s*package%s+([%w_.]+)%s*;?%s*$")
@@ -385,11 +385,11 @@ function M.raw_hits_async(root, symbol, callback)
     "--vimgrep",
     "--fixed-strings",
     "--word-regexp",
-    "--glob",
+    "--iglob",
     "*.java",
-    "--glob",
+    "--iglob",
     "*.kt",
-    "--glob",
+    "--iglob",
     "*.xml",
     symbol,
     root,
@@ -424,9 +424,9 @@ function M._grep_fallback(root, symbol, parse_grep, finish)
       "-rn",
       "-F",
       "-w",
-      "--include=*.java",
-      "--include=*.kt",
-      "--include=*.xml",
+      "--include=*.[jJ][aA][vV][aA]",
+      "--include=*.[kK][tT]",
+      "--include=*.[xX][mM][lL]",
       -- Unlike rg (which honors .gitignore by default), grep has no
       -- built-in exclusions -- keep it out of the usual non-source dirs.
       "--exclude-dir=.git",
@@ -498,15 +498,24 @@ function M.scan_root_async(root, symbol, old_package, callback)
     -- hit for that line would classify to the SAME span. Classify once per
     -- unique line instead and let classify_* enumerate every occurrence.
     local by_file = {}
+    local unique_files = {}
     for _, hit in ipairs(hits) do
-      by_file[hit.file] = by_file[hit.file] or {}
+      if not by_file[hit.file] then
+        by_file[hit.file] = {}
+        unique_files[#unique_files + 1] = hit.file
+      end
       by_file[hit.file][hit.lnum] = by_file[hit.file][hit.lnum] or hit
     end
 
     local items = {}
     local failed_files = {}
 
-    for file, lnum_hits in pairs(by_file) do
+    local file_idx = 1
+    local function process_chunk()
+      local chunk_end = math.min(file_idx + 10, #unique_files)
+      for i = file_idx, chunk_end do
+        local file = unique_files[i]
+        local lnum_hits = by_file[file]
       local ext = (file:match("%.([%w]+)$") or ""):lower()
       local ok, lines = pcall(vim.fn.readfile, file)
       if not ok or not lines then
@@ -567,20 +576,26 @@ function M.scan_root_async(root, symbol, old_package, callback)
           end
         end
       end
+      
+      file_idx = chunk_end + 1
+      if file_idx <= #unique_files then
+        vim.schedule(process_chunk)
+      else
+        if #failed_files > 0 then
+          vim.notify(
+            "Spring-reference scan could not read "
+              .. #failed_files
+              .. " candidate file(s), coverage may be incomplete: "
+              .. table.concat(failed_files, ", "),
+            vim.log.levels.WARN,
+            { title = "Cumulus Refactor" }
+          )
+        end
+        callback(items)
+      end
     end
-
-    if #failed_files > 0 then
-      vim.notify(
-        "Spring-reference scan: could not read "
-          .. #failed_files
-          .. " candidate file(s), coverage may be incomplete: "
-          .. table.concat(failed_files, ", "),
-        vim.log.levels.WARN,
-        { title = "Cumulus Refactor" }
-      )
-    end
-
-    callback(items)
+    
+    process_chunk()
   end)
 end
 

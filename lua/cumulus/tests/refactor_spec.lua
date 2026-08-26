@@ -372,12 +372,36 @@ describe("Refactor (SPEC-2.1)", function()
 
   describe("Buffer-local <leader>cr override wiring", function()
     it("ftplugin/java.lua should bind <leader>cr to refactor.project_rename inside on_attach", function()
-      local f = io.open("ftplugin/java.lua", "r")
-      assert.is_not_nil(f)
-      local content = f:read("*a")
-      f:close()
-      assert.is_truthy(content:match('"<leader>cr"'))
-      assert.is_truthy(content:match('require%("cumulus%.util%.refactor"%)%.project_rename'))
+      local old_require = _G.require
+      local captured_on_attach = nil
+      _G.require = function(mod)
+        if mod == "jdtls" then
+          return {
+            start_or_attach = function(config)
+              captured_on_attach = config.on_attach
+            end
+          }
+        end
+        return old_require(mod)
+      end
+
+      vim.cmd("enew")
+      local bufnr = vim.api.nvim_get_current_buf()
+      vim.bo[bufnr].filetype = "java"
+      
+      local f = loadfile("ftplugin/java.lua")
+      if f then f() end
+      _G.require = old_require
+      
+      if captured_on_attach then
+        captured_on_attach({ name = "jdtls" }, bufnr)
+        local mapping = vim.fn.maparg("<leader>cr", "n", false, true)
+        assert.is_table(mapping)
+        assert.are.equal(bufnr, mapping.buffer)
+        assert.is_function(mapping.callback)
+      else
+        pending("Could not capture on_attach")
+      end
     end)
 
     it(

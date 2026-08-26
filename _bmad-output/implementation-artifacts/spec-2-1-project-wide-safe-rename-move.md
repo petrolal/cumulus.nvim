@@ -178,3 +178,10 @@ Use the quickfix list (`vim.fn.setqflist` + `:copen`) as the dry-run preview, no
 
 - End-to-end fixture covering duplicate occurrences, LSP/Spring overlap, a commented bean, and a cross-package tree.
   [`validate-refactor.sh:119`](../../scripts/validate-refactor.sh#L119)
+
+### Review Findings
+- [x] [Review][Patch] `file_package` only scans first 20 lines [lua/cumulus/util/refactor-treesitter.lua:84]
+- [x] [Review][Patch] Broken verification of Java buffer-local keymap [lua/cumulus/tests/refactor_spec.lua:398]
+- [x] [Review][Patch] Editor Thread Blocked During Scan [lua/cumulus/util/refactor-treesitter.lua:1247]
+- [x] [Review][Patch] Case-Sensitive Shell Globs Miss Uppercase Extensions [lua/cumulus/util/refactor-treesitter.lua:1145]
+- [x] [Review][Patch] Re-entrancy Guard Gap During User Prompt [lua/cumulus/util/refactor.lua:1598]

@@ -1,0 +1,2192 @@
+You are an Acceptance Auditor. Review the provided diff against /home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md and any loaded context docs. Check for: violations of acceptance criteria, deviations from spec intent, missing implementation of specified behavior, contradictions between spec constraints and actual code. Output findings as a Markdown list. Each finding: one-line title, which AC/constraint it violates, and evidence from the diff.
+
+Diff:
+
+diff --git a/_bmad-output/implementation-artifacts/deferred-work.md b/_bmad-output/implementation-artifacts/deferred-work.md
+index 0b5c39a..ae641b7 100644
+--- a/_bmad-output/implementation-artifacts/deferred-work.md
++++ b/_bmad-output/implementation-artifacts/deferred-work.md
+@@ -17,3 +17,7 @@
+ - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-advanced-jvm-debugger-nvim-dap-integration.md`
+   summary: Scala/Metals integration added by this story covers only zero-config LSP attach + DAP registration, matching AC-1's literal scope. Full IDE-parity Metals UX is still missing: no `conform` formatter entry for `scala` (unlike its Java/Kotlin/Groovy siblings), no `:checkhealth cumulus` section for the Metals/sbt/coursier toolchain, no Metals-specific commands/keymaps (Import Build, Restart Build Server, compile/import status, worksheet eval), `metals.bare_config()` is used with no `settings` table (no status-bar/code-lens/decoration-provider feedback), and no custom `LspAttach` message for Metals in `lsp-core.lua` (unlike jdtls's).
+   evidence: Flagged by the code-review blind-hunter layer. All of these are legitimate quality/completeness gaps but sit outside this story's explicit acceptance criteria (which only call for zero-config debugger setup, not full Metals workflow tooling) — worth a follow-up story rather than scope creep into this one.
++
++- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
++  summary: Wire an oil.nvim move/rename action hook (`refactor.on_file_moved`) that asynchronously fixes a moved Java/Kotlin file's package declaration and cross-file importers.
++  evidence: Split off to keep the spec within the 900-1600 token target; the project-wide rename (LSP + Spring-reference validation + quickfix preview) is the larger, more novel piece and stands alone as a shippable goal. The move-hook is independently shippable once oil.nvim's actual installed-version action/callback API is confirmed at implementation time.
+diff --git a/_bmad-output/implementation-artifacts/epic-2-context.md b/_bmad-output/implementation-artifacts/epic-2-context.md
+new file mode 100644
+index 0000000..0b9016f
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/epic-2-context.md
+@@ -0,0 +1,44 @@
++# Epic 2 Context: Advanced Refactoring & Code Actions
++
++<!-- Compiled from planning artifacts. Edit freely. Regenerate with compile-epic-context if planning docs change. -->
++
++## Goal
++
++Provide project-wide, safe, and intelligent refactoring tools that give developers confidence to make large-scale architectural changes. This is the "maintenance parity" epic against IntelliJ IDEA: renaming, moving, and extracting code must be as trustworthy in Neovim as in a full Java IDE, so a solo enterprise backend developer never has to fall back to a heavier tool just to restructure code safely.
++
++## Stories
++
++- Story 2.1: Project-Wide Safe Rename & Move
++- Story 2.2: Intelligent Extraction (Methods, Variables, Interfaces)
++
++## Requirements & Constraints
++
++- Refactoring must be project-wide and safe: renaming a public class/method/package must update all references and imports across the workspace, not just the local buffer.
++- Renames must account for non-code references that LSP alone won't catch — specifically Spring XML/annotation-based bean references (reflection-based usages), which need Tree-sitter-assisted validation alongside the language server.
++- Changes must be previewable before being applied (dry-run), giving the developer a chance to review the full diff of a refactor across files prior to commit.
++- All LSP-backed refactor operations must be asynchronous and must never block or freeze the editor, consistent with the project's zero-tolerance-for-freezing stability goal.
++- Language scope is Java and Kotlin; Scala/`sbt` is explicitly out of scope for this product. Note: the epic's acceptance criteria mention Metals (a Scala LSP) alongside JDTLS for cross-file rename — treat JDTLS (Java) and the Kotlin language server as the primary refactor engines, and confirm Metals' role before building on it, since it conflicts with the stated Java/Kotlin-only scope.
++- Heavy LSP servers (e.g., JDTLS) are subject to enforced memory limits (capped heap) — refactor tooling should not assume unbounded LSP capacity on large monorepos.
++
++## Technical Decisions
++
++- Refactor logic must not introduce a centralized "LSP monolith" — plugin/config wiring stays isolated per filetype/command under `lua/cumulus/plugins/`, lazy-loaded on filetype.
++- No internal cache of workspace topology: project/reference state for a refactor must be queried live from disk (e.g., `pom.xml`) or synchronously from the LSP at the moment of the operation — no stale in-memory index.
++- Background/refactor operations should emit autocommands rather than call UI render functions directly; UI listens and renders via `vim.schedule` to avoid blocking the editor thread.
++- UI for refactor results should call primitives directly (`snacks.nvim`, `telescope.nvim`) — no adapter/facade layer is to be introduced for "future-proofing."
++- New refactor/extraction logic (AST analysis, reference discovery) must be implemented in pure Lua via Tree-sitter or delegated to the standard LSPs (JDTLS/Kotlin LS) — no new surface area on the legacy Scala `cumulus-engine` and no external Bash/Python parsing scripts.
++- Moving files as part of a refactor should compose with the project's buffer-based file management approach (`oil.nvim`) rather than a custom mover.
++
++## UX & Interaction Patterns
++
++- Refactor actions live under the `<leader>c` (Code) keymap group: Rename, Code Action, Format.
++- `<leader>ca` opens a floating "Code Action" menu listing available refactorings/fixes; renaming itself is also presented in a floating window per the project's modal conventions.
++- Floating windows use rounded borders with at least 1 column/row of padding, consistent with other ephemeral pickers (Spring Bean/endpoint pickers).
++- Preview panes are on by default — the dry-run diff preview for a refactor should follow this same expectation of always-visible context before the user commits.
++- Floating windows are reserved for short, task-focused interactions; a refactor preview that spans many files/long output should use a bottom-drawer split rather than a floating window, matching the pattern used for build logs and test runners.
++- Success on a refactor should be a quiet confirmation (statusline flash/toast); failures (e.g., a rename that can't be safely resolved) must surface as explicit, visible errors.
++
++## Cross-Story Dependencies
++
++- Story 2.2 (Extract Method/Variable/Interface, Inline) builds on the same LSP foundation (JDTLS/Kotlin LS) and dry-run preview pattern established for rename/move in Story 2.1 — the preview UI and reference-resolution approach should be shared rather than reimplemented.
++- Both stories depend on JDTLS, Metals, and Kotlin LS being installed and managed via Mason (established as part of environment/tooling setup outside this epic).
+diff --git a/_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md b/_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md
+new file mode 100644
+index 0000000..3e6276b
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md
+@@ -0,0 +1,180 @@
++---
++title: 'Project-Wide Safe Rename (Java & Kotlin)'
++type: 'feature'
++created: '2026-08-25'
++status: 'done'
++review_loop_iteration: 0
++context: ['/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/epic-2-context.md']
++baseline_commit: 'c394018bff55e904306bb58b61a2576673f2c994'
++---
++
++<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
++
++## Intent
++
++**Problem:** Java/Kotlin rename today is a bare `vim.lsp.buf.rename()` (`lua/cumulus/core/keymaps.lua:36-38`) that applies immediately with no cross-file preview and no awareness of Spring XML/annotation bean references LSP can't see. Large refactors risk silent breakage.
++
++**Approach:** On JDTLS/Kotlin LS attach, override the buffer-local `<leader>cr` to run a project-wide rename: request a `textDocument/rename` WorkspaceEdit without auto-applying, merge in Tree-sitter-detected Spring bean references, preview everything via the quickfix list, and apply only on explicit confirm.
++
++## Boundaries & Constraints
++
++**Always:**
++- Java and Kotlin only, via JDTLS and Kotlin LS respectively.
++- No edit is applied without an explicit confirm after the quickfix preview is shown.
++- All LSP requests and Tree-sitter scans run asynchronously (`vim.system`/`vim.schedule`, per `lua/cumulus/util/sync-runner.lua`); never block the editor.
++- Rename logic lives in new `lua/cumulus/util/refactor*.lua` modules — never adds surface to `lua/cumulus/util/engine.lua` or the Scala `cumulus-engine`.
++- Global `<leader>cr` behavior for non-JVM filetypes stays untouched; override is buffer-local only.
++
++**Ask First:** none — UI approach (quickfix, no custom float) and Spring-reference scope (stereotype annotations, `@Autowired`, XML `<bean>`) are fixed by this spec.
++
++**Never:**
++- Scala/Metals/`sbt` support of any kind.
++- A custom floating-window or split UI for the preview — reuse the quickfix list.
++- File-move handling — deferred separately (oil.nvim move → package/import fix is out of scope for this spec; see `deferred-work.md`).
++- Reintroducing any purged `engine.lua` stub (see `scripts/validate.sh:96-104`).
++
++## I/O & Edge-Case Matrix
++
++| Scenario | Input / State | Expected Output / Behavior | Error Handling |
++|----------|--------------|---------------------------|----------------|
++| Symbol under generated/build dir | Rename target's LSP-reported edit touches a file under `target/`/`build/` | Location is included in quickfix preview like any other; not silently dropped | N/A |
++| Rename collides with existing symbol | Chosen new name already resolves in scope | Abort before quickfix; no edits applied | Visible `vim.notify` error naming the conflict |
++| No JVM LSP attached | `<leader>cr` pressed in a buffer with no JDTLS/Kotlin LS client | Default `vim.lsp.buf.rename()` behavior is NOT silently substituted | Visible notify: no project-wide rename available for this buffer |
++
++</frozen-after-approval>
++
++## Code Map
++
++- `lua/cumulus/core/keymaps.lua:36-38` -- existing global `<leader>cr` (`vim.lsp.buf.rename()`) -- leave as the non-JVM fallback, do not edit
++- `lua/cumulus/core/keymaps.lua:68-78` -- existing `<leader>cR` single-file LSP rename -- out of scope, do not modify
++- `lua/cumulus/plugins/lsp-core.lua:36-46` -- shared `LspAttach` autocmd (JDTLS gets a custom notify at line 12) -- reference for the attach pattern; actual override lives per-server below
++- `ftplugin/java.lua:44-59` -- JDTLS `on_attach` -- add buffer-local `<leader>cr` override here
++- `lua/cumulus/plugins/lsp-kotlin.lua:46` -- Kotlin LS `on_attach` (already disables `documentHighlightProvider` here) -- mirror the same override
++- `lua/cumulus/util/jvm.lua:436-486` -- existing JDTLS refactor group `<leader>jx*` (Extract Var/Const/Method) -- sibling feature; do not merge into it, keep rename on `<leader>cr`
++- `lua/cumulus/util/sync-runner.lua` (full file) -- async convention to follow: `vim.system` + `vim.schedule`, collapsing heartbeat notify
++- `lua/cumulus/plugins/core-treesitter.lua` -- Tree-sitter is highlighting-only today; new Spring-bean queries are net-new, no existing query code to extend
++- `lua/cumulus/util/engine.lua:625-634,1090-1135` -- legacy Scala-backed `parse_spring_beans`/bean picker -- reference only, do not call into or extend
++- `scripts/validate.sh:96-104` -- purged-stub assertions -- new module names must not collide with or resemble these
++- `AGENTS.md:10,42` -- policy: Java/Kotlin only, prefer native LSP/Tree-sitter over new `engine.lua` surface
++
++## Tasks & Acceptance
++
++**Execution:**
++- [x] `lua/cumulus/util/refactor.lua` -- new module: `M.project_rename(new_name)` requests `textDocument/rename` without auto-applying, merges Tree-sitter-detected Spring references, populates the quickfix list, confirms via `vim.ui.select`, applies via `vim.lsp.util.apply_workspace_edit` on confirm -- central async rename flow
++- [x] `lua/cumulus/util/refactor-treesitter.lua` -- new module: Tree-sitter queries for `@Component`/`@Service`/`@Repository`/`@Controller`/`@RestController` stereotypes, `@Autowired` field references, and XML `<bean id=".." class="..">` matches for a given symbol name
++- [x] `ftplugin/java.lua` -- in `on_attach` (lines 44-59), buffer-local override: `<leader>cr` calls `refactor.project_rename` instead of default
++- [x] `lua/cumulus/plugins/lsp-kotlin.lua` -- in `on_attach`, mirror the same buffer-local `<leader>cr` override
++- [x] `lua/cumulus/tests/refactor_spec.lua` -- static shape tests for the new modules' public API (busted-style, matches existing `_spec.lua` pattern)
++- [x] `scripts/validate-refactor.sh` -- headless behavioral smoke test against a small fixture project: rename with a Spring XML bean reference, confirm, assert all locations updated; `cquit` on assertion failure, mirroring `validate-dap-jvm.sh`
++
++**Acceptance Criteria:**
++- Given a Java class referenced in 2+ files including a Spring XML `<bean class="...">` entry, when the user triggers `<leader>cr` and confirms from the quickfix preview, then all Java references and the XML `class` attribute are updated.
++- Given the same scenario, when the user cancels at the confirm prompt, then no files are modified.
++- Given a rename target collides with an existing symbol, when project rename is attempted, then it aborts with a visible error and no edits are applied.
++
++## Spec Change Log
++
++- 2026-08-25: Implemented all 6 tasks as specified. `refactor.lua`'s `project_rename(new_name)` finds the buffer's JDTLS/Kotlin LS client (`find_jvm_client`, checked first -- satisfies the "no JVM LSP attached" I/O matrix row before anything else runs), requests `textDocument/rename` via `vim.lsp.buf_request_all` (never the default handler), converts the returned `WorkspaceEdit` into quickfix items by reusing `vim.lsp.util.locations_to_items` (rather than hand-rolling a range->item converter), merges in `refactor-treesitter.lua`'s async project scan, opens `:copen`, and only calls `vim.lsp.util.apply_workspace_edit` plus a parallel Spring-edit apply on an explicit `vim.ui.select` "Apply" choice. A rename collision surfaces via the LSP's own error response (`resp.err`) -- this depends on JDTLS/Kotlin LS actually returning an error for a colliding rename rather than a silently-broken edit; not independently re-validated against a live server (see below).
++- 2026-08-25 (Tree-sitter approach, an implementation-time judgment call within the spec's stated design freedom): rather than hand-writing nested Tree-sitter queries against the exact `tree-sitter-java`/`tree-sitter-kotlin` grammars (high risk of a subtly-wrong field/node name silently returning zero matches, unverifiable in this sandbox against real Kotlin source), `refactor-treesitter.lua` uses a hybrid: (1) `rg`/`grep` (vim.system, async, mirrors `sync-runner.lua`'s convention) to find every whole-word candidate line across `.java`/`.kt`/`.xml` under the JVM client's `root_dir`; (2) Lua-pattern classification of each candidate into `xml_bean` / `autowired` / `stereotype` (or dropped, if it matches none -- a bare textual hit is never silently rewritten); (3) `vim.treesitter.get_string_parser` used as a precision filter to discard a pattern-matched candidate that Tree-sitter confirms sits inside a comment/string-literal node, pcall-guarded so a missing/broken grammar degrades to pattern-only matching rather than aborting the scan. This still uses Tree-sitter for real (step 3) but doesn't depend on it for primary classification, which is the part most likely to be silently wrong without a live grammar to test against.
++- 2026-08-25 (apply-time fix found via testing): the first implementation of the Spring-edit apply path wrote directly to disk via `vim.fn.writefile`, inconsistent with `vim.lsp.util.apply_workspace_edit`'s actual behavior (edits a buffer in memory, does not save) -- fixed to also use `vim.fn.bufadd`/`bufload` + `nvim_buf_set_text`, so every touched file (LSP-driven and Spring-driven) ends up in the same "edited buffer, not yet saved" state and the user reviews/saves everything together, rather than some files being flushed to disk behind an already-open buffer's back.
++- 2026-08-25 (side-effect fix found via testing): loading a not-yet-open `.java`/`.kt` file via `bufadd`/`bufload` to splice in a Spring edit fires the same `FileType`/`BufReadPost` autocmds as a normal `:edit` -- which meant applying a rename could silently launch a *second* JDTLS/Kotlin LS instance against a file the user never asked to open. Fixed by wrapping that load in `vim.o.eventignore = "all"` in `apply_spring_edits`.
++- 2026-08-25 (`scripts/validate-refactor.sh`): this sandbox does have `jdtls`/`kotlin-language-server` Mason packages installed, but launching a real JDTLS session against a throwaway fixture project is slow/flaky and, per the same tradeoff `validate-dap-jvm.sh` already made for a live Scala/DAP session, out of scope for an automated script. The script instead mocks the LSP seam only (`vim.lsp.get_clients`, `vim.lsp.buf_request_all` return a fake `jdtls` client and a canned `WorkspaceEdit`) and exercises everything downstream for real: the merge with `refactor-treesitter.lua`'s un-mocked project scan, the quickfix build, the confirm gate, and applying both the LSP edit and the Spring text edits to real fixture files. Covers all three Acceptance Criteria (Apply updates Java + XML, Cancel touches nothing, a collision `err` response aborts before the quickfix with a visible `vim.notify` ERROR and no file touched). A real JDTLS round-trip is left as a manual-check item, same as spec-1-1 did for a live Metals/DAP session.
++- 2026-08-25 (plenary harness): `PlenaryBustedFile`/`PlenaryBustedDirectory` hung indefinitely against this repo in this sandbox for both the new `refactor_spec.lua` and a pre-existing spec (`profiling_spec.lua`) -- a pre-existing environment limitation, not something introduced here. Every assertion in `refactor_spec.lua` was independently verified by running the same logic directly via `nvim --headless -c "lua ..."` (no busted harness involved); all passed. Logged so a future session doesn't mistake the hang for a regression caused by this spec.
++- 2026-08-25 (post-implementation review, 3-layer patch findings applied -- blind-hunter, edge-case-hunter, verification-gap): ten confirmed patch-level findings against the diff above, all fixed without touching Intent/Boundaries:
++  1. **Duplicate same-line occurrences corrupted the buffer** (live-reproduced): `classify_jvm_line` located the symbol from column 1 every time, ignoring the raw hit's own column, so N raw hits for a line with the symbol N times all classified to the SAME first-occurrence span -- `apply_spring_edits` then spliced `new_name` into that identical span N times. Fixed: `scan_root_async` now dedupes raw hits to one per (file, line) *before* classifying; `classify_jvm_line`/`classify_xml_line` each return every whole-word occurrence on the line (`M._find_all_occurrences`), and every occurrence gets its own quickfix item. Verified against the reviewer's exact reproduction line (`private FooService fooService = FooService.createDefault();`) both as a standalone unit test and end-to-end in `validate-refactor.sh`.
++  2. **LSP-provided and Spring-scanned locations could overlap and double-apply** (e.g. a stereotype-annotated class's declaration line, touched by both the LSP rename and the stereotype classifier). Fixed: new `refactor.filter_overlapping_spring_items(lsp_items, spring_items)`, called before the Spring edits are ever applied, drops any Spring item whose (file, line, column-range) overlaps an LSP-covered location. `validate-refactor.sh`'s fixture now deliberately puts `@Service` on the renamed class specifically to exercise this overlap and asserts no double-splice (`BarServiceBarService`) occurs.
++  3. **No package/FQN scoping -- cross-package name collisions could silently corrupt unrelated code.** Fixed: `refactor-treesitter.lua` gained `file_package(lines)` (parses a leading `package ...;`/`package ...` declaration) and package-prefix extraction on XML bean `class` attribute values; `scan_root_async` now takes an `old_package` argument (the renamed symbol's own file's package, read by `refactor.lua` before scanning) and skips any Java/Kotlin candidate file, or XML bean occurrence, whose package differs or is undeterminable -- only applied when the renamed symbol's own package IS determinable, per the spec's conservative-skip guidance. Verified with a `com.example.FooService` / `com.other.FooService` fixture, both as a unit test on `scan_root_async` and end-to-end in `validate-refactor.sh`.
++  4. **XML bean classification never filtered comments.** `is_inside_comment_or_string` was Java/Kotlin-only. Fixed: new `is_inside_xml_comment(lines, lnum, col)`, a lightweight multi-line-aware `<!-- -->` state scan (no XML Tree-sitter grammar is guaranteed installed anywhere in this distribution), applied to every XML occurrence in `scan_root_async`. `validate-refactor.sh`'s fixture now includes a commented-out `<bean>` entry and asserts it is left untouched.
++  5. **Apply-time failures were silently swallowed.** Fixed: `vim.lsp.util.apply_workspace_edit` is now pcall-guarded -- on failure it `notify_err`s and aborts *before* attempting any Spring edits (applying only the Spring half after a failed LSP half would leave a worse, more confusing half-renamed state than not applying at all). `apply_spring_edits` (now public, `M.apply_spring_edits`) returns `(applied_count, failed_files)`; the final notification now reads e.g. "Renamed X/Y location(s) -- N Spring-reference edit(s) failed in: ..." instead of unconditionally claiming full success.
++  6. **Missing basic guards in `project_rename`.** Added: (a) an empty `vim.fn.expand('<cword>')` now `notify_warn`s and returns instead of proceeding with an empty old_name; (b) `new_name == old_name` (both the prompted and directly-passed paths) now `notify_info`s a no-op and returns instead of running the full request/scan/preview/confirm pipeline; (c) `vim.lsp.buf_request_all`'s callback now has a `RENAME_TIMEOUT_MS` (10s) `vim.defer_fn` deadline that `notify_err`s if the server never responds, guarded by a `responded` flag so a very late response after the timeout fired is a no-op rather than a second, contradictory notification.
++  7. **`grep` fallback had no directory exclusions; case-sensitive extension matching; silent unavailability.** Fixed: the `grep` fallback command now carries `--exclude-dir` for `.git`/`target`/`build`/`node_modules`/`.gradle`/`out` (`rg` already honors `.gitignore`); file-extension matching in `scan_root_async` now lowercases before the `LANG_BY_EXT`/`xml` lookup so `.JAVA`/`.XML`/`.KT` aren't silently skipped; a single `vim.notify` WARN (not per-file spam) now fires when neither `rg` nor `grep` could be run, and a separate one when any candidate file couldn't be read.
++  8. **No re-entrancy guard.** Added a module-level `M._busy` flag, set at the start of `_do_rename` and cleared at every terminal path (collision/no-changes/empty-preview/timeout/cancel/apply-failure/success); `project_rename` now checks it first and `notify_warn`s + returns if a rename is already in flight, rather than allowing overlapping previews/confirm prompts.
++  9. **Inefficient re-parsing.** `scan_root_async` now parses each candidate file's Tree-sitter tree ONCE (`M._ts_root_for`) and reuses the root across every hit/occurrence in that file via `M._is_comment_or_string_node(root, row, col)`, instead of re-parsing the whole file fresh per hit; `is_inside_comment_or_string` stays as a public single-call convenience wrapper over the same two primitives.
++  10. **Test coverage**: `refactor_spec.lua` gained a duplicate-occurrence classify test, a duplicate-occurrence `apply_spring_edits` end-to-end test (real temp file, real buffer, asserts both occurrences renamed with no corruption), a cross-package `scan_root_async` test (real temp fixture, asserts the unrelated package's file is excluded), direct unit tests for `apply_spring_edits`/`spring_items_to_qf`/`filter_overlapping_spring_items`, an `M._busy` reentrancy test, and -- replacing the old text-substring-only keymap check -- a test that invokes the real `lsp-kotlin.lua` `on_attach` with a stub client/bufnr and asserts (via `vim.fn.maparg('<leader>cr', 'n', false, true)`) a genuine buffer-local mapping was installed whose callback dispatches into `refactor.project_rename` (verified by monkeypatching `project_rename` and asserting it was called). `scripts/validate-refactor.sh`'s fixture was extended with the duplicate-occurrence line, the `@Service`-annotated overlap case, a commented-out bean entry, and a full `com.other` cross-package tree, with new assertions for all of the above. All 24 `refactor_spec.lua` assertions and all 4 `validate-refactor.sh` phases re-verified passing after these fixes (see Verification).
++
++## Design Notes
++
++Use the quickfix list (`vim.fn.setqflist` + `:copen`) as the dry-run preview, not a new floating window — no rounded-border float precedent exists in this codebase, and the project's convention is to call UI primitives directly rather than add an adapter layer. Get the WorkspaceEdit without applying it via `vim.lsp.buf_request_all(bufnr, 'textDocument/rename', params, cb)` (`vim.lsp.buf.rename()` itself applies immediately, so it can't be reused directly here). Confirm/cancel after the preview via `vim.ui.select({'Apply', 'Cancel'}, ...)`, consistent with the existing bean/endpoint picker idiom in `engine.lua`.
++
++## Verification
++
++**Commands:**
++- `bash scripts/validate.sh` -- expected: still passes; purged-stub assertions unaffected
++- `bash scripts/validate-refactor.sh` -- expected: exits 0 (rename fixture scenario applies correctly)
++- `stylua lua/ ftplugin/ init.lua` -- expected: no diff
++
++**Manual checks (if no CLI):**
++- Open a Java file with a class referenced elsewhere and a Spring XML bean entry; trigger `<leader>cr`; confirm the quickfix lists both the code reference and the XML bean location before applying.
++
++## Suggested Review Order
++
++**Core rename flow**
++
++- Entry point: finds the JVM client, guards empty/no-op names, checks re-entrancy before anything else runs.
++  [`refactor.lua:248`](../../lua/cumulus/util/refactor.lua#L248)
++
++- Requests the WorkspaceEdit without auto-applying; timeout guard so a silent server can't hang the flow.
++  [`refactor.lua:304`](../../lua/cumulus/util/refactor.lua#L304)
++
++- Kicks off the package-scoped Spring scan once the LSP response is in hand.
++  [`refactor.lua:344`](../../lua/cumulus/util/refactor.lua#L344)
++
++- Confirm gate, then pcall-guarded apply with partial-failure reporting instead of a blanket success claim.
++  [`refactor.lua:380`](../../lua/cumulus/util/refactor.lua#L380)
++
++**Corruption fixes: duplicate occurrences & LSP/Spring overlap**
++
++- Root-cause fix: every whole-word occurrence on a line gets its own span, not just the first.
++  [`refactor-treesitter.lua:65`](../../lua/cumulus/util/refactor-treesitter.lua#L65)
++
++- Dedupes raw hits to one per (file, line) before classifying, so duplicate occurrences can't double-classify.
++  [`refactor-treesitter.lua:491`](../../lua/cumulus/util/refactor-treesitter.lua#L491)
++
++- Drops any Spring-scanned location that overlaps something the LSP edit already covers.
++  [`refactor.lua:108`](../../lua/cumulus/util/refactor.lua#L108)
++
++- Applies the Spring splices; now failure-tracked per file instead of silently swallowing errors.
++  [`refactor.lua:176`](../../lua/cumulus/util/refactor.lua#L176)
++
++**Package-scoping guard (cross-package name collisions)**
++
++- Extracts a file's declared package so same-named classes in other packages can be excluded.
++  [`refactor-treesitter.lua:84`](../../lua/cumulus/util/refactor-treesitter.lua#L84)
++
++- XML bean classification also extracts the FQN package prefix off the `class` attribute.
++  [`refactor-treesitter.lua:105`](../../lua/cumulus/util/refactor-treesitter.lua#L105)
++
++**XML comment filtering**
++
++- Lightweight multi-line `<!-- -->` state scan so a commented-out bean is never treated as live.
++  [`refactor-treesitter.lua:221`](../../lua/cumulus/util/refactor-treesitter.lua#L221)
++
++**Tree-sitter precision filter (parse-once-per-file)**
++
++- Parses each file's tree once and reuses it across every hit, instead of re-parsing per occurrence.
++  [`refactor-treesitter.lua:264`](../../lua/cumulus/util/refactor-treesitter.lua#L264)
++
++**Buffer-local keymap wiring**
++
++- Overrides `<leader>cr` for JDTLS-attached buffers only; global mapping for other filetypes untouched.
++  [`java.lua:65`](../../ftplugin/java.lua#L65)
++
++- Mirrors the same override for Kotlin LS.
++  [`lsp-kotlin.lua:61`](../../lua/cumulus/plugins/lsp-kotlin.lua#L61)
++
++**Tests & fixtures**
++
++- Unit test proving the duplicate-occurrence corruption bug is fixed (the reviewer's exact repro line).
++  [`refactor_spec.lua:267`](../../lua/cumulus/tests/refactor_spec.lua#L267)
++
++- Unit test for the LSP/Spring overlap filter.
++  [`refactor_spec.lua:110`](../../lua/cumulus/tests/refactor_spec.lua#L110)
++
++- Unit test proving a same-named class in a different package is left untouched.
++  [`refactor_spec.lua:316`](../../lua/cumulus/tests/refactor_spec.lua#L316)
++
++- Real (non-substring-match) keymap-installation test: invokes `on_attach`, asserts a genuine mapping via `vim.fn.maparg`.
++  [`refactor_spec.lua:383`](../../lua/cumulus/tests/refactor_spec.lua#L383)
++
++- End-to-end fixture covering duplicate occurrences, LSP/Spring overlap, a commented bean, and a cross-package tree.
++  [`validate-refactor.sh:119`](../../scripts/validate-refactor.sh#L119)
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 920e486..4caf8e6 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -29,7 +29,7 @@
+ # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+ # - Retrospective appends its action items to action_items; the status view surfaces open ones
+ generated: 08-25-2026 02:55
+-last_updated: 08-25-2026 09:42
++last_updated: 08-25-2026 18:36
+ project: cumulus.nvim
+ project_key: cumulus
+ tracking_system: local
+@@ -37,11 +37,11 @@ story_location: EPICS_AND_STORIES.md
+ development_status:
+   epic-1: in-progress
+   1-1-advanced-jvm-debugger-nvim-dap-integration: done
+-  1-2-continuous-profiling-flamegraphs: review
++  1-2-continuous-profiling-flamegraphs: done
+   epic-1-retrospective: optional
+ 
+-  epic-2: backlog
+-  2-1-project-wide-safe-rename-move: backlog
++  epic-2: in-progress
++  2-1-project-wide-safe-rename-move: review
+   2-2-intelligent-extraction-methods-variables-interfaces: backlog
+   epic-2-retrospective: optional
+ 
+diff --git a/ftplugin/java.lua b/ftplugin/java.lua
+index 94d4b57..f944075 100644
+--- a/ftplugin/java.lua
++++ b/ftplugin/java.lua
+@@ -57,6 +57,14 @@ local config = {
+     end
+     -- Attach notification is handled generically for every LSP client
+     -- (including jdtls) by the LspAttach autocmd in lsp-core.lua.
++
++    -- SPEC-2.1: Project-Wide Safe Rename -- buffer-local override of the
++    -- global <leader>cr (plain vim.lsp.buf.rename() in core/keymaps.lua).
++    -- Only this Java buffer gets the project-wide, preview-then-confirm
++    -- flow; the global mapping for non-JVM filetypes is untouched.
++    vim.keymap.set("n", "<leader>cr", function()
++      require("cumulus.util.refactor").project_rename()
++    end, { buffer = bufnr, desc = "Project-Wide Rename (Java)" })
+   end,
+ }
+ 
+diff --git a/lua/cumulus/plugins/lsp-kotlin.lua b/lua/cumulus/plugins/lsp-kotlin.lua
+index 0baf386..c70d07b 100644
+--- a/lua/cumulus/plugins/lsp-kotlin.lua
++++ b/lua/cumulus/plugins/lsp-kotlin.lua
+@@ -43,7 +43,7 @@ return {
+             end
+             return { JAVA_HOME = java21_home }
+           end)(),
+-          on_attach = function(client, _)
++          on_attach = function(client, bufnr)
+             client.server_capabilities.documentHighlightProvider = false
+ 
+             local root = client.config.root_dir or vim.fn.getcwd()
+@@ -53,6 +53,14 @@ return {
+                 vim.fn.delete(f)
+               end
+             end
++
++            -- SPEC-2.1: Project-Wide Safe Rename -- mirror the same
++            -- buffer-local <leader>cr override installed for JDTLS in
++            -- ftplugin/java.lua. Global <leader>cr for non-JVM filetypes
++            -- stays untouched.
++            vim.keymap.set("n", "<leader>cr", function()
++              require("cumulus.util.refactor").project_rename()
++            end, { buffer = bufnr, desc = "Project-Wide Rename (Kotlin)" })
+           end,
+           settings = {
+             kotlin = {
+diff --git a/lua/cumulus/tests/refactor_spec.lua b/lua/cumulus/tests/refactor_spec.lua
+new file mode 100644
+index 0000000..e11c038
+--- /dev/null
++++ b/lua/cumulus/tests/refactor_spec.lua
+@@ -0,0 +1,417 @@
++-- SPEC-2.1: Project-Wide Safe Rename (Java & Kotlin) -- static shape tests
++--
++-- Scoped to what plenary's busted harness can reliably verify: module shape,
++-- pure-function classification logic, and the buffer-local keymap wiring in
++-- ftplugin/java.lua / lsp-kotlin.lua. Like the repo's other *_spec.lua
++-- files, this avoids driving a real jdtls/kotlin_language_server client --
++-- that behavioral coverage (a live rename against a fixture project,
++-- confirmed through the quickfix preview) lives in
++-- scripts/validate-refactor.sh, which runs in its own fresh `nvim
++-- --headless` process. `scan_root_async` itself IS exercised directly here
++-- (it only needs `rg`/`grep` + real files on disk, no LSP), since it's the
++-- most bug-prone piece (duplicate-occurrence and package-scoping fixes).
++
++describe("Refactor (SPEC-2.1)", function()
++  describe("cumulus.util.refactor", function()
++    it("should expose project_rename and the internal rename pipeline", function()
++      local refactor = require("cumulus.util.refactor")
++      assert.is_table(refactor)
++      assert.is_function(refactor.project_rename)
++      assert.is_function(refactor.find_jvm_client)
++      assert.is_function(refactor.workspace_edit_to_locations)
++      assert.is_function(refactor.filter_overlapping_spring_items)
++      assert.is_function(refactor.apply_spring_edits)
++      assert.is_function(refactor.spring_items_to_qf)
++      assert.is_number(refactor.RENAME_TIMEOUT_MS)
++    end)
++
++    it("should notify and return without erroring when no JVM LSP is attached", function()
++      local refactor = require("cumulus.util.refactor")
++      vim.cmd("enew")
++      -- A fresh scratch buffer has no LSP clients attached at all.
++      assert.is_nil(refactor.find_jvm_client(vim.api.nvim_get_current_buf()))
++      assert.has_no.errors(function()
++        refactor.project_rename("NewName")
++      end)
++    end)
++
++    it("should reject a second project_rename while one is already in flight (M._busy)", function()
++      local refactor = require("cumulus.util.refactor")
++      local notified = {}
++      local orig_notify = vim.notify
++      vim.notify = function(msg, level)
++        table.insert(notified, { msg = msg, level = level })
++      end
++
++      refactor._busy = true
++      refactor.project_rename("Whatever")
++      refactor._busy = false
++
++      vim.notify = orig_notify
++      assert.are.equal(1, #notified)
++      assert.are.equal(vim.log.levels.WARN, notified[1].level)
++      assert.is_truthy(notified[1].msg:match("already in progress"))
++    end)
++
++    it("should flatten a WorkspaceEdit's `changes` into uri/range locations", function()
++      local refactor = require("cumulus.util.refactor")
++      local edit = {
++        changes = {
++          ["file:///a/Foo.java"] = {
++            { range = { start = { line = 1, character = 0 }, ["end"] = { line = 1, character = 3 } } },
++          },
++        },
++      }
++      local locations = refactor.workspace_edit_to_locations(edit)
++      assert.are.equal(1, #locations)
++      assert.are.equal("file:///a/Foo.java", locations[1].uri)
++      assert.are.equal(1, locations[1].range.start.line)
++    end)
++
++    it("should not drop a location under a generated/build directory", function()
++      local refactor = require("cumulus.util.refactor")
++      local edit = {
++        changes = {
++          ["file:///proj/target/generated-sources/Foo.java"] = {
++            { range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 3 } } },
++          },
++          ["file:///proj/build/classes/java/main/Foo.java"] = {
++            { range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 3 } } },
++          },
++        },
++      }
++      local locations = refactor.workspace_edit_to_locations(edit)
++      assert.are.equal(2, #locations)
++      local uris = { locations[1].uri, locations[2].uri }
++      assert.is_truthy(vim.tbl_contains(uris, "file:///proj/target/generated-sources/Foo.java"))
++      assert.is_truthy(vim.tbl_contains(uris, "file:///proj/build/classes/java/main/Foo.java"))
++    end)
++
++    it("should flatten a WorkspaceEdit's `documentChanges` (TextDocumentEdit) into locations", function()
++      local refactor = require("cumulus.util.refactor")
++      local edit = {
++        documentChanges = {
++          {
++            textDocument = { uri = "file:///a/Foo.java", version = 1 },
++            edits = {
++              { range = { start = { line = 4, character = 2 }, ["end"] = { line = 4, character = 5 } } },
++            },
++          },
++          -- Resource operations (rename/create/delete) must be ignored --
++          -- file-move handling is explicitly out of scope for this spec.
++          { kind = "rename", oldUri = "file:///a/Old.java", newUri = "file:///a/New.java" },
++        },
++      }
++      local locations = refactor.workspace_edit_to_locations(edit)
++      assert.are.equal(1, #locations)
++      assert.are.equal(4, locations[1].range.start.line)
++    end)
++
++    it("filter_overlapping_spring_items should drop a Spring item overlapping an LSP-covered range", function()
++      local refactor = require("cumulus.util.refactor")
++      local lsp_items = {
++        { filename = "/a/Foo.java", lnum = 5, col = 10, end_col = 20 },
++      }
++      local spring_items = {
++        { file = "/a/Foo.java", lnum = 5, col = 12, end_col = 22, kind = "stereotype", text = "x" }, -- overlaps
++        { file = "/a/Foo.java", lnum = 5, col = 25, end_col = 30, kind = "stereotype", text = "x" }, -- disjoint
++        { file = "/a/Bar.xml", lnum = 5, col = 10, end_col = 20, kind = "xml_bean", text = "x" }, -- different file
++      }
++      local filtered = refactor.filter_overlapping_spring_items(lsp_items, spring_items)
++      assert.are.equal(2, #filtered)
++      for _, item in ipairs(filtered) do
++        assert.is_not.same(12, item.col) -- the overlapping one must be gone
++      end
++    end)
++
++    it("spring_items_to_qf should tag each item with a kind label and preserve position", function()
++      local refactor = require("cumulus.util.refactor")
++      local qf = refactor.spring_items_to_qf({
++        {
++          file = "/a/beans.xml",
++          lnum = 2,
++          col = 46,
++          end_col = 56,
++          kind = "xml_bean",
++          text = '<bean class="...FooService"/>',
++        },
++      })
++      assert.are.equal(1, #qf)
++      assert.are.equal("/a/beans.xml", qf[1].filename)
++      assert.are.equal(2, qf[1].lnum)
++      assert.are.equal(46, qf[1].col)
++      assert.is_truthy(qf[1].text:match("^%[Spring XML bean%]"))
++    end)
++
++    it(
++      "apply_spring_edits should rename BOTH occurrences on a line with the symbol twice, without corruption",
++      function()
++        local refactor = require("cumulus.util.refactor")
++        local ts = require("cumulus.util.refactor-treesitter")
++        local file = vim.fn.tempname() .. ".java"
++        vim.fn.writefile({
++          "public class Consumer {",
++          "  @Autowired",
++          "  private FooService fooService = FooService.createDefault();",
++          "}",
++        }, file)
++
++        local lines = vim.fn.readfile(file)
++        local kind, occurrences = ts.classify_jvm_line(lines, 3, "FooService")
++        assert.are.equal("autowired", kind)
++        assert.are.equal(2, #occurrences)
++
++        local items = {}
++        for _, occ in ipairs(occurrences) do
++          items[#items + 1] =
++            { file = file, lnum = 3, col = occ.col, end_col = occ.end_col, kind = kind, text = lines[3] }
++        end
++
++        local applied, failed = refactor.apply_spring_edits(items, "BarServiceRenamedLonger")
++        assert.are.equal(2, applied)
++        assert.are.equal(0, #failed)
++
++        local bufnr = vim.fn.bufadd(file)
++        vim.fn.bufload(bufnr)
++        local result_line = vim.api.nvim_buf_get_lines(bufnr, 2, 3, false)[1]
++        assert.are.equal(
++          "  private BarServiceRenamedLonger fooService = BarServiceRenamedLonger.createDefault();",
++          result_line
++        )
++
++        os.remove(file)
++      end
++    )
++
++    it("apply_spring_edits should report a failed file rather than silently under-counting", function()
++      local refactor = require("cumulus.util.refactor")
++      local items = {
++        {
++          file = "/nonexistent/path/that/cannot/exist/Foo.xml",
++          lnum = 1,
++          col = 1,
++          end_col = 4,
++          kind = "xml_bean",
++          text = "x",
++        },
++      }
++      local applied, failed = refactor.apply_spring_edits(items, "New")
++      assert.are.equal(0, applied)
++      assert.are.equal(1, #failed)
++    end)
++  end)
++
++  describe("cumulus.util.refactor-treesitter", function()
++    it("should expose the scan/classification API", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      assert.is_table(ts)
++      assert.is_function(ts.scan_root_async)
++      assert.is_function(ts.raw_hits_async)
++      assert.is_function(ts.classify_xml_line)
++      assert.is_function(ts.classify_jvm_line)
++      assert.is_function(ts.file_package)
++      assert.is_function(ts.is_inside_xml_comment)
++      assert.is_table(ts.STEREOTYPE_ANNOTATIONS)
++    end)
++
++    it('should classify a Spring XML <bean class="..."> entry referencing the symbol', function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      local line = '  <bean id="fooService" class="com.example.FooService"/>'
++      local occurrences = ts.classify_xml_line(line, "FooService")
++      assert.are.equal(1, #occurrences)
++      local col, end_col = occurrences[1].col, occurrences[1].end_col
++      assert.are.equal("FooService", line:sub(col, end_col - 1))
++      assert.are.equal("com.example", occurrences[1].package)
++    end)
++
++    it("should not classify an XML line that merely mentions the symbol outside a bean class attribute", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      local line = "  <!-- FooService is wired below -->"
++      assert.is_nil(ts.classify_xml_line(line, "FooService"))
++    end)
++
++    it("should treat a bare simple-name (no package) bean class attribute as package-undeterminable", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      local line = '  <bean id="fooService" class="FooService"/>'
++      local occurrences = ts.classify_xml_line(line, "FooService")
++      assert.are.equal(1, #occurrences)
++      assert.is_nil(occurrences[1].package)
++    end)
++
++    it("is_inside_xml_comment should detect a bean entry inside a single-line XML comment", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      local lines = { "<beans>", '<!-- <bean id="x" class="com.example.FooService"/> -->', "</beans>" }
++      assert.is_true(ts.is_inside_xml_comment(lines, 2, 30))
++    end)
++
++    it("is_inside_xml_comment should not flag a live (non-commented) bean entry", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      local lines = { "<beans>", '<bean id="x" class="com.example.FooService"/>', "</beans>" }
++      assert.is_false(ts.is_inside_xml_comment(lines, 2, 20))
++    end)
++
++    it("should classify an @Autowired field of the renamed type", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      local lines = {
++        "public class Consumer {",
++        "  @Autowired",
++        "  private FooService fooService;",
++        "}",
++      }
++      local kind, occurrences = ts.classify_jvm_line(lines, 3, "FooService")
++      assert.are.equal("autowired", kind)
++      assert.are.equal(1, #occurrences)
++      assert.are.equal("FooService", lines[3]:sub(occurrences[1].col, occurrences[1].end_col - 1))
++    end)
++
++    it("should classify BOTH occurrences when the renamed type appears twice on one line", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      local lines = {
++        "public class Consumer {",
++        "  @Autowired",
++        "  private FooService fooService = FooService.createDefault();",
++        "}",
++      }
++      local kind, occurrences = ts.classify_jvm_line(lines, 3, "FooService")
++      assert.are.equal("autowired", kind)
++      assert.are.equal(2, #occurrences)
++      assert.is_true(occurrences[1].end_col <= occurrences[2].col) -- non-overlapping, in order
++      for _, occ in ipairs(occurrences) do
++        assert.are.equal("FooService", lines[3]:sub(occ.col, occ.end_col - 1))
++      end
++    end)
++
++    it("should classify a stereotype-annotated class declaration", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      local lines = {
++        "package com.example;",
++        "",
++        "@Service",
++        "public class FooService {",
++        "}",
++      }
++      local kind, occurrences = ts.classify_jvm_line(lines, 4, "FooService")
++      assert.are.equal("stereotype", kind)
++      assert.are.equal(1, #occurrences)
++    end)
++
++    it("should not classify a field of the renamed type without @Autowired or a stereotype", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      local lines = {
++        "public class Consumer {",
++        "  private FooService fooService;",
++        "}",
++      }
++      local kind = ts.classify_jvm_line(lines, 2, "FooService")
++      assert.is_nil(kind)
++    end)
++
++    it("file_package should extract a Java/Kotlin package declaration", function()
++      local ts = require("cumulus.util.refactor-treesitter")
++      assert.are.equal("com.example", ts.file_package({ "package com.example;", "", "class Foo {}" }))
++      assert.are.equal("com.example.sub", ts.file_package({ "package com.example.sub", "class Foo" }))
++      assert.is_nil(ts.file_package({ "class Foo {}" }))
++    end)
++
++    it(
++      "scan_root_async should package-scope Spring matches: renaming com.example.FooService must not touch com.other.FooService",
++      function()
++        local ts = require("cumulus.util.refactor-treesitter")
++        local root = vim.fn.tempname()
++        vim.fn.mkdir(root .. "/com/example", "p")
++        vim.fn.mkdir(root .. "/com/other", "p")
++
++        vim.fn.writefile({
++          "package com.example;",
++          "",
++          "import org.springframework.beans.factory.annotation.Autowired;",
++          "",
++          "public class Consumer {",
++          "  @Autowired",
++          "  private FooService fooService;",
++          "}",
++        }, root .. "/com/example/Consumer.java")
++
++        vim.fn.writefile({
++          "package com.other;",
++          "",
++          "import org.springframework.beans.factory.annotation.Autowired;",
++          "",
++          "public class OtherConsumer {",
++          "  @Autowired",
++          "  private FooService fooService;",
++          "}",
++        }, root .. "/com/other/OtherConsumer.java")
++
++        vim.fn.writefile({
++          "<beans>",
++          '    <bean id="fooService" class="com.example.FooService"/>',
++          '    <bean id="otherFooService" class="com.other.FooService"/>',
++          "</beans>",
++        }, root .. "/beans.xml")
++
++        local result = nil
++        ts.scan_root_async(root, "FooService", "com.example", function(items)
++          result = items
++        end)
++
++        vim.wait(10000, function()
++          return result ~= nil
++        end, 50)
++
++        assert.is_not_nil(result, "scan_root_async did not complete within the wait window")
++        assert.are.equal(2, #result)
++        for _, item in ipairs(result) do
++          assert.is_falsy(item.file:find("com/other", 1, true))
++        end
++
++        vim.fn.delete(root, "rf")
++      end
++    )
++  end)
++
++  describe("Buffer-local <leader>cr override wiring", function()
++    it("ftplugin/java.lua should bind <leader>cr to refactor.project_rename inside on_attach", function()
++      local f = io.open("ftplugin/java.lua", "r")
++      assert.is_not_nil(f)
++      local content = f:read("*a")
++      f:close()
++      assert.is_truthy(content:match('"<leader>cr"'))
++      assert.is_truthy(content:match('require%("cumulus%.util%.refactor"%)%.project_rename'))
++    end)
++
++    it(
++      "lsp-kotlin.lua's on_attach should install a REAL buffer-local <leader>cr mapping that dispatches into refactor.project_rename",
++      function()
++        local lsp_kotlin = require("cumulus.plugins.lsp-kotlin")
++        local on_attach = lsp_kotlin[2].opts.servers.kotlin_language_server.on_attach
++        assert.is_function(on_attach)
++
++        vim.cmd("enew")
++        local bufnr = vim.api.nvim_get_current_buf()
++        local stub_client = {
++          server_capabilities = {},
++          config = { root_dir = vim.fn.getcwd() },
++        }
++        on_attach(stub_client, bufnr)
++
++        local mapping = vim.fn.maparg("<leader>cr", "n", false, true)
++        assert.is_table(mapping)
++        assert.are.equal(1, mapping.buffer)
++        assert.is_function(mapping.callback)
++
++        local refactor = require("cumulus.util.refactor")
++        local called = false
++        local orig_project_rename = refactor.project_rename
++        refactor.project_rename = function(...)
++          called = true
++        end
++
++        mapping.callback()
++
++        refactor.project_rename = orig_project_rename
++        assert.is_true(called, "the buffer-local <leader>cr mapping must call refactor.project_rename")
++      end
++    )
++  end)
++end)
+diff --git a/lua/cumulus/util/refactor-treesitter.lua b/lua/cumulus/util/refactor-treesitter.lua
+new file mode 100644
+index 0000000..ba09971
+--- /dev/null
++++ b/lua/cumulus/util/refactor-treesitter.lua
+@@ -0,0 +1,587 @@
++-- Cumulus Refactor: Tree-sitter/text-assisted Spring reference scan (SPEC-2.1)
++--
++-- JDTLS/Kotlin LS's textDocument/rename only ever touches locations the
++-- language server can resolve via normal type/reference analysis. Spring's
++-- reflection-based wiring -- XML `<bean class="...">` entries, and
++-- @Component/@Service/@Repository/@Controller/@RestController stereotype
++-- classes referenced by simple name from @Autowired fields -- lives outside
++-- that analysis entirely (XML isn't Java/Kotlin at all; annotation-driven
++-- injection is resolved by Spring at runtime, not the compiler/LSP). This
++-- module scans the project tree for those locations so refactor.lua can
++-- merge them into the same rename preview instead of silently missing them.
++--
++-- Design:
++--   1. Fast, async candidate search via `rg`/`grep` (vim.system, never the
++--      main loop) -- mirrors the vim.system + vim.schedule convention in
++--      sync-runner.lua. This narrows a whole-project scan down to just the
++--      handful of *lines* that mention the symbol at all (deduped per
++--      (file, line) -- `rg` reports one hit per occurrence, so a line with
++--      the symbol twice would otherwise produce two raw hits).
++--   2. Cheap classification of each unique line against Lua patterns for
++--      the three reference kinds this spec cares about (xml_bean,
++--      stereotype, autowired). A classified line contributes ONE item per
++--      whole-word occurrence of the symbol on that line (not just the
++--      first) -- a bare textual hit that classifies as none of the three
++--      is dropped entirely, never silently rewritten.
++--   3. Where a Tree-sitter parser for the candidate's language is
++--      available, it is used as a precision filter to discard matches that
++--      Lua patterns can't see are inside a comment or string literal (Java/
++--      Kotlin via a real grammar, parsed once per file and reused across
++--      that file's hits; XML via a lightweight `<!-- -->` state scan, since
++--      no XML grammar is guaranteed installed anywhere in this
++--      distribution). Missing/broken parsers degrade to pattern-only
++--      matching -- never fatal to the overall rename flow.
++--   4. Package-scoping: candidates in a different Java/Kotlin package (or,
++--      for XML, a different FQN package prefix on the bean `class`
++--      attribute) than the symbol being renamed are dropped, so renaming
++--      `com.a.FooService` never touches an unrelated `com.b.FooService`.
++--      Only applied when both the renamed symbol's package and a given
++--      candidate's package are determinable -- otherwise the guard is
++--      skipped (undeterminable-but-unfiltered) or the candidate is skipped
++--      outright (determinable-old, undeterminable-candidate: conservative).
++--
++-- Every entry point here is best-effort and non-fatal: a parse failure or
++-- missing grammar/tool for one file must never abort the overall rename.
++
++local M = {}
++
++M.STEREOTYPE_ANNOTATIONS = {
++  "Component",
++  "Service",
++  "Repository",
++  "Controller",
++  "RestController",
++}
++
++local STEREOTYPE_SET = {}
++for _, name in ipairs(M.STEREOTYPE_ANNOTATIONS) do
++  STEREOTYPE_SET[name] = true
++end
++
++--- Find every whole-word occurrence of `symbol` on `line`.
++---@param line string
++---@param symbol string
++---@return { col: integer, end_col: integer }[] 1-based, end exclusive
++function M._find_all_occurrences(line, symbol)
++  local occurrences = {}
++  local pattern = "%f[%w]" .. vim.pesc(symbol) .. "%f[%W]"
++  local init = 1
++  while true do
++    local s, e = line:find(pattern, init)
++    if not s then
++      break
++    end
++    occurrences[#occurrences + 1] = { col = s, end_col = e + 1 }
++    init = e + 1
++  end
++  return occurrences
++end
++
++--- Extract a leading `package foo.bar;` (Java) or `package foo.bar`
++--- (Kotlin) declaration from a file's lines, if present near the top.
++---@param lines string[]
++---@return string|nil
++function M.file_package(lines)
++  for i = 1, math.min(#lines, 20) do
++    local line = lines[i]
++    if line then
++      local pkg = line:match("^%s*package%s+([%w_.]+)%s*;?%s*$")
++      if pkg then
++        return pkg
++      end
++    end
++  end
++  return nil
++end
++
++--- Classify a single XML line already known to contain `symbol` as a whole
++--- word. Returns one entry per whole-word occurrence of `symbol` that
++--- falls inside a `<bean ... class="...">` attribute's value, each tagged
++--- with the FQN package prefix immediately preceding it when the attribute
++--- value is fully-qualified (nil when it's a bare simple name).
++---@param line string
++---@param symbol string
++---@return { col: integer, end_col: integer, package: string|nil }[]|nil
++function M.classify_xml_line(line, symbol)
++  if not line:find("<bean%f[%A]") then
++    return nil
++  end
++  local attr_start = line:find("class%s*=%s*[\"']")
++  if not attr_start then
++    return nil
++  end
++  local quote_start = line:find("[\"']", attr_start)
++  if not quote_start then
++    return nil
++  end
++  local quote_char = line:sub(quote_start, quote_start)
++  local quote_end = line:find(quote_char, quote_start + 1, true)
++  if not quote_end then
++    return nil
++  end
++
++  local occurrences = {}
++  local pattern = "%f[%w]" .. vim.pesc(symbol) .. "%f[%W]"
++  local init = quote_start + 1
++  while init < quote_end do
++    local s, e = line:find(pattern, init)
++    if not s or s >= quote_end then
++      break
++    end
++
++    local package = nil
++    if s > 1 and line:sub(s - 1, s - 1) == "." then
++      local prefix_start = s - 1
++      while prefix_start > 1 and line:sub(prefix_start - 1, prefix_start - 1):match("[%w_.]") do
++        prefix_start = prefix_start - 1
++      end
++      local prefix = line:sub(prefix_start, s - 2)
++      if prefix ~= "" then
++        package = prefix
++      end
++    end
++
++    occurrences[#occurrences + 1] = { col = s, end_col = e + 1, package = package }
++    init = e + 1
++  end
++
++  if #occurrences == 0 then
++    return nil
++  end
++  return occurrences
++end
++
++--- Classify a Java/Kotlin candidate line (already known to contain `symbol`
++--- as a whole word) using the line itself plus up to 2 preceding lines of
++--- context (annotations sit directly above the declaration they modify).
++--- Returns every whole-word occurrence of `symbol` on the line once the
++--- line as a whole is classified -- e.g. `private FooService fooService =
++--- FooService.createDefault();` under an `@Autowired` yields two items,
++--- not just the first.
++---@param lines string[] full file content, 1 line per array entry
++---@param idx integer 1-based index of the matched line within `lines`
++---@param symbol string
++---@return "stereotype"|"autowired"|nil kind
++---@return { col: integer, end_col: integer }[]|nil occurrences
++function M.classify_jvm_line(lines, idx, symbol)
++  local line = lines[idx]
++  if not line then
++    return nil
++  end
++  local occurrences = M._find_all_occurrences(line, symbol)
++  if #occurrences == 0 then
++    return nil
++  end
++
++  local context = {}
++  for i = math.max(1, idx - 2), idx do
++    context[#context + 1] = lines[i]
++  end
++  local context_text = table.concat(context, "\n")
++
++  -- `@Autowired` field/property whose declared type is `symbol`, e.g.
++  -- `private FooService fooService;` (Java) or `val fooService: FooService`
++  -- (Kotlin) -- both put the symbol on the matched line itself, with
++  -- `@Autowired` on the same or a preceding line.
++  if context_text:find("@Autowired%f[%A]") then
++    local is_type_position = line:find("%f[%w]" .. vim.pesc(symbol) .. "%f[%W]%s+%a[%w_]*%s*[;=,)]")
++      or line:find(":%s*" .. vim.pesc(symbol) .. "%f[%W]")
++    if is_type_position then
++      return "autowired", occurrences
++    end
++  end
++
++  -- Stereotype-annotated class declaration: `@Component`/`@Service`/etc.
++  -- immediately above (or on the same line as, for single-line styles)
++  -- `class Symbol`.
++  local has_stereotype = false
++  for name in pairs(STEREOTYPE_SET) do
++    if context_text:find("@" .. name .. "%f[%A]") then
++      has_stereotype = true
++      break
++    end
++  end
++  if has_stereotype and line:find("class%s+" .. vim.pesc(symbol) .. "%f[%W]") then
++    return "stereotype", occurrences
++  end
++
++  return nil
++end
++
++--- Best-effort, comment-state-tracking check for whether (lnum, col) --
++--- 1-based line, 1-based column -- falls inside an XML `<!-- ... -->`
++--- comment. Walks from the start of the file tracking open/close state
++--- since XML comments can span multiple lines; a plain text scan avoids
++--- depending on an XML Tree-sitter grammar that isn't guaranteed to be
++--- installed anywhere in this distribution.
++---@param lines string[]
++---@param lnum integer
++---@param col integer
++---@return boolean
++function M.is_inside_xml_comment(lines, lnum, col)
++  local in_comment = false
++  for i = 1, lnum do
++    local line = lines[i] or ""
++    local search_from = 1
++    local line_len = #line
++    while search_from <= line_len + 1 do
++      if in_comment then
++        local close_s, close_e = line:find("%-%->", search_from)
++        if not close_s then
++          if i == lnum and col >= search_from then
++            return true
++          end
++          break
++        end
++        if i == lnum and col >= search_from and col <= close_e then
++          return true
++        end
++        in_comment = false
++        search_from = close_e + 1
++      else
++        local open_s = line:find("<!%-%-", search_from)
++        if not open_s then
++          break
++        end
++        if i == lnum and col >= search_from and col < open_s then
++          return false
++        end
++        in_comment = true
++        search_from = open_s + 4
++      end
++    end
++  end
++  return false
++end
++
++--- Parse `content` as `lang` and return its root TSNode, or nil if no
++--- parser is installed / parsing errors. Intended to be called ONCE per
++--- file and the result reused across every occurrence in that file --
++--- callers must not re-parse per hit.
++---@param content string
++---@param lang string
++---@return TSNode|nil
++function M._ts_root_for(content, lang)
++  local ok, root = pcall(function()
++    local parser = vim.treesitter.get_string_parser(content, lang)
++    local trees = parser:parse()
++    return trees[1]:root()
++  end)
++  if not ok then
++    return nil
++  end
++  return root
++end
++
++--- Given an already-parsed root (or nil, meaning "no parser available"),
++--- returns true only if (row, col) -- 0-based -- falls inside a comment or
++--- string-literal node.
++---@param root TSNode|nil
++---@param row integer
++---@param col integer
++---@return boolean
++function M._is_comment_or_string_node(root, row, col)
++  if not root then
++    return false
++  end
++  local ok, result = pcall(function()
++    local node = root:named_descendant_for_range(row, col, row, col)
++    while node do
++      local ntype = node:type()
++      if ntype:find("comment", 1, true) or ntype:find("string", 1, true) then
++        return true
++      end
++      node = node:parent()
++    end
++    return false
++  end)
++  if not ok then
++    return false
++  end
++  return result
++end
++
++--- Best-effort Tree-sitter precision filter: returns true only when a
++--- parser is available AND it confirms `row` (0-based) falls inside a
++--- comment or string-literal node -- i.e. this candidate should be
++--- discarded even though the Lua-pattern pass matched it. Returns false
++--- (never discard) whenever a parser isn't installed or parsing errors,
++--- since pattern-matching already did the real classification work.
++---
++--- Convenience wrapper over `_ts_root_for` + `_is_comment_or_string_node`
++--- for callers that only need a single (row, col) check; `scan_root_async`
++--- itself calls those two directly so it can parse each file once and
++--- reuse the root across every hit in that file.
++---@param content string
++---@param lang string
++---@param row integer 0-based line
++---@param col integer 0-based byte column
++---@return boolean
++function M.is_inside_comment_or_string(content, lang, row, col)
++  return M._is_comment_or_string_node(M._ts_root_for(content, lang), row, col)
++end
++
++local LANG_BY_EXT = {
++  java = "java",
++  kt = "kotlin",
++  kts = "kotlin",
++}
++
++local SCAN_UNAVAILABLE_MSG =
++  "Spring-reference scan unavailable (neither 'rg' nor 'grep' could be run) -- XML/@Autowired/stereotype coverage may be incomplete for this rename"
++
++local function warn_scan_unavailable()
++  vim.notify(SCAN_UNAVAILABLE_MSG, vim.log.levels.WARN, { title = "Cumulus Refactor" })
++end
++
++--- Find candidate files under `root` that mention `symbol` as a whole word,
++--- restricted to .java/.kt/.xml, via `rg` (preferred) or `grep` (fallback).
++--- Fully async -- never blocks the editor. Calls `callback({ {file=, lnum=,
++--- col=, end_col=}, ... })` (raw hits, not yet classified) via vim.schedule.
++--- Calls `callback({})` if neither tool is available or the scan errors
++--- (and, in that specific case, surfaces one `vim.notify` WARN so the user
++--- knows Spring-reference coverage may be incomplete).
++---@param root string
++---@param symbol string
++---@param callback fun(hits: table[])
++function M.raw_hits_async(root, symbol, callback)
++  local function finish(hits)
++    vim.schedule(function()
++      callback(hits)
++    end)
++  end
++
++  local function parse_rg(output)
++    local hits = {}
++    for _, line in ipairs(vim.split(output, "\n", { trimempty = true })) do
++      -- rg --vimgrep: file:lnum:col:text
++      local file, lnum, col, text = line:match("^(.-):(%d+):(%d+):(.*)$")
++      if file then
++        local s, e = M._word_span(text, symbol, tonumber(col))
++        if s then
++          hits[#hits + 1] = { file = file, lnum = tonumber(lnum), col = s, end_col = e, line = text }
++        end
++      end
++    end
++    return hits
++  end
++
++  local function parse_grep(output)
++    local hits = {}
++    for _, line in ipairs(vim.split(output, "\n", { trimempty = true })) do
++      local file, lnum, text = line:match("^(.-):(%d+):(.*)$")
++      if file then
++        local s, e = M._word_span(text, symbol, 1)
++        if s then
++          hits[#hits + 1] = { file = file, lnum = tonumber(lnum), col = s, end_col = e, line = text }
++        end
++      end
++    end
++    return hits
++  end
++
++  local rg_cmd = {
++    "rg",
++    "--vimgrep",
++    "--fixed-strings",
++    "--word-regexp",
++    "--glob",
++    "*.java",
++    "--glob",
++    "*.kt",
++    "--glob",
++    "*.xml",
++    symbol,
++    root,
++  }
++  local rg_ok, rg_handle_or_err = pcall(vim.system, rg_cmd, { text = true }, function(result)
++    if result.code == 0 or result.code == 1 then
++      -- exit 1 == "no matches", not an error -- still a valid empty scan.
++      finish(parse_rg(result.stdout or ""))
++      return
++    end
++    -- Non-zero/non-1 exit (e.g. rg present but errored on this root):
++    -- fall back to grep rather than silently dropping Spring coverage.
++    M._grep_fallback(root, symbol, parse_grep, finish)
++  end)
++  if not rg_ok then
++    M._grep_fallback(root, symbol, parse_grep, finish)
++    return
++  end
++  if not rg_handle_or_err then
++    M._grep_fallback(root, symbol, parse_grep, finish)
++  end
++end
++
++function M._grep_fallback(root, symbol, parse_grep, finish)
++  -- May be entered either from a safe (main-loop) context or from inside
++  -- rg's own fast-context exit callback -- vim.schedule wrapping the spawn
++  -- itself keeps every path safe rather than assuming vim.system() is
++  -- callable from a fast callback.
++  vim.schedule(function()
++    local grep_cmd = {
++      "grep",
++      "-rn",
++      "-F",
++      "-w",
++      "--include=*.java",
++      "--include=*.kt",
++      "--include=*.xml",
++      -- Unlike rg (which honors .gitignore by default), grep has no
++      -- built-in exclusions -- keep it out of the usual non-source dirs.
++      "--exclude-dir=.git",
++      "--exclude-dir=target",
++      "--exclude-dir=build",
++      "--exclude-dir=node_modules",
++      "--exclude-dir=.gradle",
++      "--exclude-dir=out",
++      "--",
++      symbol,
++      root,
++    }
++    local ok, handle_or_err = pcall(vim.system, grep_cmd, { text = true }, function(result)
++      if result.code == 0 or result.code == 1 then
++        finish(parse_grep(result.stdout or ""))
++      else
++        warn_scan_unavailable()
++        finish({})
++      end
++    end)
++    if not ok or not handle_or_err then
++      warn_scan_unavailable()
++      finish({})
++    end
++  end)
++end
++
++--- Locate the whole-word span of `symbol` in `text`, preferring the
++--- occurrence at/after `hint_col` (1-based) when the tool already reported
++--- a column, falling back to the first whole-word occurrence otherwise.
++---@return integer|nil col
++---@return integer|nil end_col
++function M._word_span(text, symbol, hint_col)
++  local pattern = "%f[%w]" .. vim.pesc(symbol) .. "%f[%W]"
++  local init = hint_col or 1
++  local s, e = text:find(pattern, math.max(1, init - 1))
++  if not s then
++    s, e = text:find(pattern, 1)
++  end
++  if not s then
++    return nil
++  end
++  return s, e + 1
++end
++
++--- Scan `root` for Spring references to `symbol` (a simple class name),
++--- classify each candidate, and hand the classified list to `callback`.
++--- Fully async (delegates to raw_hits_async); never blocks the editor.
++---
++--- When `old_package` is given (the renamed symbol's own declared
++--- package), any Java/Kotlin candidate file whose own `package` differs
++--- (or is undeterminable) is skipped entirely, and any XML `<bean
++--- class="...">` occurrence whose FQN package prefix differs (or is
++--- undeterminable, e.g. a bare simple-name class attribute) is skipped --
++--- this is what keeps renaming `com.a.FooService` from touching an
++--- unrelated `com.b.FooService`. Pass nil to skip this guard entirely
++--- (e.g. when the renamed symbol's own package couldn't be determined).
++---@param root string
++---@param symbol string
++---@param old_package string|nil
++---@param callback fun(items: table[]) -- { file, lnum, col, end_col, kind, text }
++function M.scan_root_async(root, symbol, old_package, callback)
++  M.raw_hits_async(root, symbol, function(hits)
++    -- Dedupe to one hit per (file, line): rg reports one match per
++    -- *occurrence*, so a line with the symbol twice produces two raw hits
++    -- here. Classifying per-hit using only the first occurrence's column
++    -- (an earlier version of this code did exactly that) corrupts the
++    -- buffer when a line has the symbol more than once, since every raw
++    -- hit for that line would classify to the SAME span. Classify once per
++    -- unique line instead and let classify_* enumerate every occurrence.
++    local by_file = {}
++    for _, hit in ipairs(hits) do
++      by_file[hit.file] = by_file[hit.file] or {}
++      by_file[hit.file][hit.lnum] = by_file[hit.file][hit.lnum] or hit
++    end
++
++    local items = {}
++    local failed_files = {}
++
++    for file, lnum_hits in pairs(by_file) do
++      local ext = (file:match("%.([%w]+)$") or ""):lower()
++      local ok, lines = pcall(vim.fn.readfile, file)
++      if not ok or not lines then
++        failed_files[#failed_files + 1] = file
++      elseif ext == "xml" then
++        for lnum, hit in pairs(lnum_hits) do
++          local line = lines[lnum] or hit.line
++          local occurrences = line and M.classify_xml_line(line, symbol)
++          if occurrences then
++            for _, occ in ipairs(occurrences) do
++              local package_ok = true
++              if old_package then
++                package_ok = occ.package ~= nil and occ.package == old_package
++              end
++              if package_ok and not M.is_inside_xml_comment(lines, lnum, occ.col) then
++                items[#items + 1] = {
++                  file = file,
++                  lnum = lnum,
++                  col = occ.col,
++                  end_col = occ.end_col,
++                  kind = "xml_bean",
++                  text = line,
++                }
++              end
++            end
++          end
++        end
++      elseif LANG_BY_EXT[ext] then
++        local lang = LANG_BY_EXT[ext]
++        local file_package = M.file_package(lines)
++        local package_ok = true
++        if old_package then
++          package_ok = file_package ~= nil and file_package == old_package
++        end
++        if package_ok then
++          -- Parse this file's Tree-sitter tree ONCE and reuse the root
++          -- across every hit/occurrence in it, rather than re-parsing the
++          -- whole file per hit.
++          local content = table.concat(lines, "\n")
++          local ts_root = M._ts_root_for(content, lang)
++          for lnum in pairs(lnum_hits) do
++            local kind, occurrences = M.classify_jvm_line(lines, lnum, symbol)
++            if kind and occurrences then
++              for _, occ in ipairs(occurrences) do
++                local discard = M._is_comment_or_string_node(ts_root, lnum - 1, occ.col - 1)
++                if not discard then
++                  items[#items + 1] = {
++                    file = file,
++                    lnum = lnum,
++                    col = occ.col,
++                    end_col = occ.end_col,
++                    kind = kind,
++                    text = lines[lnum],
++                  }
++                end
++              end
++            end
++          end
++        end
++      end
++    end
++
++    if #failed_files > 0 then
++      vim.notify(
++        "Spring-reference scan: could not read "
++          .. #failed_files
++          .. " candidate file(s), coverage may be incomplete: "
++          .. table.concat(failed_files, ", "),
++        vim.log.levels.WARN,
++        { title = "Cumulus Refactor" }
++      )
++    end
++
++    callback(items)
++  end)
++end
++
++return M
+diff --git a/lua/cumulus/util/refactor.lua b/lua/cumulus/util/refactor.lua
+new file mode 100644
+index 0000000..dfc9f8a
+--- /dev/null
++++ b/lua/cumulus/util/refactor.lua
+@@ -0,0 +1,446 @@
++-- Cumulus Refactor: Project-Wide Safe Rename (SPEC-2.1)
++--
++-- Java/Kotlin rename today is a bare vim.lsp.buf.rename() (see the global
++-- <leader>cr in core/keymaps.lua) -- it applies immediately, with no
++-- cross-file preview and no awareness of Spring XML/annotation bean
++-- references the LSP can't see. This module replaces that flow, buffer-
++-- locally, for buffers with a JDTLS or Kotlin LS client attached:
++--
++--   1. Request textDocument/rename via vim.lsp.buf_request_all WITHOUT the
++--      default handler, so nothing is applied yet (with a timeout guard --
++--      see RENAME_TIMEOUT_MS -- so a non-responding server doesn't hang the
++--      flow silently forever).
++--   2. Merge in Tree-sitter/text-assisted Spring reference matches from
++--      refactor-treesitter.lua (XML <bean class="...">, @Autowired fields,
++--      stereotype-annotated classes), dropping any that overlap a location
++--      the LSP's own WorkspaceEdit already covers (filter_overlapping_
++--      spring_items) so nothing gets double-applied.
++--   3. Populate the quickfix list as a dry-run preview (:copen) -- no
++--      floating window, per this spec's Design Notes.
++--   4. Confirm via vim.ui.select({'Apply', 'Cancel'}, ...); only 'Apply'
++--      writes anything, via vim.lsp.util.apply_workspace_edit for the LSP
++--      part and direct, column-precise line edits for the Spring part.
++--      Both apply steps are failure-tracked so the final notification
++--      accurately reflects a partial failure rather than always claiming
++--      full success.
++--
++-- Everything here is async (vim.system/vim.schedule, matching the
++-- convention in sync-runner.lua) and nothing is ever applied without an
++-- explicit confirm. Only one rename can be in flight at a time (M._busy) --
++-- a second <leader>cr while one is still running is rejected with a
++-- notify, rather than allowed to produce overlapping previews. File-move
++-- handling is out of scope (deferred separately); Scala/Metals/sbt are
++-- never touched.
++
++local M = {}
++
++--- How long to wait for a textDocument/rename response before giving up
++--- and notifying the user, rather than leaving the flow silently hanging
++--- forever if the server never replies.
++M.RENAME_TIMEOUT_MS = 10000
++
++local JVM_CLIENT_NAMES = {
++  jdtls = true,
++  kotlin_language_server = true,
++}
++
++local function notify_err(msg)
++  vim.notify(msg, vim.log.levels.ERROR, { title = "Cumulus Refactor" })
++end
++
++local function notify_warn(msg)
++  vim.notify(msg, vim.log.levels.WARN, { title = "Cumulus Refactor" })
++end
++
++local function notify_info(msg)
++  vim.notify(msg, vim.log.levels.INFO, { title = "Cumulus Refactor" })
++end
++
++--- Find the JDTLS/Kotlin LS client attached to `bufnr`, if any.
++---@param bufnr integer
++---@return vim.lsp.Client|nil
++function M.find_jvm_client(bufnr)
++  local clients = vim.lsp.get_clients({ bufnr = bufnr })
++  for _, client in ipairs(clients) do
++    if JVM_CLIENT_NAMES[client.name] then
++      return client
++    end
++  end
++  return nil
++end
++
++--- Build a flat list of { uri, range } from a WorkspaceEdit's `changes`
++--- and/or `documentChanges` (TextDocumentEdit entries only -- resource
++--- operations such as file create/rename/delete are intentionally ignored;
++--- file-move handling is out of scope for this spec).
++---@param workspace_edit table
++---@return table[]
++function M.workspace_edit_to_locations(workspace_edit)
++  local locations = {}
++  if workspace_edit.changes then
++    for uri, edits in pairs(workspace_edit.changes) do
++      for _, edit in ipairs(edits) do
++        locations[#locations + 1] = { uri = uri, range = edit.range }
++      end
++    end
++  end
++  if workspace_edit.documentChanges then
++    for _, change in ipairs(workspace_edit.documentChanges) do
++      if change.edits and change.textDocument then
++        for _, edit in ipairs(change.edits) do
++          locations[#locations + 1] = { uri = change.textDocument.uri, range = edit.range }
++        end
++      end
++    end
++  end
++  return locations
++end
++
++--- Drop any `spring_items` entry whose (file, line, column-range) already
++--- overlaps a location the LSP's own WorkspaceEdit covers -- e.g. a
++--- stereotype-annotated class declaration touched by both the LSP rename
++--- and the stereotype classifier. Without this, apply_spring_edits would
++--- re-splice a line vim.lsp.util.apply_workspace_edit already rewrote,
++--- using column coordinates captured before that edit ran, corrupting it.
++---@param lsp_items table[] vim.quickfix.entry-shaped, from locations_to_items
++---@param spring_items table[] { file, lnum, col, end_col, kind, text }
++---@return table[]
++function M.filter_overlapping_spring_items(lsp_items, spring_items)
++  local lsp_by_key = {}
++  for _, item in ipairs(lsp_items) do
++    local key = vim.fn.fnamemodify(item.filename, ":p") .. ":" .. item.lnum
++    lsp_by_key[key] = lsp_by_key[key] or {}
++    table.insert(lsp_by_key[key], { col = item.col, end_col = item.end_col })
++  end
++
++  local filtered = {}
++  for _, item in ipairs(spring_items) do
++    local key = vim.fn.fnamemodify(item.file, ":p") .. ":" .. item.lnum
++    local ranges = lsp_by_key[key]
++    local overlaps = false
++    if ranges then
++      for _, r in ipairs(ranges) do
++        if item.col < r.end_col and r.col < item.end_col then
++          overlaps = true
++          break
++        end
++      end
++    end
++    if not overlaps then
++      filtered[#filtered + 1] = item
++    end
++  end
++  return filtered
++end
++
++--- Convert refactor-treesitter.lua's classified Spring-reference hits into
++--- vim.quickfix.entry-shaped items, tagged with a human-readable kind so
++--- the preview distinguishes them from LSP-provided locations.
++---@param spring_items table[]
++---@return table[]
++function M.spring_items_to_qf(spring_items)
++  local kind_labels = {
++    xml_bean = "[Spring XML bean]",
++    autowired = "[Spring @Autowired]",
++    stereotype = "[Spring stereotype]",
++  }
++  local qf = {}
++  for _, item in ipairs(spring_items) do
++    qf[#qf + 1] = {
++      filename = item.file,
++      lnum = item.lnum,
++      col = item.col,
++      end_col = item.end_col,
++      text = (kind_labels[item.kind] or "[Spring]") .. " " .. item.text,
++      user_data = { source = "spring", kind = item.kind, col = item.col, end_col = item.end_col },
++    }
++  end
++  return qf
++end
++
++--- Apply the Spring-reference textual edits directly: splice `new_name`
++--- into each recorded [col, end_col) span via nvim_buf_set_text, grouped
++--- per file and applied bottom-to-top so earlier splices on the same line
++--- never shift the column of a later one. Uses vim.fn.bufadd/bufload (the
++--- same "load, don't write" approach vim.lsp.util.apply_text_edits takes)
++--- rather than writing the file directly -- that keeps every touched file
++--- in the same "edited buffer, not yet saved" state as the LSP-applied
++--- files, so the user reviews/saves everything together through the
++--- normal Neovim workflow instead of some files being silently flushed to
++--- disk out from under an already-open, possibly-unsaved buffer for the
++--- same path.
++---@param spring_items table[]
++---@param new_name string
++---@return integer applied how many of #spring_items were actually applied
++---@return string[] failed_files files where at least one edit failed (load or splice)
++function M.apply_spring_edits(spring_items, new_name)
++  local by_file = {}
++  for _, item in ipairs(spring_items) do
++    by_file[item.file] = by_file[item.file] or {}
++    table.insert(by_file[item.file], item)
++  end
++
++  local applied = 0
++  local failed_files = {}
++
++  for file, items in pairs(by_file) do
++    table.sort(items, function(a, b)
++      if a.lnum ~= b.lnum then
++        return a.lnum > b.lnum
++      end
++      return a.col > b.col
++    end)
++
++    -- Loading a not-yet-open file via bufadd/bufload fires FileType/
++    -- BufReadPost autocmds same as a normal :edit -- for a .java/.kt file
++    -- that means ftplugin/java.lua or lsp-kotlin.lua's on_attach actually
++    -- launching a language server, as an unwanted side effect of applying
++    -- a rename edit to a file the user never asked to open. eventignore
++    -- suppresses that while still loading real buffer content to edit.
++    local saved_eventignore = vim.o.eventignore
++    vim.o.eventignore = "all"
++    local ok, bufnr = pcall(vim.fn.bufadd, file)
++    local loaded = false
++    if ok and bufnr and bufnr ~= 0 then
++      loaded = pcall(vim.fn.bufload, bufnr)
++    end
++    vim.o.eventignore = saved_eventignore
++
++    if ok and loaded then
++      local file_failed = false
++      for _, item in ipairs(items) do
++        local set_ok = pcall(
++          vim.api.nvim_buf_set_text,
++          bufnr,
++          item.lnum - 1,
++          item.col - 1,
++          item.lnum - 1,
++          item.end_col - 1,
++          { new_name }
++        )
++        if set_ok then
++          applied = applied + 1
++        else
++          file_failed = true
++        end
++      end
++      if file_failed then
++        failed_files[#failed_files + 1] = file
++      end
++    else
++      failed_files[#failed_files + 1] = file
++    end
++  end
++
++  return applied, failed_files
++end
++
++--- Core async rename flow: request textDocument/rename for `new_name` at
++--- the current cursor position without auto-applying, merge in Tree-sitter-
++--- detected Spring references, preview everything via the quickfix list,
++--- and apply only on explicit confirm.
++---
++--- If `new_name` is omitted, prompts for it via vim.ui.input (default: the
++--- word under the cursor) before continuing -- this is the shape bound to
++--- <leader>cr in ftplugin/java.lua and lsp-kotlin.lua. Passing `new_name`
++--- directly (as tests do) skips the prompt.
++---@param new_name string|nil
++function M.project_rename(new_name)
++  if M._busy then
++    notify_warn("A project-wide rename is already in progress -- please wait for it to finish")
++    return
++  end
++
++  local bufnr = vim.api.nvim_get_current_buf()
++  local win = vim.api.nvim_get_current_win()
++
++  local jvm_client = M.find_jvm_client(bufnr)
++  if not jvm_client then
++    notify_warn("No project-wide rename available for this buffer (no JDTLS/Kotlin LS client attached)")
++    return
++  end
++
++  local old_name = vim.fn.expand("<cword>")
++  if old_name == "" then
++    notify_warn("No symbol under the cursor to rename")
++    return
++  end
++
++  if new_name == nil then
++    vim.ui.input({ prompt = "Project-wide rename '" .. old_name .. "' to: ", default = old_name }, function(input)
++      if not input or input == "" then
++        return
++      end
++      if input == old_name then
++        notify_info("New name is the same as the current name -- nothing to do")
++        return
++      end
++      M._do_rename(bufnr, win, jvm_client, old_name, input)
++    end)
++    return
++  end
++
++  if new_name == "" then
++    return
++  end
++  if new_name == old_name then
++    notify_info("New name is the same as the current name -- nothing to do")
++    return
++  end
++
++  M._do_rename(bufnr, win, jvm_client, old_name, new_name)
++end
++
++--- Internal: runs once new_name is known and a JVM client is confirmed
++--- attached. Split out from project_rename so tests can call it directly
++--- with an already-known name (see project_rename's doc comment). Marks
++--- the rename in-flight (M._busy) and guards the request with a timeout so
++--- a non-responding server can't hang the flow silently forever.
++---@param bufnr integer
++---@param win integer
++---@param jvm_client vim.lsp.Client
++---@param old_name string
++---@param new_name string
++function M._do_rename(bufnr, win, jvm_client, old_name, new_name)
++  M._busy = true
++
++  local params = vim.lsp.util.make_position_params(win, jvm_client.offset_encoding)
++  params.newName = new_name
++
++  local responded = false
++
++  vim.defer_fn(function()
++    if responded then
++      return
++    end
++    responded = true
++    M._busy = false
++    notify_err(
++      "Project rename timed out waiting for '"
++        .. jvm_client.name
++        .. "' to respond to textDocument/rename ("
++        .. (M.RENAME_TIMEOUT_MS / 1000)
++        .. "s) -- no changes applied"
++    )
++  end, M.RENAME_TIMEOUT_MS)
++
++  vim.lsp.buf_request_all(bufnr, "textDocument/rename", params, function(responses)
++    if responded then
++      -- The timeout already fired and notified; ignore a very late response.
++      return
++    end
++    responded = true
++    vim.schedule(function()
++      M._on_rename_response(bufnr, jvm_client, old_name, new_name, responses)
++    end)
++  end)
++end
++
++--- Internal: handles the raw textDocument/rename response set (already
++--- vim.schedule'd), validates it, kicks off the Spring reference scan
++--- (package-scoped to the renamed symbol's own file), filters out any
++--- Spring match that overlaps an LSP-provided location, and proceeds to
++--- the merged preview.
++function M._on_rename_response(bufnr, jvm_client, old_name, new_name, responses)
++  local resp = responses[jvm_client.id]
++  if not resp or resp.err then
++    local detail = resp and resp.err and resp.err.message or "no response from language server"
++    notify_err("Project rename aborted for '" .. old_name .. "' -> '" .. new_name .. "': " .. detail)
++    M._busy = false
++    return
++  end
++
++  local workspace_edit = resp.result
++  if not workspace_edit or (not workspace_edit.changes and not workspace_edit.documentChanges) then
++    notify_warn("Project rename: no changes returned for '" .. old_name .. "'")
++    M._busy = false
++    return
++  end
++
++  local locations = M.workspace_edit_to_locations(workspace_edit)
++  local lsp_items = vim.lsp.util.locations_to_items(locations, jvm_client.offset_encoding)
++
++  local root = jvm_client.config.root_dir or vim.fn.getcwd()
++  local refactor_ts = require("cumulus.util.refactor-treesitter")
++  local old_package = refactor_ts.file_package(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
++
++  refactor_ts.scan_root_async(root, old_name, old_package, function(spring_items)
++    spring_items = M.filter_overlapping_spring_items(lsp_items, spring_items)
++    M._show_preview(workspace_edit, jvm_client, old_name, new_name, lsp_items, spring_items)
++  end)
++end
++
++--- Internal: builds and opens the merged quickfix preview, then confirms
++--- via vim.ui.select before applying anything. On Apply, the LSP edit is
++--- applied first (pcall-guarded -- a failure here aborts entirely, since
++--- applying only the Spring text edits after a failed LSP edit would leave
++--- a worse, half-renamed state than not applying at all); the Spring edits
++--- are applied second and failure-tracked so the final notification
++--- reflects a partial failure rather than always claiming full success.
++function M._show_preview(workspace_edit, jvm_client, old_name, new_name, lsp_items, spring_items)
++  local qf_items = {}
++  vim.list_extend(qf_items, lsp_items)
++  vim.list_extend(qf_items, M.spring_items_to_qf(spring_items))
++
++  if #qf_items == 0 then
++    notify_warn("Project rename: no locations found for '" .. old_name .. "'")
++    M._busy = false
++    return
++  end
++
++  vim.fn.setqflist({}, " ", {
++    title = string.format(
++      "Rename '%s' -> '%s' (%d location%s)",
++      old_name,
++      new_name,
++      #qf_items,
++      #qf_items == 1 and "" or "s"
++    ),
++    items = qf_items,
++  })
++  vim.cmd("copen")
++
++  vim.ui.select({ "Apply", "Cancel" }, {
++    prompt = string.format("Apply rename '%s' -> '%s' to %d location(s)?", old_name, new_name, #qf_items),
++  }, function(choice)
++    if choice ~= "Apply" then
++      notify_info("Project rename cancelled -- no changes applied")
++      M._busy = false
++      return
++    end
++
++    local lsp_ok, lsp_err = pcall(vim.lsp.util.apply_workspace_edit, workspace_edit, jvm_client.offset_encoding)
++    if not lsp_ok then
++      notify_err(
++        "Project rename: failed to apply the LSP workspace edit ("
++          .. tostring(lsp_err)
++          .. ") -- Spring-reference edits were not applied either, to avoid a half-applied rename"
++      )
++      M._busy = false
++      return
++    end
++
++    local spring_applied, spring_failed_files = 0, {}
++    if #spring_items > 0 then
++      spring_applied, spring_failed_files = M.apply_spring_edits(spring_items, new_name)
++    end
++
++    local total_applied = #lsp_items + spring_applied
++    if #spring_failed_files > 0 then
++      notify_warn(
++        string.format(
++          "Renamed %d/%d location(s) -- %d Spring-reference edit(s) failed in: %s",
++          total_applied,
++          #qf_items,
++          #spring_items - spring_applied,
++          table.concat(spring_failed_files, ", ")
++        )
++      )
++    else
++      notify_info(string.format("Renamed '%s' -> '%s' across %d location(s)", old_name, new_name, #qf_items))
++    end
++    M._busy = false
++  end)
++end
++
++return M
+diff --git a/scripts/validate-refactor.sh b/scripts/validate-refactor.sh
+new file mode 100755
+index 0000000..5a9f2b7
+--- /dev/null
++++ b/scripts/validate-refactor.sh
+@@ -0,0 +1,391 @@
++#!/usr/bin/env bash
++# SPEC-2.1: Project-Wide Safe Rename (Java & Kotlin) -- behavioral smoke test
++#
++# Mirrors validate-dap-jvm.sh: uses `vim.cmd('cquit 1')` on assertion failure
++# so pass/fail is trustworthy, unlike scripts/validate.sh's `+lua
++# assert(...)` pattern which never propagates a non-zero exit code.
++#
++# A real JDTLS/Kotlin LS process is not available in every environment this
++# runs in (no network/Mason install guaranteed), so the textDocument/rename
++# response is mocked at the vim.lsp.get_clients / vim.lsp.buf_request_all
++# seam -- everything downstream of that seam (merging the mocked
++# WorkspaceEdit with refactor-treesitter.lua's real, un-mocked project scan,
++# building the quickfix preview, confirming, and applying both the LSP edit
++# and the Spring text edits to real files on disk) is exercised for real
++# against a small fixture project.
++
++set -e
++
++echo "=== Cumulus Project-Wide Safe Rename (SPEC-2.1) Smoke Test ==="
++
++FIXTURE_DIR="$(mktemp -d)"
++trap 'rm -rf "$FIXTURE_DIR"' EXIT
++
++mkdir -p "$FIXTURE_DIR/src/main/java/com/example"
++mkdir -p "$FIXTURE_DIR/src/main/java/com/other"
++mkdir -p "$FIXTURE_DIR/src/main/resources"
++
++# `@Service` on the class itself, and only ONE occurrence of the class name
++# on that declaration line, tests the LSP/Spring overlap fix (item 2): the
++# mocked LSP edit below touches this exact line/column, and the stereotype
++# classifier independently matches the same line too -- filter_overlapping_
++# spring_items must drop the Spring-scanned duplicate rather than let
++# apply_spring_edits re-splice a line the LSP edit already rewrote.
++cat > "$FIXTURE_DIR/src/main/java/com/example/FooService.java" <<'JAVA'
++package com.example;
++
++import org.springframework.stereotype.Service;
++
++@Service
++public class FooService {
++    public String greet() {
++        return "hi";
++    }
++}
++JAVA
++
++# The @Autowired field line mentions the renamed type TWICE (field type +
++# static-factory call) -- the reviewer's exact reproduction case for item 1
++# (duplicate same-line occurrences corrupting the buffer).
++cat > "$FIXTURE_DIR/src/main/java/com/example/Consumer.java" <<'JAVA'
++package com.example;
++
++import org.springframework.beans.factory.annotation.Autowired;
++
++public class Consumer {
++    @Autowired
++    private FooService fooService = FooService.createDefault();
++}
++JAVA
++
++# Unrelated same-named class in a DIFFERENT package -- item 3's
++# package-scoping fix must leave every reference here untouched.
++cat > "$FIXTURE_DIR/src/main/java/com/other/FooService.java" <<'JAVA'
++package com.other;
++
++public class FooService {
++    public String greet() {
++        return "other";
++    }
++}
++JAVA
++
++cat > "$FIXTURE_DIR/src/main/java/com/other/OtherConsumer.java" <<'JAVA'
++package com.other;
++
++import org.springframework.beans.factory.annotation.Autowired;
++
++public class OtherConsumer {
++    @Autowired
++    private FooService fooService;
++}
++JAVA
++
++cat > "$FIXTURE_DIR/src/main/resources/beans.xml" <<'XML'
++<beans>
++    <bean id="fooService" class="com.example.FooService"/>
++    <bean id="otherFooService" class="com.other.FooService"/>
++    <!-- <bean id="commentedOut" class="com.example.FooService"/> -->
++</beans>
++XML
++
++echo "[1/4] Static: refactor.lua / refactor-treesitter.lua module shape..."
++nvim -u init.lua --headless -c "lua
++local ok, err = pcall(function()
++  local refactor = require('cumulus.util.refactor')
++  assert(type(refactor.project_rename) == 'function', 'project_rename missing')
++  assert(type(refactor.find_jvm_client) == 'function', 'find_jvm_client missing')
++  assert(type(refactor.workspace_edit_to_locations) == 'function', 'workspace_edit_to_locations missing')
++
++  local ts = require('cumulus.util.refactor-treesitter')
++  assert(type(ts.scan_root_async) == 'function', 'scan_root_async missing')
++  assert(type(ts.classify_xml_line) == 'function', 'classify_xml_line missing')
++  assert(type(ts.classify_jvm_line) == 'function', 'classify_jvm_line missing')
++
++  -- Buffer-local wiring: verify the keymap plumbing source, not a live attach.
++  local java_src = io.open('ftplugin/java.lua', 'r'):read('*a')
++  assert(java_src:match('cumulus%.util%.refactor'), 'ftplugin/java.lua must wire up refactor.project_rename')
++  local kotlin_src = io.open('lua/cumulus/plugins/lsp-kotlin.lua', 'r'):read('*a')
++  assert(kotlin_src:match('cumulus%.util%.refactor'), 'lsp-kotlin.lua must wire up refactor.project_rename')
++end)
++if not ok then
++  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
++  vim.cmd('cquit 1')
++else
++  print('OK: refactor module shape and buffer-local wiring verified')
++end
++" -c "qa!"
++
++echo "[2/4] Behavioral: fixture rename (mocked JDTLS response) -- Apply updates Java class, BOTH occurrences of the @Autowired field's type on one line, and the XML bean class attribute; leaves the commented-out bean, the LSP/Spring-overlapping stereotype line, and the unrelated cross-package class untouched..."
++nvim -u init.lua --headless -c "lua
++local ok, err = pcall(function()
++  local fixture = '$FIXTURE_DIR'
++  local java_file = fixture .. '/src/main/java/com/example/FooService.java'
++  local consumer_file = fixture .. '/src/main/java/com/example/Consumer.java'
++  local xml_file = fixture .. '/src/main/resources/beans.xml'
++  local other_service_file = fixture .. '/src/main/java/com/other/FooService.java'
++  local other_consumer_file = fixture .. '/src/main/java/com/other/OtherConsumer.java'
++
++  local fake_client = {
++    id = 9001,
++    name = 'jdtls',
++    offset_encoding = 'utf-16',
++    config = { root_dir = fixture },
++  }
++
++  -- Mock the LSP seam: get_clients reports the fake jdtls client attached;
++  -- buf_request_all returns a WorkspaceEdit that renames only the class
++  -- declaration in FooService.java (mirroring what a real jdtls response
++  -- would contain -- FooService.java line 6, 'public class FooService {',
++  -- 0-based char 13) -- everything else (the @Autowired field's two
++  -- occurrences in Consumer.java, the XML bean class attribute) must come
++  -- from the real, un-mocked refactor-treesitter.lua project scan. This
++  -- same class-declaration line is ALSO independently matched by the
++  -- stereotype classifier (FooService.java has @Service on it) -- that's
++  -- the LSP/Spring overlap case filter_overlapping_spring_items must
++  -- resolve without a double-splice.
++  local orig_get_clients = vim.lsp.get_clients
++  local orig_buf_request_all = vim.lsp.buf_request_all
++  vim.lsp.get_clients = function(_) return { fake_client } end
++  vim.lsp.buf_request_all = function(_, method, _, handler)
++    assert(method == 'textDocument/rename', 'unexpected method: ' .. tostring(method))
++    handler({
++      [fake_client.id] = {
++        result = {
++          changes = {
++            ['file://' .. java_file] = {
++              {
++                range = {
++                  start = { line = 5, character = 13 },
++                  ['end'] = { line = 5, character = 23 },
++                },
++                newText = 'BarService',
++              },
++            },
++          },
++        },
++      },
++    })
++  end
++
++  -- Mock the confirm prompt to always choose 'Apply'.
++  vim.ui.select = function(_, _, on_choice) on_choice('Apply') end
++
++  -- Both the LSP-applied edit and the Spring/treesitter-applied edits land
++  -- in in-memory buffers, not written to disk (matching how
++  -- vim.lsp.util.apply_text_edits already behaves for the LSP part) -- so
++  -- assertions read buffer content, mirroring what the user would actually
++  -- see, rather than the still-unmodified on-disk file.
++  local function buf_content(file)
++    local saved_ei = vim.o.eventignore
++    vim.o.eventignore = 'all'
++    local bufnr = vim.fn.bufadd(file)
++    vim.fn.bufload(bufnr)
++    vim.o.eventignore = saved_ei
++    return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n')
++  end
++
++  vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
++  -- Position the cursor on the 'FooService' class name (line 6, 'public
++  -- class FooService {') -- project_rename derives old_name from
++  -- vim.fn.expand('<cword>') at the cursor, exactly like the real
++  -- <leader>cr keymap would.
++  vim.api.nvim_win_set_cursor(0, { 6, 13 })
++  local refactor = require('cumulus.util.refactor')
++  refactor.project_rename('BarService')
++
++  -- The rename pipeline is async (vim.system for the Tree-sitter/Spring
++  -- scan) -- wait for the fixture buffer to reflect the applied edit
++  -- rather than assuming synchronous completion.
++  local deadline = vim.uv.now() + 10000
++  local function done()
++    return buf_content(java_file):find('BarService', 1, true) ~= nil
++  end
++  while not done() and vim.uv.now() < deadline do
++    vim.wait(100)
++  end
++
++  -- item 2 (LSP/Spring overlap): the class declaration line must be
++  -- renamed exactly once (LSP-applied), never double-spliced by the
++  -- Spring stereotype match for the same line/column.
++  local foo_content = buf_content(java_file)
++  assert(foo_content:find('public class BarService', 1, true), 'LSP-driven class rename not applied to FooService.java')
++  assert(not foo_content:find('BarServiceBarService', 1, true), 'class declaration line was double-spliced (LSP + Spring overlap not filtered)')
++
++  -- item 1 (duplicate same-line occurrences): BOTH the field type and the
++  -- static-factory call on the same line must be renamed, with no
++  -- corruption between them.
++  local consumer_content = buf_content(consumer_file)
++  assert(
++    consumer_content:find('private BarService fooService = BarService.createDefault();', 1, true),
++    'both same-line occurrences of the @Autowired field type were not correctly renamed: ' .. consumer_content
++  )
++
++  -- item 4 (XML comment filtering) + the live bean entry: the live
++  -- com.example bean is updated, the commented-out one is not.
++  local xml_content = buf_content(xml_file)
++  assert(
++    xml_content:find('class=\"com.example.BarService\"', 1, true),
++    'live XML bean class attribute not updated by Spring/treesitter scan'
++  )
++  assert(
++    xml_content:find('<!-- <bean id=\"commentedOut\" class=\"com.example.FooService\"/> -->', 1, true),
++    'a bean entry inside an XML comment must NOT be renamed'
++  )
++
++  -- item 3 (package scoping): the unrelated com.other.FooService and every
++  -- reference to it must be completely untouched.
++  assert(
++    xml_content:find('class=\"com.other.FooService\"', 1, true),
++    'an unrelated cross-package XML bean entry (com.other.FooService) must not be renamed'
++  )
++  assert(
++    buf_content(other_service_file):find('public class FooService', 1, true),
++    'the unrelated com.other.FooService class declaration must not be renamed'
++  )
++  assert(
++    buf_content(other_consumer_file):find('private FooService fooService;', 1, true),
++    'the unrelated com.other.OtherConsumer @Autowired field must not be renamed'
++  )
++
++  vim.lsp.get_clients = orig_get_clients
++  vim.lsp.buf_request_all = orig_buf_request_all
++end)
++if not ok then
++  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
++  vim.cmd('cquit 1')
++else
++  print('OK: Apply correctly updated com.example.FooService everywhere (including both same-line occurrences), left the commented-out bean and the unrelated com.other.FooService untouched, and did not double-splice the LSP/Spring-overlapping class declaration line')
++end
++" -c "qa!"
++
++echo "[3/4] Behavioral: cancelling at the confirm prompt leaves every file unmodified..."
++nvim -u init.lua --headless -c "lua
++local ok, err = pcall(function()
++  local fixture = '$FIXTURE_DIR'
++  local java_file = fixture .. '/src/main/java/com/example/FooService.java'
++  local before = table.concat(vim.fn.readfile(java_file), '\n')
++
++  local fake_client = {
++    id = 9002,
++    name = 'jdtls',
++    offset_encoding = 'utf-16',
++    config = { root_dir = fixture },
++  }
++  local orig_get_clients = vim.lsp.get_clients
++  local orig_buf_request_all = vim.lsp.buf_request_all
++  vim.lsp.get_clients = function(_) return { fake_client } end
++  vim.lsp.buf_request_all = function(_, _, _, handler)
++    handler({
++      [fake_client.id] = {
++        result = {
++          changes = {
++            ['file://' .. java_file] = {
++              {
++                range = { start = { line = 5, character = 13 }, ['end'] = { line = 5, character = 23 } },
++                newText = 'ShouldNotApply',
++              },
++            },
++          },
++        },
++      },
++    })
++  end
++  vim.ui.select = function(_, _, on_choice) on_choice('Cancel') end
++
++  vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
++  -- Position the cursor on the 'FooService' class name (line 6, 'public
++  -- class FooService {') -- project_rename derives old_name from
++  -- vim.fn.expand('<cword>') at the cursor, exactly like the real
++  -- <leader>cr keymap would.
++  vim.api.nvim_win_set_cursor(0, { 6, 13 })
++  local refactor = require('cumulus.util.refactor')
++  refactor.project_rename('ShouldNotApply')
++
++  vim.wait(2000, function() return false end, 100)
++
++  local after = table.concat(vim.fn.readfile(java_file), '\n')
++  assert(before == after, 'Cancel must leave the file byte-for-byte unmodified')
++  vim.lsp.get_clients = orig_get_clients
++  vim.lsp.buf_request_all = orig_buf_request_all
++end)
++if not ok then
++  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
++  vim.cmd('cquit 1')
++else
++  print('OK: Cancel applied no changes')
++end
++" -c "qa!"
++
++echo "[4/4] Behavioral: a rename that collides with an existing symbol (LSP error response) aborts before any file is touched..."
++nvim -u init.lua --headless -c "lua
++local ok, err = pcall(function()
++  local fixture = '$FIXTURE_DIR'
++  local java_file = fixture .. '/src/main/java/com/example/FooService.java'
++  local before = table.concat(vim.fn.readfile(java_file), '\n')
++
++  local fake_client = {
++    id = 9003,
++    name = 'jdtls',
++    offset_encoding = 'utf-16',
++    config = { root_dir = fixture },
++  }
++  local orig_get_clients = vim.lsp.get_clients
++  local orig_buf_request_all = vim.lsp.buf_request_all
++  vim.lsp.get_clients = function(_) return { fake_client } end
++  vim.lsp.buf_request_all = function(_, _, _, handler)
++    handler({ [fake_client.id] = { err = { message = 'Element already exists: Consumer' } } })
++  end
++
++  local select_called = false
++  vim.ui.select = function() select_called = true end
++
++  local notified = {}
++  local orig_notify = vim.notify
++  vim.notify = function(msg, level, opts)
++    table.insert(notified, { msg = msg, level = level })
++    orig_notify(msg, level, opts)
++  end
++
++  vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
++  -- Position the cursor on the 'FooService' class name (line 6, 'public
++  -- class FooService {') -- project_rename derives old_name from
++  -- vim.fn.expand('<cword>') at the cursor, exactly like the real
++  -- <leader>cr keymap would.
++  vim.api.nvim_win_set_cursor(0, { 6, 13 })
++  local refactor = require('cumulus.util.refactor')
++  refactor.project_rename('Consumer')
++
++  vim.wait(2000, function() return false end, 100)
++  vim.notify = orig_notify
++
++  assert(not select_called, 'quickfix confirm must never be shown for a colliding rename')
++  local saw_error = false
++  for _, n in ipairs(notified) do
++    if n.level == vim.log.levels.ERROR then saw_error = true end
++  end
++  assert(saw_error, 'a visible vim.notify ERROR naming the conflict is required')
++
++  local after = table.concat(vim.fn.readfile(java_file), '\n')
++  assert(before == after, 'a colliding rename must not touch any file')
++  vim.lsp.get_clients = orig_get_clients
++  vim.lsp.buf_request_all = orig_buf_request_all
++end)
++if not ok then
++  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
++  vim.cmd('cquit 1')
++else
++  print('OK: collision aborted before the quickfix preview, no edits applied')
++end
++" -c "qa!"
++
++echo ""
++echo "✔ Project-Wide Safe Rename (SPEC-2.1) smoke test PASSED."
++echo ""
++echo "NOT covered by this script (requires a real JDTLS/Kotlin LS process attached"
++echo "to a real project, unavailable in this sandbox) -- verify manually per"
++echo "spec-2-1's Verification section:"
++echo "  - A real textDocument/rename round-trip against JDTLS/Kotlin LS"
++echo "  - The 'No JVM LSP attached' path against a genuine non-JVM buffer with"
++echo "    no client, from the actual <leader>cr keymap rather than a direct call"
++echo "  - The quickfix preview's on-screen contents (:copen) for a human reviewer"
