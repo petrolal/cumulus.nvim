@@ -113,6 +113,21 @@ function M.check()
     vim.health.info("Engine health check failed or unavailable")
   end
 
+  vim.health.start("Cumulus Project-Wide Safe Rename (SPEC-2.1)")
+
+  if vim.fn.executable("rg") == 1 then
+    vim.health.ok("rg (ripgrep): installed and executable (Spring XML/@Autowired/stereotype reference scan)")
+  elseif vim.fn.executable("grep") == 1 then
+    vim.health.info(
+      "rg (ripgrep): NOT found on $PATH -- falling back to grep (slower). Suggestion: install ripgrep for a faster Spring-reference scan"
+    )
+  else
+    vim.health.warn(
+      "Neither 'rg' nor 'grep' found on $PATH -- the Spring XML/@Autowired/stereotype reference scan is "
+        .. "unavailable; project-wide rename will only cover LSP-visible locations. Suggestion: install ripgrep or grep"
+    )
+  end
+
   vim.health.start("AWS CloudFormation & SAM DevOps Tooling (Story 8.2)")
 
   local cfn_tools = {
@@ -182,6 +197,24 @@ function M.check()
     else
       vim.health.info(string.format("%s: NOT found on $PATH (%s. Suggestion: %s)", tool.name, tool.desc, tool.install))
     end
+  end
+
+  vim.health.start("Cumulus Embedded Database Explorer (SPEC-3.1)")
+
+  local dadbod_completion_ok = pcall(require, "vim_dadbod_completion")
+  if dadbod_completion_ok then
+    vim.health.ok("vim-dadbod-completion: resolvable (SQL buffer completion source available)")
+  else
+    vim.health.warn(
+      "vim-dadbod-completion: not resolvable -- open a sql/mysql/plsql buffer to lazy-load it, or run :Lazy sync"
+    )
+  end
+
+  local sql_parser_ok = pcall(vim.treesitter.language.add, "sql")
+  if sql_parser_ok then
+    vim.health.ok("sql Tree-sitter parser: installed (SQL buffer syntax highlighting available)")
+  else
+    vim.health.info("sql Tree-sitter parser: NOT installed. Suggestion: :TSInstall sql")
   end
 
   vim.health.start("Cumulus HTTP Client & REST API Explorer (Story 3.2)")

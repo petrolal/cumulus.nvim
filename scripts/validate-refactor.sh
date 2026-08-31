@@ -23,6 +23,7 @@ trap 'rm -rf "$FIXTURE_DIR"' EXIT
 
 mkdir -p "$FIXTURE_DIR/src/main/java/com/example"
 mkdir -p "$FIXTURE_DIR/src/main/java/com/other"
+mkdir -p "$FIXTURE_DIR/src/main/java/com/thirdparty"
 mkdir -p "$FIXTURE_DIR/src/main/resources"
 
 # `@Service` on the class itself, and only ONE occurrence of the class name
@@ -81,6 +82,24 @@ public class OtherConsumer {
 }
 JAVA
 
+# A DIFFERENT-package consumer that explicitly IMPORTS com.example.FooService
+# and @Autowired-injects it by simple name -- the cross-package @Autowired
+# scoping fix's reproduction case: a same-package-only check would wrongly
+# exclude this file (its own package is com.thirdparty, not com.example),
+# but the import proves it really does reference the symbol being renamed
+# and MUST be included in the rename.
+cat > "$FIXTURE_DIR/src/main/java/com/thirdparty/ThirdPartyConsumer.java" <<'JAVA'
+package com.thirdparty;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import com.example.FooService;
+
+public class ThirdPartyConsumer {
+    @Autowired
+    private FooService fooService;
+}
+JAVA
+
 cat > "$FIXTURE_DIR/src/main/resources/beans.xml" <<'XML'
 <beans>
     <bean id="fooService" class="com.example.FooService"/>
@@ -89,7 +108,7 @@ cat > "$FIXTURE_DIR/src/main/resources/beans.xml" <<'XML'
 </beans>
 XML
 
-echo "[1/4] Static: refactor.lua / refactor-treesitter.lua module shape..."
+echo "[1/5] Static: refactor.lua / refactor-treesitter.lua module shape..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local refactor = require('cumulus.util.refactor')
@@ -116,7 +135,7 @@ else
 end
 " -c "qa!"
 
-echo "[2/4] Behavioral: fixture rename (mocked JDTLS response) -- Apply updates Java class, BOTH occurrences of the @Autowired field's type on one line, and the XML bean class attribute; leaves the commented-out bean, the LSP/Spring-overlapping stereotype line, and the unrelated cross-package class untouched..."
+echo "[2/5] Behavioral: fixture rename (mocked JDTLS response) -- Apply updates Java class, BOTH occurrences of the @Autowired field's type on one line, and the XML bean class attribute; leaves the commented-out bean, the LSP/Spring-overlapping stereotype line, and the unrelated cross-package class untouched..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local fixture = '$FIXTURE_DIR'
@@ -125,6 +144,7 @@ local ok, err = pcall(function()
   local xml_file = fixture .. '/src/main/resources/beans.xml'
   local other_service_file = fixture .. '/src/main/java/com/other/FooService.java'
   local other_consumer_file = fixture .. '/src/main/java/com/other/OtherConsumer.java'
+  local thirdparty_consumer_file = fixture .. '/src/main/java/com/thirdparty/ThirdPartyConsumer.java'
 
   local fake_client = {
     id = 9001,
@@ -248,6 +268,16 @@ local ok, err = pcall(function()
     'the unrelated com.other.OtherConsumer @Autowired field must not be renamed'
   )
 
+  -- cross-package @Autowired scoping fix: a DIFFERENT-package consumer that
+  -- explicitly imports com.example.FooService must still be included in the
+  -- rename, even though its own package (com.thirdparty) differs from the
+  -- renamed symbol's package (com.example) -- a same-package-only check
+  -- would silently miss this file entirely.
+  assert(
+    buf_content(thirdparty_consumer_file):find('private BarService fooService;', 1, true),
+    'a cross-package consumer that IMPORTS the renamed class (com.thirdparty.ThirdPartyConsumer) must be included in the rename'
+  )
+
   vim.lsp.get_clients = orig_get_clients
   vim.lsp.buf_request_all = orig_buf_request_all
 end)
@@ -259,7 +289,7 @@ else
 end
 " -c "qa!"
 
-echo "[3/4] Behavioral: cancelling at the confirm prompt leaves every file unmodified..."
+echo "[3/5] Behavioral: cancelling at the confirm prompt leaves every file unmodified..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local fixture = '$FIXTURE_DIR'
@@ -317,7 +347,7 @@ else
 end
 " -c "qa!"
 
-echo "[4/4] Behavioral: a rename that collides with an existing symbol (LSP error response) aborts before any file is touched..."
+echo "[4/5] Behavioral: a rename that collides with an existing symbol (LSP error response) aborts before any file is touched..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local fixture = '$FIXTURE_DIR'
@@ -376,6 +406,60 @@ if not ok then
   vim.cmd('cquit 1')
 else
   print('OK: collision aborted before the quickfix preview, no edits applied')
+end
+" -c "qa!"
+
+echo "[5/5] Behavioral: forcing the grep fallback (rg unavailable/erroring) still finds real Spring references via M._grep_fallback..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  -- A dedicated, FRESH fixture (independent of \$FIXTURE_DIR, which step
+  -- [2/5] already mutated by applying a rename against it) -- this test
+  -- only cares whether the grep code path itself finds real hits on disk.
+  local root = vim.fn.tempname()
+  vim.fn.mkdir(root .. '/com/example', 'p')
+  vim.fn.writefile({
+    'package com.example;',
+    '',
+    'import org.springframework.beans.factory.annotation.Autowired;',
+    '',
+    'public class Consumer {',
+    '  @Autowired',
+    '  private FooService fooService;',
+    '}',
+  }, root .. '/com/example/Consumer.java')
+
+  -- Force the 'rg' spawn itself to fail synchronously (pcall(vim.system,
+  -- rg_cmd, ...) catches this) so raw_hits_async falls through to
+  -- M._grep_fallback -- the REAL grep binary still runs for real against
+  -- the fixture above, only 'rg' is disabled.
+  local orig_system = vim.system
+  vim.system = function(cmd, opts, callback)
+    if cmd[1] == 'rg' then
+      error('rg forcibly disabled for this test (grep-fallback coverage)')
+    end
+    return orig_system(cmd, opts, callback)
+  end
+
+  local ts = require('cumulus.util.refactor-treesitter')
+  local result = nil
+  ts.scan_root_async(root, 'FooService', 'com.example', function(items)
+    result = items
+  end)
+
+  vim.wait(10000, function() return result ~= nil end, 50)
+  vim.system = orig_system
+
+  assert(result ~= nil, 'scan_root_async (grep fallback) did not complete within the wait window')
+  assert(#result == 1, 'expected exactly 1 Spring reference found via grep fallback, got ' .. #result)
+  assert(result[1].kind == 'autowired', 'expected the @Autowired field match, got kind=' .. tostring(result[1].kind))
+
+  vim.fn.delete(root, 'rf')
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: M._grep_fallback found the real Spring reference when rg was forcibly unavailable')
 end
 " -c "qa!"
 

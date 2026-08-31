@@ -26,13 +26,15 @@
 --
 -- Everything here is async (vim.system/vim.schedule, matching the
 -- convention in sync-runner.lua) and nothing is ever applied without an
--- explicit confirm. Only one rename can be in flight at a time (M._busy) --
--- a second <leader>cr while one is still running is rejected with a
--- notify, rather than allowed to produce overlapping previews. File-move
--- handling is out of scope (deferred separately); Scala/Metals/sbt are
--- never touched.
+-- explicit confirm. Only one rename can be in flight at a time (shared with
+-- extract.lua via action-lock.lua) -- a second <leader>cr while one is
+-- still running is rejected with a notify, rather than allowed to produce
+-- overlapping previews. File-move handling is out of scope (deferred
+-- separately); Scala/Metals/sbt are never touched.
 
 local M = {}
+
+local action_lock = require("cumulus.util.action-lock")
 
 --- How long to wait for a textDocument/rename response before giving up
 --- and notifying the user, rather than leaving the flow silently hanging
@@ -246,7 +248,7 @@ end
 --- directly (as tests do) skips the prompt.
 ---@param new_name string|nil
 function M.project_rename(new_name)
-  if M._busy then
+  if action_lock.is_busy() then
     notify_warn("A project-wide rename is already in progress -- please wait for it to finish")
     return
   end
@@ -267,20 +269,30 @@ function M.project_rename(new_name)
   end
 
   if new_name == nil then
-    M._busy = true
-    vim.ui.input({ prompt = "Project-wide rename '" .. old_name .. "' to: ", default = old_name }, function(input)
+    action_lock.acquire()
+    -- pcall guards against vim.ui.input itself throwing synchronously (e.g.
+    -- no UI provider registered) -- without this, the lock would be stuck
+    -- held forever with no callback ever firing to release it.
+    local input_ok, input_err = pcall(vim.ui.input, {
+      prompt = "Project-wide rename '" .. old_name .. "' to: ",
+      default = old_name,
+    }, function(input)
       if not input or input == "" then
-        M._busy = false
+        action_lock.release()
         return
       end
       if input == old_name then
         notify_info("New name is the same as the current name -- nothing to do")
-        M._busy = false
+        action_lock.release()
         return
       end
-      -- _do_rename already sets M._busy = true, so this is just safe pass
+      -- _do_rename already acquires the lock, so this is just a safe pass
       M._do_rename(bufnr, win, jvm_client, old_name, input)
     end)
+    if not input_ok then
+      action_lock.release()
+      notify_err("Project rename: vim.ui.input failed: " .. tostring(input_err))
+    end
     return
   end
 
@@ -298,15 +310,15 @@ end
 --- Internal: runs once new_name is known and a JVM client is confirmed
 --- attached. Split out from project_rename so tests can call it directly
 --- with an already-known name (see project_rename's doc comment). Marks
---- the rename in-flight (M._busy) and guards the request with a timeout so
---- a non-responding server can't hang the flow silently forever.
+--- the rename in-flight (action-lock.lua) and guards the request with a
+--- timeout so a non-responding server can't hang the flow silently forever.
 ---@param bufnr integer
 ---@param win integer
 ---@param jvm_client vim.lsp.Client
 ---@param old_name string
 ---@param new_name string
 function M._do_rename(bufnr, win, jvm_client, old_name, new_name)
-  M._busy = true
+  action_lock.acquire()
 
   local params = vim.lsp.util.make_position_params(win, jvm_client.offset_encoding)
   params.newName = new_name
@@ -318,7 +330,7 @@ function M._do_rename(bufnr, win, jvm_client, old_name, new_name)
       return
     end
     responded = true
-    M._busy = false
+    action_lock.release()
     notify_err(
       "Project rename timed out waiting for '"
         .. jvm_client.name
@@ -350,23 +362,37 @@ function M._on_rename_response(bufnr, jvm_client, old_name, new_name, responses)
   if not resp or resp.err then
     local detail = resp and resp.err and resp.err.message or "no response from language server"
     notify_err("Project rename aborted for '" .. old_name .. "' -> '" .. new_name .. "': " .. detail)
-    M._busy = false
+    action_lock.release()
     return
   end
 
   local workspace_edit = resp.result
   if not workspace_edit or (not workspace_edit.changes and not workspace_edit.documentChanges) then
     notify_warn("Project rename: no changes returned for '" .. old_name .. "'")
-    M._busy = false
+    action_lock.release()
     return
   end
 
   local locations = M.workspace_edit_to_locations(workspace_edit)
   local lsp_items = vim.lsp.util.locations_to_items(locations, jvm_client.offset_encoding)
 
-  local root = jvm_client.config.root_dir or vim.fn.getcwd()
+  local root = jvm_client.config.root_dir
   local refactor_ts = require("cumulus.util.refactor-treesitter")
   local old_package = refactor_ts.file_package(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+
+  if not root then
+    -- Falling back to cwd here would silently scan the wrong tree (whatever
+    -- directory Neovim happened to be started/`:cd`'d in, not this
+    -- project's actual root) -- warn and skip the Spring scan instead,
+    -- keeping the LSP-provided locations only.
+    notify_warn(
+      "Project rename: '"
+        .. jvm_client.name
+        .. "' reported no root_dir -- skipping the Spring XML/@Autowired/stereotype reference scan (LSP-provided locations only)"
+    )
+    M._show_preview(workspace_edit, jvm_client, old_name, new_name, lsp_items, {})
+    return
+  end
 
   refactor_ts.scan_root_async(root, old_name, old_package, function(spring_items)
     spring_items = M.filter_overlapping_spring_items(lsp_items, spring_items)
@@ -388,7 +414,7 @@ function M._show_preview(workspace_edit, jvm_client, old_name, new_name, lsp_ite
 
   if #qf_items == 0 then
     notify_warn("Project rename: no locations found for '" .. old_name .. "'")
-    M._busy = false
+    action_lock.release()
     return
   end
 
@@ -404,23 +430,34 @@ function M._show_preview(workspace_edit, jvm_client, old_name, new_name, lsp_ite
   })
   vim.cmd("copen")
 
-  vim.ui.select({ "Apply", "Cancel" }, {
+  -- pcall guards against vim.ui.select itself throwing synchronously (e.g.
+  -- no UI provider registered) -- without this, the lock would be stuck
+  -- held forever with no callback ever firing to release it.
+  local select_ok, select_err = pcall(vim.ui.select, { "Apply", "Cancel" }, {
     prompt = string.format("Apply rename '%s' -> '%s' to %d location(s)?", old_name, new_name, #qf_items),
   }, function(choice)
     if choice ~= "Apply" then
       notify_info("Project rename cancelled -- no changes applied")
-      M._busy = false
+      action_lock.release()
       return
     end
 
+    -- Loading/editing files via apply_workspace_edit can fire FileType/
+    -- BufReadPost/etc. autocmds for any file it touches that isn't already
+    -- open (e.g. launching an unwanted language server) -- eventignore
+    -- suppresses that side effect while still applying the edit, mirroring
+    -- the same guard apply_spring_edits below already uses.
+    local saved_eventignore = vim.o.eventignore
+    vim.o.eventignore = "all"
     local lsp_ok, lsp_err = pcall(vim.lsp.util.apply_workspace_edit, workspace_edit, jvm_client.offset_encoding)
+    vim.o.eventignore = saved_eventignore
     if not lsp_ok then
       notify_err(
         "Project rename: failed to apply the LSP workspace edit ("
           .. tostring(lsp_err)
           .. ") -- Spring-reference edits were not applied either, to avoid a half-applied rename"
       )
-      M._busy = false
+      action_lock.release()
       return
     end
 
@@ -443,8 +480,12 @@ function M._show_preview(workspace_edit, jvm_client, old_name, new_name, lsp_ite
     else
       notify_info(string.format("Renamed '%s' -> '%s' across %d location(s)", old_name, new_name, #qf_items))
     end
-    M._busy = false
+    action_lock.release()
   end)
+  if not select_ok then
+    action_lock.release()
+    notify_err("Project rename: vim.ui.select failed: " .. tostring(select_err))
+  end
 end
 
 return M

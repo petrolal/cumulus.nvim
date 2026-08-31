@@ -56,6 +56,38 @@ paths:
       operationId: listUsers
 YAML
 
+# -- $ref fixtures: a whole-path-item $ref (already-implemented, previously
+# untested) alongside an operation-level $ref (new fix) -- both must be
+# skipped with a warning while /orders' real "get" operation still
+# generates a block normally. ------------------------------------------
+cat > "$FIXTURE_ROOT/spec-with-refs.json" <<'JSON'
+{
+  "openapi": "3.0.0",
+  "servers": [{"url": "https://api.example.com"}],
+  "paths": {
+    "/legacy": {"$ref": "#/components/pathItems/legacy"},
+    "/orders": {
+      "get": {"operationId": "listOrders"},
+      "post": {"$ref": "#/components/x-ops/createOrder"}
+    }
+  }
+}
+JSON
+
+# -- unresolved server-URL template variable (out-of-v1-scope documented
+# behavior, not a crash): {environment} is never substituted. --------------
+cat > "$FIXTURE_ROOT/spec-with-server-var.json" <<'JSON'
+{
+  "openapi": "3.0.0",
+  "servers": [{"url": "https://{environment}.example.com"}],
+  "paths": {
+    "/ping": {
+      "get": {"operationId": "ping"}
+    }
+  }
+}
+JSON
+
 # -- unreadable/nonexistent path -------------------------------------------
 NONEXISTENT_SPEC="$FIXTURE_ROOT/does-not-exist.json"
 
@@ -64,7 +96,7 @@ if ! command -v jq >/dev/null 2>&1; then
   JQ_AVAILABLE=0
 fi
 
-echo "[1/12] Static: openapi.lua / http.lua export the required functions; tools-http.lua references kulala..."
+echo "[1/14] Static: openapi.lua / http.lua export the required functions; tools-http.lua references kulala..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local openapi = require('cumulus.util.openapi')
@@ -84,7 +116,7 @@ else
 end
 " -c "qa!"
 
-echo "[2/12] Functional: tools-http.lua's plugin spec forces a persistent split (never floating) and lazy-loads on ft=http..."
+echo "[2/14] Functional: tools-http.lua's plugin spec forces a persistent split (never floating) and lazy-loads on ft=http..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local spec = require('cumulus.plugins.tools-http')
@@ -102,7 +134,7 @@ else
 end
 " -c "qa!"
 
-echo "[3/12] Functional: valid JSON OpenAPI spec (2 paths, 3 operations) -> one .http request block per operation with method/url/headers..."
+echo "[3/14] Functional: valid JSON OpenAPI spec (2 paths, 3 operations) -> one .http request block per operation with method/url/headers..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local openapi = require('cumulus.util.openapi')
@@ -127,7 +159,83 @@ else
 end
 " -c "qa!"
 
-echo "[4/12] Functional: OpenAPI spec is YAML -> nothing generated, explicit JSON-only WARN, no crash..."
+echo "[4/14] Functional: a whole-path-item \$ref (/legacy) AND an operation-level \$ref (/orders POST) are both skipped with a warning, while /orders' real GET operation still generates normally..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local notified = {}
+  local orig = vim.notify
+  vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
+
+  local openapi = require('cumulus.util.openapi')
+  local text = openapi.generate_http_from_spec('$FIXTURE_ROOT/spec-with-refs.json')
+
+  vim.notify = orig
+
+  assert(type(text) == 'string', 'expected .http text, got nil')
+  assert(text:match('listOrders'), 'missing the real (non-\$ref) GET /orders operation, got:\n' .. text)
+  assert(not text:match('/legacy'), 'the \$ref-only /legacy path item must not render any request block')
+
+  local request_lines = 0
+  for _ in text:gmatch('HTTP/1%.1') do request_lines = request_lines + 1 end
+  assert(request_lines == 1, 'expected exactly 1 request block (only /orders GET), got ' .. request_lines)
+
+  local saw_path_ref_warn, saw_operation_ref_warn = false, false
+  for _, n in ipairs(notified) do
+    local msg = tostring(n.msg):lower()
+    if n.level == vim.log.levels.WARN and msg:match('%\$ref') and msg:match('legacy') then
+      saw_path_ref_warn = true
+    end
+    if n.level == vim.log.levels.WARN and msg:match('%\$ref') and msg:match('orders') then
+      saw_operation_ref_warn = true
+    end
+  end
+  assert(saw_path_ref_warn, 'expected a WARN naming the whole-path-item \$ref (/legacy)')
+  assert(saw_operation_ref_warn, 'expected a WARN naming the operation-level \$ref (POST /orders)')
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: both \$ref shapes skipped with a warning; the real /orders GET operation still generated')
+end
+" -c "qa!"
+
+echo "[5/14] Functional: an unresolved {variable} template in the server URL warns (documented out-of-scope behavior), and the generated request still contains the literal placeholder rather than crashing..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local notified = {}
+  local orig = vim.notify
+  vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
+
+  local openapi = require('cumulus.util.openapi')
+  local text = openapi.generate_http_from_spec('$FIXTURE_ROOT/spec-with-server-var.json')
+
+  vim.notify = orig
+
+  assert(type(text) == 'string', 'expected .http text, got nil')
+  assert(
+    text:match('GET https://{environment}%.example%.com/ping HTTP/1%.1'),
+    'expected the request line to carry the literal unresolved {environment} placeholder, got:\n' .. text
+  )
+
+  local saw_warn = false
+  for _, n in ipairs(notified) do
+    local msg = tostring(n.msg):lower()
+    if n.level == vim.log.levels.WARN and msg:match('template') and msg:match('environment') then
+      saw_warn = true
+    end
+  end
+  assert(saw_warn, 'expected a WARN naming the unresolved server URL template variable')
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: unresolved server URL template variable warned; literal placeholder carried through, no crash')
+end
+" -c "qa!"
+
+echo "[6/14] Functional: OpenAPI spec is YAML -> nothing generated, explicit JSON-only WARN, no crash..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local notified = {}
@@ -154,7 +262,7 @@ else
 end
 " -c "qa!"
 
-echo "[5/12] Functional: OpenAPI spec missing/unreadable -> nil, no crash, WARN..."
+echo "[7/14] Functional: OpenAPI spec missing/unreadable -> nil, no crash, WARN..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local notified = {}
@@ -181,7 +289,7 @@ else
 end
 " -c "qa!"
 
-echo "[6/12] Functional: jq not installed (simulated) -> no crash, clear ERROR with an install hint..."
+echo "[8/14] Functional: jq not installed (simulated) -> no crash, clear ERROR with an install hint..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local notified = {}
@@ -217,7 +325,7 @@ end
 " -c "qa!"
 
 if [ "$JQ_AVAILABLE" -eq 1 ]; then
-  echo "[7/12] Functional: jq installed, valid filter -> filtered output delivered via callback..."
+  echo "[9/14] Functional: jq installed, valid filter -> filtered output delivered via callback..."
   nvim -u init.lua --headless -c "lua
   local ok, err = pcall(function()
     local http = require('cumulus.util.http')
@@ -239,7 +347,7 @@ if [ "$JQ_AVAILABLE" -eq 1 ]; then
   end
   " -c "qa!"
 
-  echo "[8/12] Functional: jq filter syntax error -> jq's own stderr surfaced via ERROR, no crash, callback not invoked..."
+  echo "[10/14] Functional: jq filter syntax error -> jq's own stderr surfaced via ERROR, no crash, callback not invoked..."
   nvim -u init.lua --headless -c "lua
   local ok, err = pcall(function()
     local notified = {}
@@ -275,11 +383,11 @@ if [ "$JQ_AVAILABLE" -eq 1 ]; then
   end
   " -c "qa!"
 else
-  echo "[7/12] SKIP: jq not installed in this environment -- valid-filter functional check skipped gracefully."
-  echo "[8/12] SKIP: jq not installed in this environment -- syntax-error functional check skipped gracefully."
+  echo "[9/14] SKIP: jq not installed in this environment -- valid-filter functional check skipped gracefully."
+  echo "[10/14] SKIP: jq not installed in this environment -- syntax-error functional check skipped gracefully."
 fi
 
-echo "[9/12] Functional: <leader>H keymaps (run request, generate from OpenAPI, jq-filter) are registered by keymaps.lua..."
+echo "[11/14] Functional: <leader>H keymaps (run request, generate from OpenAPI, jq-filter) are registered by keymaps.lua..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   require('cumulus.core.keymaps')
@@ -302,7 +410,7 @@ else
 end
 " -c "qa!"
 
-echo "[10/12] Functional: <leader>Ho's actual callback (not just its existence) generates .http content into a real, non-floating split with filetype=http..."
+echo "[12/14] Functional: <leader>Ho's actual callback (not just its existence) generates .http content into a real, non-floating split with filetype=http..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   require('cumulus.core.keymaps')
@@ -344,7 +452,7 @@ end
 " -c "qa!"
 
 if [ "$JQ_AVAILABLE" -eq 1 ]; then
-  echo "[11/12] Functional: <leader>Hj's actual callback (not just its existence) jq-filters the current buffer into a real, non-floating split..."
+  echo "[13/14] Functional: <leader>Hj's actual callback (not just its existence) jq-filters the current buffer into a real, non-floating split..."
   nvim -u init.lua --headless -c "lua
   local ok, err = pcall(function()
     require('cumulus.core.keymaps')
@@ -385,10 +493,10 @@ if [ "$JQ_AVAILABLE" -eq 1 ]; then
   end
   " -c "qa!"
 else
-  echo "[11/12] SKIP: jq not installed in this environment -- <leader>Hj end-to-end check skipped gracefully."
+  echo "[13/14] SKIP: jq not installed in this environment -- <leader>Hj end-to-end check skipped gracefully."
 fi
 
-echo "[12/12] Functional: ftplugin/http.lua applies buffer-local settings to a .http buffer..."
+echo "[14/14] Functional: ftplugin/http.lua applies buffer-local settings to a .http buffer..."
 nvim -u init.lua --headless -c "edit $FIXTURE_ROOT/scratch.http" -c "lua
 local ok, err = pcall(function()
   assert(vim.bo.filetype == 'http', 'expected filetype=http, got ' .. tostring(vim.bo.filetype))

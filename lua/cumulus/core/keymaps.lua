@@ -188,11 +188,46 @@ map("n", "<leader>Ho", function()
   end)
 end, { desc = "Generate .http from OpenAPI Spec" })
 
+--- Whether `text` looks like JSON that jq could usefully filter: either a
+--- single value vim.json.decode accepts outright (it requires exactly one
+--- top-level value), OR JSON Lines / a concatenated stream of JSON values --
+--- every non-blank line individually decodes as its own JSON value -- a
+--- legitimate jq input shape vim.json.decode rejects on the whole buffer.
+--- Requires at least one non-blank line to avoid a vacuous "true" on
+--- whitespace-only input.
+---@param text string
+---@return boolean
+local function looks_like_json(text)
+  if pcall(vim.json.decode, text) then
+    return true
+  end
+  local checked_any_line = false
+  for _, line in ipairs(vim.split(text, "\n", { plain = true })) do
+    local trimmed = vim.trim(line)
+    if trimmed ~= "" then
+      checked_any_line = true
+      if not pcall(vim.json.decode, trimmed) then
+        return false
+      end
+    end
+  end
+  return checked_any_line
+end
+
 map("n", "<leader>Hj", function()
   local json_text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
   if json_text == "" then
     require("cumulus.util.ui").notify_warn("Current buffer is empty -- nothing to filter")
     return
+  end
+  -- Soft heads-up only -- jq can still usefully filter JSON Lines / a
+  -- concatenated stream of JSON values that vim.json.decode (which expects
+  -- exactly one top-level value) rejects, so a decode failure here warns
+  -- but does NOT abort the filter.
+  if not looks_like_json(json_text) then
+    require("cumulus.util.ui").notify_warn(
+      "Current buffer does not look like valid JSON -- jq may fail or produce unexpected output"
+    )
   end
   vim.ui.input({ prompt = "jq filter (e.g. .data): " }, function(filter_expr)
     if not filter_expr or filter_expr == "" then

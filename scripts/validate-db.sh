@@ -132,7 +132,131 @@ SPRING_DATASOURCE_USERNAME=ahun
 SPRING_DATASOURCE_PASSWORD="ahun"
 ENV
 
-echo "[1/14] Static: db.lua module shape + tools-dadbod.lua wiring (supplementary only -- the real wiring behavior is exercised functionally below)..."
+# -- bmad-review fix coverage: explicit empty-string YAML scalar ---------
+mkdir -p "$FIXTURE_ROOT/yaml-empty-password/src/main/resources"
+cat > "$FIXTURE_ROOT/yaml-empty-password/src/main/resources/application.yml" <<'YAML'
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/db
+    username: postgres
+    password: ""
+YAML
+
+# -- bmad-review fix coverage: .properties ':' separator AND bare
+# whitespace (no ':'/'=' at all) in the SAME fixture, since Java's
+# .properties format allows either.
+mkdir -p "$FIXTURE_ROOT/properties-colon-sep/src/main/resources"
+cat > "$FIXTURE_ROOT/properties-colon-sep/src/main/resources/application.properties" <<'PROPS'
+spring.datasource.url: jdbc:postgresql://localhost:5432/db
+spring.datasource.username postgres
+spring.datasource.password: secret
+PROPS
+
+# -- bmad-review fix coverage: an explicitly-empty env var must resolve --
+# to "", not be treated as unset (which would otherwise report it
+# unresolved and skip the connection).
+mkdir -p "$FIXTURE_ROOT/empty-env-var/src/main/resources"
+cat > "$FIXTURE_ROOT/empty-env-var/src/main/resources/application.properties" <<'PROPS'
+spring.datasource.url=jdbc:postgresql://localhost:5432/db
+spring.datasource.username=postgres
+spring.datasource.password=${BMAD_REVIEW_EMPTY_PW}
+PROPS
+
+# -- bmad-review fix coverage: JDBC URL whose authority already carries --
+# credentials must be skipped, not double-spliced into a corrupted URL.
+mkdir -p "$FIXTURE_ROOT/jdbc-has-credentials/src/main/resources"
+cat > "$FIXTURE_ROOT/jdbc-has-credentials/src/main/resources/application.properties" <<'PROPS'
+spring.datasource.url=jdbc:postgresql://admin:adminpw@localhost:5432/db
+spring.datasource.username=postgres
+spring.datasource.password=secret
+PROPS
+
+# -- bmad-review fix coverage: a nested ${OUTER:${INNER}} default must ---
+# be reported unresolved, never silently corrupted.
+mkdir -p "$FIXTURE_ROOT/nested-placeholder/src/main/resources"
+cat > "$FIXTURE_ROOT/nested-placeholder/src/main/resources/application.properties" <<'PROPS'
+spring.datasource.url=jdbc:postgresql://localhost:5432/db
+spring.datasource.username=postgres
+spring.datasource.password=${OUTER:${INNER}}
+PROPS
+
+# -- bmad-review fix coverage: MAX_DEPTH (8) truncation must warn --------
+DEEP_PATH="$FIXTURE_ROOT/max-depth"
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  DEEP_PATH="$DEEP_PATH/d$i"
+done
+mkdir -p "$DEEP_PATH"
+cat > "$DEEP_PATH/application.properties" <<'PROPS'
+spring.datasource.url=jdbc:postgresql://localhost:5432/db
+spring.datasource.username=postgres
+spring.datasource.password=secret
+PROPS
+
+# -- adversarial-review fix coverage: an UNTERMINATED placeholder (no
+# closing '}') must be reported unresolved, never silently corrupted or
+# thrown from.
+mkdir -p "$FIXTURE_ROOT/unterminated-placeholder/src/main/resources"
+cat > "$FIXTURE_ROOT/unterminated-placeholder/src/main/resources/application.properties" <<'PROPS'
+spring.datasource.url=jdbc:postgresql://localhost:5432/db
+spring.datasource.username=postgres
+spring.datasource.password=${TRUNCATED
+PROPS
+
+# -- adversarial-review fix coverage: a NAMELESS placeholder ('${}' /
+# '${:default}') must not throw indexing the environment/dotenv with a
+# nil/empty key -- treated as unresolved instead.
+mkdir -p "$FIXTURE_ROOT/nameless-placeholder/src/main/resources"
+cat > "$FIXTURE_ROOT/nameless-placeholder/src/main/resources/application.properties" <<'PROPS'
+spring.datasource.url=jdbc:postgresql://localhost:5432/db
+spring.datasource.username=postgres
+spring.datasource.password=${}
+PROPS
+
+mkdir -p "$FIXTURE_ROOT/nameless-placeholder-with-default/src/main/resources"
+cat > "$FIXTURE_ROOT/nameless-placeholder-with-default/src/main/resources/application.properties" <<'PROPS'
+spring.datasource.url=jdbc:postgresql://localhost:5432/db
+spring.datasource.username=postgres
+spring.datasource.password=${:default}
+PROPS
+
+# -- adversarial-review fix coverage: an explicitly-empty .env value must
+# win over a placeholder's own default (not be treated as "value not
+# present, fall back to default").
+mkdir -p "$FIXTURE_ROOT/dotenv-empty-wins/src/main/resources"
+cat > "$FIXTURE_ROOT/dotenv-empty-wins/src/main/resources/application.yaml" <<'YAML'
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/db
+    username: postgres
+    password: ${DOTENV_EMPTY_PW:somedefault}
+YAML
+cat > "$FIXTURE_ROOT/dotenv-empty-wins/.env" <<'ENV'
+DOTENV_EMPTY_PW=
+ENV
+
+# -- adversarial-review fix coverage: DirChanged re-discovery -- two
+# fixture roots with DIFFERENT datasources, plus a third with none at all,
+# to exercise re-scanning (and clearing) vim.g.dbs on project switch.
+mkdir -p "$FIXTURE_ROOT/dirchanged-a/src/main/resources"
+cat > "$FIXTURE_ROOT/dirchanged-a/src/main/resources/application.properties" <<'PROPS'
+spring.datasource.url=jdbc:postgresql://localhost:5432/dirchanged_a
+spring.datasource.username=usera
+spring.datasource.password=passa
+PROPS
+
+mkdir -p "$FIXTURE_ROOT/dirchanged-b/src/main/resources"
+cat > "$FIXTURE_ROOT/dirchanged-b/src/main/resources/application.properties" <<'PROPS'
+spring.datasource.url=jdbc:postgresql://localhost:5432/dirchanged_b
+spring.datasource.username=userb
+spring.datasource.password=passb
+PROPS
+
+mkdir -p "$FIXTURE_ROOT/dirchanged-none/src/main/resources"
+cat > "$FIXTURE_ROOT/dirchanged-none/src/main/resources/application.properties" <<'PROPS'
+server.port=8080
+PROPS
+
+echo "[1/24] Static: db.lua module shape + tools-dadbod.lua wiring (supplementary only -- the real wiring behavior is exercised functionally below)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -153,7 +277,7 @@ else
 end
 " -c "qa!"
 
-echo "[2/14] Functional: vim-dadbod-completion cmp source registration -- fresh buffer, no duplication on re-fire, and a buffer whose filetype was already sql BEFORE config() ran..."
+echo "[2/24] Functional: vim-dadbod-completion cmp source registration -- fresh buffer, no duplication on re-fire, and a buffer whose filetype was already sql BEFORE config() ran..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local spec = require('cumulus.plugins.tools-dadbod')
@@ -215,7 +339,7 @@ else
 end
 " -c "qa!"
 
-echo "[3/14] Functional: nvim-treesitter ensure_installed (resolved via the plugin spec's own opts function) contains \"sql\"..."
+echo "[3/24] Functional: nvim-treesitter ensure_installed (resolved via the plugin spec's own opts function) contains \"sql\"..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local spec = require('cumulus.plugins.tools-dadbod')
@@ -234,7 +358,7 @@ else
 end
 " -c "qa!"
 
-echo "[4/14] Functional: init() end-to-end sets vim.g.dbs to exactly what discover_datasources() returns for the project cwd..."
+echo "[4/24] Functional: init() end-to-end sets vim.g.dbs to exactly what discover_datasources() returns for the project cwd..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local root = '$FIXTURE_ROOT/props-only'
@@ -260,7 +384,7 @@ else
 end
 " -c "qa!"
 
-echo "[5/14] Functional: init() surfaces a WARN notification (and leaves vim.g.dbs unset) instead of silently swallowing a discover_datasources() error..."
+echo "[5/24] Functional: init() surfaces a WARN notification (and leaves vim.g.dbs unset) instead of silently swallowing a discover_datasources() error..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   package.loaded['cumulus.util.db'] = { discover_datasources = function() error('simulated discovery bug') end }
@@ -291,7 +415,7 @@ else
 end
 " -c "qa!"
 
-echo "[6/14] Behavioral: application.properties only -> one dadbod-style connection..."
+echo "[6/24] Behavioral: application.properties only -> one dadbod-style connection..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -312,7 +436,7 @@ else
 end
 " -c "qa!"
 
-echo "[7/14] Behavioral: application.yml AND application.yaml (both nested-indentation extensions Spring Boot recognizes) each produce one connection..."
+echo "[7/24] Behavioral: application.yml AND application.yaml (both nested-indentation extensions Spring Boot recognizes) each produce one connection..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -341,7 +465,7 @@ else
 end
 " -c "qa!"
 
-echo "[8/14] Behavioral: both application.properties and application.yml present -> properties wins, yml ignored..."
+echo "[8/24] Behavioral: both application.properties and application.yml present -> properties wins, yml ignored..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -362,7 +486,7 @@ else
 end
 " -c "qa!"
 
-echo "[9/14] Behavioral: no spring.datasource.* keys anywhere -> discover_datasources() returns an empty table, not an error (vim.g.dbs wiring itself is covered by [4/14]/[5/14], not asserted here)..."
+echo "[9/24] Behavioral: no spring.datasource.* keys anywhere -> discover_datasources() returns an empty table, not an error (vim.g.dbs wiring itself is covered by [4/24]/[5/24], not asserted here)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -379,7 +503,7 @@ else
 end
 " -c "qa!"
 
-echo "[10/14] Behavioral: partial/malformed datasource block (url without username/password) is skipped with a warning, no crash..."
+echo "[10/24] Behavioral: partial/malformed datasource block (url without username/password) is skipped with a warning, no crash..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local notified = {}
@@ -411,7 +535,7 @@ else
 end
 " -c "qa!"
 
-echo "[11/14] Behavioral: credentials containing URL-reserved characters (@, :, /) are percent-encoded, not spliced in raw..."
+echo "[11/24] Behavioral: credentials containing URL-reserved characters (@, :, /) are percent-encoded, not spliced in raw..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -431,7 +555,7 @@ else
 end
 " -c "qa!"
 
-echo "[12/14] Behavioral: \${VAR:default} placeholders resolve via the env var when set, else the literal default; JDBC-url-shaped defaults (containing their own ':' and '/') resolve intact..."
+echo "[12/24] Behavioral: \${VAR:default} placeholders resolve via the env var when set, else the literal default; JDBC-url-shaped defaults (containing their own ':' and '/') resolve intact..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -463,7 +587,7 @@ else
 end
 " -c "qa!"
 
-echo "[13/14] Behavioral: \${VAR} placeholder with no default and no matching env var is skipped with a warning naming the unresolved variable(s) (not the generic 'could not parse' message)..."
+echo "[13/24] Behavioral: \${VAR} placeholder with no default and no matching env var is skipped with a warning naming the unresolved variable(s) (not the generic 'could not parse' message)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local notified = {}
@@ -495,7 +619,7 @@ else
 end
 " -c "qa!"
 
-echo "[14/14] Behavioral: \${VAR} placeholders with no default resolve via a project-root .env file (export prefix, comments, quoted values all handled); a real env var still wins over .env..."
+echo "[14/24] Behavioral: \${VAR} placeholders with no default resolve via a project-root .env file (export prefix, comments, quoted values all handled); a real env var still wins over .env..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local db = require('cumulus.util.db')
@@ -523,6 +647,265 @@ if not ok then
   vim.cmd('cquit 1')
 else
   print('OK: .env file resolves unresolved placeholders; a real env var still takes precedence over it')
+end
+" -c "qa!"
+
+echo "[15/24] bmad-review fix: explicit YAML empty-string scalar (password: \"\") is NOT treated as missing..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  local dbs = db.discover_datasources('$FIXTURE_ROOT/yaml-empty-password')
+  assert(#dbs == 1, 'expected exactly 1 entry, got ' .. #dbs)
+  assert(
+    dbs[1].url == 'postgresql://postgres:@localhost:5432/db',
+    'explicit empty-string password was not preserved, got: ' .. tostring(dbs[1].url)
+  )
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: explicit YAML empty-string scalar resolved to an empty password, not skipped as incomplete')
+end
+" -c "qa!"
+
+echo "[16/24] bmad-review fix: .properties accepts ':' (and bare whitespace) as the key/value separator, not just '='..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  local dbs = db.discover_datasources('$FIXTURE_ROOT/properties-colon-sep')
+  assert(#dbs == 1, 'expected exactly 1 entry, got ' .. #dbs)
+  assert(
+    dbs[1].url == 'postgresql://postgres:secret@localhost:5432/db',
+    'colon-separated .properties keys were not parsed, got: ' .. tostring(dbs[1].url)
+  )
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: .properties \":\"-separated keys parsed correctly')
+end
+" -c "qa!"
+
+echo "[17/24] bmad-review fix: an env var explicitly set to the empty string resolves as empty, not as unset..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  vim.fn.setenv('BMAD_REVIEW_EMPTY_PW', '')
+  local dbs = db.discover_datasources('$FIXTURE_ROOT/empty-env-var')
+  vim.fn.setenv('BMAD_REVIEW_EMPTY_PW', vim.NIL)
+  assert(#dbs == 1, 'expected exactly 1 entry (empty-but-set env var must resolve, not be reported unresolved), got ' .. #dbs)
+  assert(
+    dbs[1].url == 'postgresql://postgres:@localhost:5432/db',
+    'an explicitly-empty env var was not resolved to an empty string, got: ' .. tostring(dbs[1].url)
+  )
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: an explicitly-empty env var resolved to an empty value, not treated as unset')
+end
+" -c "qa!"
+
+echo "[18/24] bmad-review fix: a JDBC URL whose authority already carries credentials is skipped, never double-spliced..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  local notified = {}
+  local orig = vim.notify
+  vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
+  local dbs = db.discover_datasources('$FIXTURE_ROOT/jdbc-has-credentials')
+  vim.notify = orig
+  assert(#dbs == 0, 'a JDBC URL that already carries credentials must be skipped, got ' .. #dbs .. ' entries')
+  local warned = false
+  for _, n in ipairs(notified) do
+    if n.level == vim.log.levels.WARN then warned = true end
+  end
+  assert(warned, 'expected a WARN notification, got none')
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: JDBC URL with existing credentials skipped with a warning, no double-splice')
+end
+" -c "qa!"
+
+echo "[19/24] bmad-review fix: a nested \${OUTER:\${INNER}} default is reported unresolved, never silently corrupted..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  local notified = {}
+  local orig = vim.notify
+  vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
+  local dbs = db.discover_datasources('$FIXTURE_ROOT/nested-placeholder')
+  vim.notify = orig
+  assert(#dbs == 0, 'a nested placeholder must be reported unresolved, not silently resolved, got ' .. #dbs .. ' entries')
+  local mentions_outer = false
+  for _, n in ipairs(notified) do
+    if tostring(n.msg):match('OUTER') then mentions_outer = true end
+  end
+  assert(mentions_outer, 'expected the unresolved warning to name OUTER')
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: nested \${OUTER:\${INNER}} placeholder reported unresolved, not corrupted')
+end
+" -c "qa!"
+
+echo "[20/24] bmad-review fix: hitting the MAX_DEPTH (8) scan limit warns that coverage may be incomplete..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  local notified = {}
+  local orig = vim.notify
+  vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
+  local dbs = db.discover_datasources('$FIXTURE_ROOT/max-depth')
+  vim.notify = orig
+  assert(#dbs == 0, 'the deeply-nested config file is beyond MAX_DEPTH and must not be found, got ' .. #dbs)
+  local warned_depth = false
+  for _, n in ipairs(notified) do
+    if tostring(n.msg):match('depth limit') then warned_depth = true end
+  end
+  assert(warned_depth, 'expected a depth-limit-truncation WARN notification')
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: MAX_DEPTH truncation surfaced a coverage-may-be-incomplete warning')
+end
+" -c "qa!"
+
+echo "[21/24] adversarial-review fix: an unterminated \${VAR placeholder (no closing '}') is reported unresolved, never silently corrupted or thrown from..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  local notified = {}
+  local orig = vim.notify
+  vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
+  local call_ok, dbs = pcall(db.discover_datasources, '$FIXTURE_ROOT/unterminated-placeholder')
+  vim.notify = orig
+  assert(call_ok, 'discover_datasources must never throw on an unterminated placeholder, got: ' .. tostring(dbs))
+  assert(#dbs == 0, 'an unterminated placeholder must be reported unresolved (connection skipped), got ' .. #dbs .. ' entries')
+  local saw_warn = false
+  for _, n in ipairs(notified) do
+    if n.level == vim.log.levels.WARN then saw_warn = true end
+  end
+  assert(saw_warn, 'expected a WARN notification for the unterminated placeholder')
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: unterminated \${VAR placeholder reported unresolved, no crash')
+end
+" -c "qa!"
+
+echo "[22/24] adversarial-review fix: a nameless placeholder ('\${}' / '\${:default}') does not throw indexing the environment/dotenv with a nil/empty key -- treated as unresolved instead..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+
+  for _, fixture in ipairs({ 'nameless-placeholder', 'nameless-placeholder-with-default' }) do
+    local notified = {}
+    local orig = vim.notify
+    vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
+    local call_ok, dbs = pcall(db.discover_datasources, '$FIXTURE_ROOT/' .. fixture)
+    vim.notify = orig
+
+    assert(call_ok, fixture .. ': discover_datasources must never throw on a nameless placeholder, got: ' .. tostring(dbs))
+    assert(#dbs == 0, fixture .. ': a nameless placeholder must be reported unresolved, got ' .. #dbs .. ' entries')
+    local saw_warn = false
+    for _, n in ipairs(notified) do
+      if n.level == vim.log.levels.WARN then saw_warn = true end
+    end
+    assert(saw_warn, fixture .. ': expected a WARN notification for the nameless placeholder')
+  end
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: nameless \${} / \${:default} placeholders reported unresolved, no crash')
+end
+" -c "qa!"
+
+echo "[23/24] adversarial-review fix: an explicitly-empty .env value wins over a placeholder's own default (not treated as \"absent, use default\")..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local db = require('cumulus.util.db')
+  local dbs = db.discover_datasources('$FIXTURE_ROOT/dotenv-empty-wins')
+  assert(#dbs == 1, 'expected exactly 1 entry, got ' .. #dbs)
+  assert(
+    dbs[1].url == 'postgresql://postgres:@localhost:5432/db',
+    'an explicitly-empty .env value must win over the placeholder default (\"somedefault\"), got: ' .. tostring(dbs[1].url)
+  )
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: explicitly-empty .env value resolved as empty, not the placeholder default')
+end
+" -c "qa!"
+
+echo "[24/24] adversarial-review fix: DirChanged re-runs discovery on project switch (global-scope cd only, never window/tab-local lcd/tcd), and correctly CLEARS vim.g.dbs when switching into a project with zero datasources..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  local spec = require('cumulus.plugins.tools-dadbod')
+  spec[1].config()
+
+  local db = require('cumulus.util.db')
+
+  -- vim.fn.chdir() is the GLOBAL-scope 'cd' -- it fires a real DirChanged
+  -- with v:event.scope == 'global' (verified empirically), unlike manually
+  -- firing nvim_exec_autocmds('DirChanged', ...), which does NOT populate
+  -- v:event.scope and would silently no-op through the scope guard.
+  vim.g.dbs = nil
+  vim.fn.chdir('$FIXTURE_ROOT/dirchanged-a')
+  local expected_a = db.discover_datasources(vim.fn.getcwd())
+  assert(#expected_a == 1, 'fixture setup problem: dirchanged-a should yield 1 entry')
+  assert(vim.deep_equal(vim.g.dbs, expected_a), 'vim.g.dbs must reflect dirchanged-a after DirChanged, got: ' .. vim.inspect(vim.g.dbs))
+
+  vim.fn.chdir('$FIXTURE_ROOT/dirchanged-b')
+  local expected_b = db.discover_datasources(vim.fn.getcwd())
+  assert(#expected_b == 1, 'fixture setup problem: dirchanged-b should yield 1 entry')
+  assert(vim.deep_equal(vim.g.dbs, expected_b), 'vim.g.dbs must reflect dirchanged-b after switching, got: ' .. vim.inspect(vim.g.dbs))
+  assert(not vim.deep_equal(vim.g.dbs, expected_a), 'vim.g.dbs must NOT still point at the previous project (dirchanged-a)')
+
+  vim.fn.chdir('$FIXTURE_ROOT/dirchanged-none')
+  assert(
+    type(vim.g.dbs) == 'table' and #vim.g.dbs == 0,
+    'switching into a project with ZERO datasources must CLEAR vim.g.dbs (empty table), got: ' .. vim.inspect(vim.g.dbs)
+  )
+
+  -- A window-local ':lcd' fires DirChanged with v:event.scope == 'window'
+  -- -- must NOT re-run discovery (vim.g.dbs is a single global shared
+  -- across every tab/window; a local cd in one window must not overwrite
+  -- what every other window sees). Deliberately the LAST step in this test
+  -- -- once a window has a local directory, Neovim keeps that window's
+  -- local-directory flag \"sticky\" (verified empirically: even a
+  -- subsequent GLOBAL vim.fn.chdir() in that same window then fires
+  -- DirChanged with scope==\"window\", not \"global\"), so this must not
+  -- run before any assertion that still needs a real global-scope
+  -- DirChanged in this window.
+  local before_lcd = vim.g.dbs
+  vim.cmd('lcd ' .. vim.fn.fnameescape('$FIXTURE_ROOT/dirchanged-a'))
+  assert(
+    vim.deep_equal(vim.g.dbs, before_lcd),
+    'a window-local :lcd must NOT trigger re-discovery, vim.g.dbs must be unchanged, got: ' .. vim.inspect(vim.g.dbs)
+  )
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+else
+  print('OK: DirChanged re-ran discovery on GLOBAL cd only (never window-local lcd), and correctly cleared vim.g.dbs for a zero-datasource project')
 end
 " -c "qa!"
 

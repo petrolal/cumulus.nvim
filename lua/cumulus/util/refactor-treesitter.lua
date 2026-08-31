@@ -94,6 +94,31 @@ function M.file_package(lines)
   return nil
 end
 
+--- Whether `lines` (a candidate file's own content) imports `symbol` from
+--- `package` -- either the exact FQN (`import pkg.Symbol;` / Kotlin's
+--- semicolon-less form) or a wildcard import of the package (`import
+--- pkg.*;`). A same-package-only check misses the entire point of
+--- @Autowired-by-simple-name: a DIFFERENT package's class routinely
+--- @Autowired-injects a bean by simple name after importing it, and that
+--- reference must still be included in the rename preview. Only used to
+--- ADMIT a cross-package candidate that the same-package check would
+--- otherwise reject -- it never excludes anything on its own.
+---@param lines string[]
+---@param package string
+---@param symbol string
+---@return boolean
+function M.file_imports_symbol(lines, package, symbol)
+  local exact_pattern = "^%s*import%s+" .. vim.pesc(package) .. "%." .. vim.pesc(symbol) .. "%s*;?%s*$"
+  local wildcard_pattern = "^%s*import%s+" .. vim.pesc(package) .. "%.%*%s*;?%s*$"
+  for i = 1, #lines do
+    local line = lines[i]
+    if line and (line:match(exact_pattern) or line:match(wildcard_pattern)) then
+      return true
+    end
+  end
+  return false
+end
+
 --- Classify a single XML line already known to contain `symbol` as a whole
 --- word. Returns one entry per whole-word occurrence of `symbol` that
 --- falls inside a `<bean ... class="...">` attribute's value, each tagged
@@ -516,67 +541,75 @@ function M.scan_root_async(root, symbol, old_package, callback)
       for i = file_idx, chunk_end do
         local file = unique_files[i]
         local lnum_hits = by_file[file]
-      local ext = (file:match("%.([%w]+)$") or ""):lower()
-      local ok, lines = pcall(vim.fn.readfile, file)
-      if not ok or not lines then
-        failed_files[#failed_files + 1] = file
-      elseif ext == "xml" then
-        for lnum, hit in pairs(lnum_hits) do
-          local line = lines[lnum] or hit.line
-          local occurrences = line and M.classify_xml_line(line, symbol)
-          if occurrences then
-            for _, occ in ipairs(occurrences) do
-              local package_ok = true
-              if old_package then
-                package_ok = occ.package ~= nil and occ.package == old_package
-              end
-              if package_ok and not M.is_inside_xml_comment(lines, lnum, occ.col) then
-                items[#items + 1] = {
-                  file = file,
-                  lnum = lnum,
-                  col = occ.col,
-                  end_col = occ.end_col,
-                  kind = "xml_bean",
-                  text = line,
-                }
-              end
-            end
-          end
-        end
-      elseif LANG_BY_EXT[ext] then
-        local lang = LANG_BY_EXT[ext]
-        local file_package = M.file_package(lines)
-        local package_ok = true
-        if old_package then
-          package_ok = file_package ~= nil and file_package == old_package
-        end
-        if package_ok then
-          -- Parse this file's Tree-sitter tree ONCE and reuse the root
-          -- across every hit/occurrence in it, rather than re-parsing the
-          -- whole file per hit.
-          local content = table.concat(lines, "\n")
-          local ts_root = M._ts_root_for(content, lang)
-          for lnum in pairs(lnum_hits) do
-            local kind, occurrences = M.classify_jvm_line(lines, lnum, symbol)
-            if kind and occurrences then
+        local ext = (file:match("%.([%w]+)$") or ""):lower()
+        local ok, lines = pcall(vim.fn.readfile, file)
+        if not ok or not lines then
+          failed_files[#failed_files + 1] = file
+        elseif ext == "xml" then
+          for lnum, hit in pairs(lnum_hits) do
+            local line = lines[lnum] or hit.line
+            local occurrences = line and M.classify_xml_line(line, symbol)
+            if occurrences then
               for _, occ in ipairs(occurrences) do
-                local discard = M._is_comment_or_string_node(ts_root, lnum - 1, occ.col - 1)
-                if not discard then
+                local package_ok = true
+                if old_package then
+                  package_ok = occ.package ~= nil and occ.package == old_package
+                end
+                if package_ok and not M.is_inside_xml_comment(lines, lnum, occ.col) then
                   items[#items + 1] = {
                     file = file,
                     lnum = lnum,
                     col = occ.col,
                     end_col = occ.end_col,
-                    kind = kind,
-                    text = lines[lnum],
+                    kind = "xml_bean",
+                    text = line,
                   }
+                end
+              end
+            end
+          end
+        elseif LANG_BY_EXT[ext] then
+          local lang = LANG_BY_EXT[ext]
+          local file_package = M.file_package(lines)
+          local package_ok = true
+          if old_package then
+            -- Same-package files ALWAYS qualify; a different (or
+            -- undeterminable) package still qualifies if the file explicitly
+            -- imports the renamed symbol from old_package -- e.g. a
+            -- different-package @Autowired consumer. Without this, renaming
+            -- com.a.FooService would silently miss a com.b.Consumer that
+            -- imports and @Autowired-injects it.
+            package_ok = (file_package ~= nil and file_package == old_package)
+              or M.file_imports_symbol(lines, old_package, symbol)
+          end
+          if package_ok then
+            -- Parse this file's Tree-sitter tree ONCE and reuse the root
+            -- across every hit/occurrence in it, rather than re-parsing the
+            -- whole file per hit.
+            local content = table.concat(lines, "\n")
+            local ts_root = M._ts_root_for(content, lang)
+            for lnum in pairs(lnum_hits) do
+              local kind, occurrences = M.classify_jvm_line(lines, lnum, symbol)
+              if kind and occurrences then
+                for _, occ in ipairs(occurrences) do
+                  local discard = M._is_comment_or_string_node(ts_root, lnum - 1, occ.col - 1)
+                  if not discard then
+                    items[#items + 1] = {
+                      file = file,
+                      lnum = lnum,
+                      col = occ.col,
+                      end_col = occ.end_col,
+                      kind = kind,
+                      text = lines[lnum],
+                    }
+                  end
                 end
               end
             end
           end
         end
       end
-      
+
       file_idx = chunk_end + 1
       if file_idx <= #unique_files then
         vim.schedule(process_chunk)
@@ -594,7 +627,7 @@ function M.scan_root_async(root, symbol, old_package, callback)
         callback(items)
       end
     end
-    
+
     process_chunk()
   end)
 end

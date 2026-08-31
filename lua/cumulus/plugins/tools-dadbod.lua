@@ -54,6 +54,29 @@ local function register_dadbod_completion(bufnr)
   end
 end
 
+--- Re-run Spring datasource auto-discovery against the CURRENT cwd and
+--- assign the result to `vim.g.dbs`. Stateless (re-reads config files from
+--- disk every call) -- shared between the plugin spec's `init()` (first
+--- run, before lazy.nvim loads the plugin) and the `DirChanged` autocmd
+--- registered in `config()` (re-run on every project switch).
+---
+--- Always assigns on a successful scan, even when `dbs` is empty -- a
+--- project with zero datasources must CLEAR any list left over from a
+--- previously-`:cd`'d project, not silently keep pointing at it. Only a
+--- discovery ERROR (the `not ok` branch) leaves `vim.g.dbs` untouched.
+local function discover_and_assign_datasources()
+  local ok, dbs = pcall(function()
+    return require("cumulus.util.db").discover_datasources(vim.fn.getcwd())
+  end)
+  if ok then
+    if type(dbs) == "table" then
+      vim.g.dbs = dbs
+    end
+  else
+    ui.notify_warn("Spring datasource auto-discovery failed: " .. tostring(dbs))
+  end
+end
+
 return {
   {
     "tpope/vim-dadbod",
@@ -73,21 +96,12 @@ return {
     -- plugin/ script, which only runs once lazy.nvim loads the plugin --
     -- they must be set in init() (runs before load), not config() (runs
     -- after). Discovery is stateless: config files are re-read from disk on
-    -- every init, nothing about the credentials is cached or persisted.
+    -- every call, nothing about the credentials is cached or persisted.
     init = function()
       vim.g.db_ui_use_nerd_fonts = 1
       vim.g.db_ui_show_help = 0
 
-      local ok, dbs = pcall(function()
-        return require("cumulus.util.db").discover_datasources(vim.fn.getcwd())
-      end)
-      if ok then
-        if type(dbs) == "table" and #dbs > 0 then
-          vim.g.dbs = dbs
-        end
-      else
-        ui.notify_warn("Spring datasource auto-discovery failed: " .. tostring(dbs))
-      end
+      discover_and_assign_datasources()
     end,
     config = function()
       vim.api.nvim_create_autocmd("FileType", {
@@ -108,6 +122,26 @@ return {
           register_dadbod_completion(bufnr)
         end
       end
+
+      -- init() only runs the discovery scan once, against the cwd Neovim
+      -- happened to start in -- switching projects (`:cd`, oil.nvim, a
+      -- session load, etc.) never re-scans, so vim.g.dbs silently keeps
+      -- pointing at the FIRST project's datasources forever. Re-run
+      -- discovery on every DirChanged so :DBUIToggle/:DBUIFindBuffer see
+      -- the newly-`:cd`'d project's own datasources instead.
+      vim.api.nvim_create_autocmd("DirChanged", {
+        group = vim.api.nvim_create_augroup("cumulus_dadbod_discovery", { clear = true }),
+        callback = function()
+          -- vim.g.dbs is a single GLOBAL variable shared across every tab
+          -- and window -- only react to a global-scope `:cd`, never a
+          -- window/tab-local `:lcd`/`:tcd`, or switching directories in one
+          -- tab would silently overwrite the datasource list every other
+          -- tab/window sees.
+          if vim.v.event.scope == "global" then
+            discover_and_assign_datasources()
+          end
+        end,
+      })
     end,
   },
 

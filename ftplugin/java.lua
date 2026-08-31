@@ -70,28 +70,28 @@ local config = {
     vim.keymap.set("n", "<leader>ce", function()
       require("cumulus.util.extract").extract_interface()
     end, { buffer = bufnr, desc = "Extract Interface (Java)" })
-    
+
     vim.keymap.set("n", "<leader>ci", function()
       require("cumulus.util.extract").inline()
     end, { buffer = bufnr, desc = "Inline (Java)" })
     vim.keymap.set("v", "<leader>ci", function()
       require("cumulus.util.extract").inline(true)
     end, { buffer = bufnr, desc = "Inline (Java)" })
-    
+
     vim.keymap.set("n", "<leader>cm", function()
       require("cumulus.util.extract").extract_method()
     end, { buffer = bufnr, desc = "Extract Method (Java)" })
     vim.keymap.set("v", "<leader>cm", function()
       require("cumulus.util.extract").extract_method(true)
     end, { buffer = bufnr, desc = "Extract Method (Java)" })
-    
+
     vim.keymap.set("n", "<leader>cv", function()
       require("cumulus.util.extract").extract_variable()
     end, { buffer = bufnr, desc = "Extract Variable (Java)" })
     vim.keymap.set("v", "<leader>cv", function()
       require("cumulus.util.extract").extract_variable(true)
     end, { buffer = bufnr, desc = "Extract Variable (Java)" })
-    
+
     vim.keymap.set("n", "<leader>cc", function()
       require("cumulus.util.extract").extract_constant()
     end, { buffer = bufnr, desc = "Extract Constant (Java)" })

@@ -24,3 +24,11 @@
 - source_spec: `/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces.md`
   summary: Execute validate-*.sh scripts in the main validate.sh suite.
   evidence: scripts/validate-extract.sh and lua/cumulus/tests/extract_spec.lua are not currently run automatically by validate.sh, meaning regressions might ship undetected.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-findings-fixes.md`
+  summary: `refactor-treesitter.lua`'s `file_imports_symbol` cross-package scoping fix only recognizes a plain `import pkg.Symbol;`/`import pkg.*;` — it misses Kotlin `import pkg.Symbol as Alias` and Java `import static pkg.Class.Symbol;`, so a cross-package `@Autowired` consumer using either form is silently excluded from the project-wide rename preview.
+  evidence: Flagged by the code-review edge-case-hunter and blind-hunter layers on the review-findings-fixes diff. The plain-import case (the common Spring idiom) is fixed and tested; extending the regex to cover static/aliased imports is a small but separate, open-ended widening of import-syntax coverage rather than part of the original cross-package bug being fixed.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-findings-fixes.md`
+  summary: `openapi.lua`'s OpenAPI `$ref` handling covers whole-path-item and operation-level refs but not a `$ref` inside an operation's `parameters` array, which can still silently produce an incomplete/garbage request block.
+  evidence: Flagged by the code-review blind-hunter layer on the review-findings-fixes diff. Handling parameter-level `$ref`s is a meaningfully broader feature (resolving `#/components/parameters/...` against the spec's `components` section) than the two `$ref` shapes this bugfix pass targeted.

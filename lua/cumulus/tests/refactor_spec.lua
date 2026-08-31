@@ -35,23 +35,193 @@ describe("Refactor (SPEC-2.1)", function()
       end)
     end)
 
-    it("should reject a second project_rename while one is already in flight (M._busy)", function()
+    it("should reject a second project_rename while one is already in flight (shared action-lock.lua)", function()
       local refactor = require("cumulus.util.refactor")
+      local action_lock = require("cumulus.util.action-lock")
       local notified = {}
       local orig_notify = vim.notify
       vim.notify = function(msg, level)
         table.insert(notified, { msg = msg, level = level })
       end
 
-      refactor._busy = true
+      action_lock.acquire()
       refactor.project_rename("Whatever")
-      refactor._busy = false
+      action_lock.release()
 
       vim.notify = orig_notify
       assert.are.equal(1, #notified)
       assert.are.equal(vim.log.levels.WARN, notified[1].level)
       assert.is_truthy(notified[1].msg:match("already in progress"))
     end)
+
+    it(
+      "action-lock.lua is SHARED with cumulus.util.extract -- an extract/inline action in flight must also reject a concurrent project_rename",
+      function()
+        local refactor = require("cumulus.util.refactor")
+        local extract = require("cumulus.util.extract")
+        local action_lock = require("cumulus.util.action-lock")
+
+        assert.is_false(action_lock.is_busy())
+
+        -- Simulate extract.lua holding the lock (e.g. a code-action request
+        -- in flight) and confirm refactor.lua's project_rename sees the
+        -- SAME lock as busy -- proving the two modules no longer keep
+        -- independent M._busy flags that could race against each other.
+        -- The lock is acquired synchronously inside do_action, before the
+        -- (mocked, never-resolving) textDocument/codeAction request is even
+        -- sent, so no vim.wait is needed to observe it. buf_request_all
+        -- itself is mocked too (never invoking its handler) since a fake
+        -- client table isn't a real vim.lsp.Client and would error deep
+        -- inside the real LSP request machinery otherwise.
+        local orig_get_clients = vim.lsp.get_clients
+        local orig_buf_request_all = vim.lsp.buf_request_all
+        vim.lsp.get_clients = function(_)
+          return { { name = "jdtls", id = 1, offset_encoding = "utf-16" } }
+        end
+        vim.lsp.buf_request_all = function() end
+        vim.cmd("enew")
+        extract.extract_interface(false)
+        vim.lsp.get_clients = orig_get_clients
+        vim.lsp.buf_request_all = orig_buf_request_all
+        assert.is_true(action_lock.is_busy())
+
+        local notified = {}
+        local orig_notify = vim.notify
+        vim.notify = function(msg, level)
+          table.insert(notified, { msg = msg, level = level })
+        end
+
+        -- The lock is now GENUINELY shared across modules -- if either
+        -- assertion below fails, letting the error propagate straight out
+        -- would skip the action_lock.release() further down and strand the
+        -- lock busy for the REST of this busted run (every later test
+        -- touching refactor.project_rename or any extract.* action would
+        -- then spuriously fail too, masking the real failure). pcall the
+        -- risky portion, always release, then re-raise so this test still
+        -- correctly reports FAIL.
+        local check_ok, check_err = pcall(function()
+          refactor.project_rename("Whatever")
+          assert.are.equal(1, #notified)
+          assert.is_truthy(notified[1].msg:match("already in progress"))
+        end)
+
+        vim.notify = orig_notify
+        action_lock.release()
+
+        if not check_ok then
+          error(check_err, 0)
+        end
+        assert.is_false(action_lock.is_busy())
+      end
+    )
+
+    it(
+      "M._on_rename_response should warn and skip the Spring/treesitter scan (LSP-only locations) when the JVM client reports no root_dir, and release the lock on both Apply and Cancel",
+      function()
+        local refactor = require("cumulus.util.refactor")
+        local action_lock = require("cumulus.util.action-lock")
+        local refactor_ts = require("cumulus.util.refactor-treesitter")
+
+        -- Real temp file (not a fake nonexistent URI) so
+        -- vim.lsp.util.apply_workspace_edit's real file/buffer machinery on
+        -- the Apply path has something real to load and edit.
+        local java_file = vim.fn.tempname() .. ".java"
+        vim.fn.writefile({ "public class Foo {}" }, java_file)
+
+        --- Runs one full project_rename pass against the no-root_dir fixture
+        --- above, auto-answering the confirm prompt with `select_choice`
+        --- ("Apply" or "Cancel"). Returns (notifications, scan_called).
+        local function run_once(select_choice)
+          vim.cmd("noautocmd edit " .. vim.fn.fnameescape(java_file))
+          local bufnr = vim.api.nvim_get_current_buf()
+          vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- cursor on "public", not "Bar"
+
+          local fake_client = {
+            id = 5001,
+            name = "jdtls",
+            offset_encoding = "utf-16",
+            config = {}, -- no root_dir
+          }
+
+          local orig_get_clients = vim.lsp.get_clients
+          local orig_buf_request_all = vim.lsp.buf_request_all
+          vim.lsp.get_clients = function(_)
+            return { fake_client }
+          end
+          vim.lsp.buf_request_all = function(_, _, _, handler)
+            handler({
+              [fake_client.id] = {
+                result = {
+                  changes = {
+                    ["file://" .. java_file] = {
+                      {
+                        range = { start = { line = 0, character = 13 }, ["end"] = { line = 0, character = 16 } },
+                        newText = "Bar",
+                      },
+                    },
+                  },
+                },
+              },
+            })
+          end
+
+          local scan_called = false
+          local orig_scan = refactor_ts.scan_root_async
+          refactor_ts.scan_root_async = function(...)
+            scan_called = true
+            return orig_scan(...)
+          end
+
+          local notified = {}
+          local orig_notify = vim.notify
+          vim.notify = function(msg, level)
+            table.insert(notified, { msg = msg, level = level })
+          end
+
+          local orig_select = vim.ui.select
+          vim.ui.select = function(_, _, on_choice)
+            on_choice(select_choice)
+          end
+
+          refactor.project_rename("Bar")
+          vim.wait(2000, function()
+            return not action_lock.is_busy()
+          end, 20)
+
+          vim.lsp.get_clients = orig_get_clients
+          vim.lsp.buf_request_all = orig_buf_request_all
+          refactor_ts.scan_root_async = orig_scan
+          vim.notify = orig_notify
+          vim.ui.select = orig_select
+
+          return notified, scan_called
+        end
+
+        local notified_apply, scan_called_apply = run_once("Apply")
+        assert.is_false(scan_called_apply, "scan_root_async must never be invoked when root_dir is missing")
+        local saw_warn_apply = false
+        for _, n in ipairs(notified_apply) do
+          if n.level == vim.log.levels.WARN and n.msg:match("root_dir") and n.msg:match("jdtls") then
+            saw_warn_apply = true
+          end
+        end
+        assert.is_true(saw_warn_apply, "expected a WARN naming the client and mentioning root_dir")
+        assert.is_false(action_lock.is_busy(), "lock must be released after Apply")
+
+        local notified_cancel, scan_called_cancel = run_once("Cancel")
+        assert.is_false(scan_called_cancel, "scan_root_async must never be invoked when root_dir is missing")
+        local saw_warn_cancel = false
+        for _, n in ipairs(notified_cancel) do
+          if n.level == vim.log.levels.WARN and n.msg:match("root_dir") and n.msg:match("jdtls") then
+            saw_warn_cancel = true
+          end
+        end
+        assert.is_true(saw_warn_cancel, "expected a WARN naming the client and mentioning root_dir")
+        assert.is_false(action_lock.is_busy(), "lock must be released after Cancel")
+
+        os.remove(java_file)
+      end
+    )
 
     it("should flatten a WorkspaceEdit's `changes` into uri/range locations", function()
       local refactor = require("cumulus.util.refactor")
@@ -379,7 +549,7 @@ describe("Refactor (SPEC-2.1)", function()
           return {
             start_or_attach = function(config)
               captured_on_attach = config.on_attach
-            end
+            end,
           }
         end
         return old_require(mod)
@@ -388,11 +558,13 @@ describe("Refactor (SPEC-2.1)", function()
       vim.cmd("enew")
       local bufnr = vim.api.nvim_get_current_buf()
       vim.bo[bufnr].filetype = "java"
-      
+
       local f = loadfile("ftplugin/java.lua")
-      if f then f() end
+      if f then
+        f()
+      end
       _G.require = old_require
-      
+
       if captured_on_attach then
         captured_on_attach({ name = "jdtls" }, bufnr)
         local mapping = vim.fn.maparg("<leader>cr", "n", false, true)

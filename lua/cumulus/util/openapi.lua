@@ -48,13 +48,33 @@ local function build_request_block(method, path, base_url, operation)
     end
   end
 
-  local lines = {
-    "### " .. name,
-    method_upper .. " " .. base_url .. path .. " HTTP/1.1",
-    "Accept: application/json",
-  }
+  local lines = { "### " .. name }
+
+  -- An OpenAPI path template's `{param}` segments (e.g. "/users/{id}") are
+  -- carried through literally into the request line -- flag each one with
+  -- a TODO comment so the generated template doesn't silently send a
+  -- literal "{id}" path segment without the reader noticing it needs a
+  -- real value substituted in. Deduped -- a path re-using the same
+  -- parameter name twice (e.g. "/a/{id}/b/{id}") must only get ONE TODO
+  -- comment for it, not one per occurrence.
+  local seen_params = {}
+  for param in path:gmatch("{([^{}]+)}") do
+    if not seen_params[param] then
+      seen_params[param] = true
+      table.insert(lines, "# TODO: replace {" .. param .. "} with a real value")
+    end
+  end
+
+  table.insert(lines, method_upper .. " " .. base_url .. path .. " HTTP/1.1")
+  table.insert(lines, "Accept: application/json")
   if BODY_METHODS[method] then
     table.insert(lines, "Content-Type: application/json")
+    -- kulala.nvim (like the .http format generally) expects a blank line
+    -- separating headers from the body -- without a body placeholder here,
+    -- a POST/PUT/PATCH block would have a Content-Type header promising a
+    -- JSON body that never actually follows.
+    table.insert(lines, "")
+    table.insert(lines, "{}")
   end
 
   return table.concat(lines, "\n")
@@ -121,6 +141,19 @@ function M.generate_http_from_spec(spec_path)
     base_url = spec.servers[1].url:gsub("/+$", "")
   end
 
+  -- OpenAPI server URLs may contain `{variable}` templates (per the
+  -- `servers[].variables` object) -- substituting those is out of v1 scope,
+  -- so warn rather than silently emitting request lines with a literal,
+  -- unresolved "{...}" in the host/path, which would otherwise look like a
+  -- generation bug rather than a known scope limit.
+  if base_url:match("{[^{}]+}") then
+    ui.notify_warn(
+      "OpenAPI server URL contains unresolved template variable(s) ("
+        .. base_url
+        .. ") -- generated request URLs will include the literal placeholder(s); server variable substitution is out of scope"
+    )
+  end
+
   -- Sort path keys (and, within each path, method keys) for deterministic,
   -- reviewable output rather than whatever order vim.json.decode's table
   -- happens to iterate in.
@@ -134,6 +167,7 @@ function M.generate_http_from_spec(spec_path)
 
   local blocks = {}
   local ref_skipped_paths = {}
+  local ref_skipped_operations = {}
   for _, path_key in ipairs(path_keys) do
     local path_item = spec.paths[path_key]
 
@@ -155,7 +189,17 @@ function M.generate_http_from_spec(spec_path)
         if type(method_key) == "string" then
           local lower = method_key:lower()
           if HTTP_METHODS[lower] then
-            table.insert(method_entries, { lower = lower, original = method_key })
+            local op_value = path_item[method_key]
+            if type(op_value) == "table" and type(op_value["$ref"]) == "string" then
+              -- An operation expressed as `{"$ref": ...}` carries no inline
+              -- operation object (no operationId/summary/requestBody) to
+              -- build a real block from -- rendering it anyway would
+              -- produce a garbage block indistinguishable from a real one.
+              -- Skip it and warn, same treatment as a whole-path-item $ref.
+              table.insert(ref_skipped_operations, method_key:upper() .. " " .. path_key)
+            else
+              table.insert(method_entries, { lower = lower, original = method_key })
+            end
           end
         end
       end
@@ -174,6 +218,14 @@ function M.generate_http_from_spec(spec_path)
     ui.notify_warn(
       "Skipped $ref path item(s) (external/internal path-item references are out of scope for this story): "
         .. table.concat(ref_skipped_paths, ", ")
+    )
+  end
+
+  if #ref_skipped_operations > 0 then
+    table.sort(ref_skipped_operations)
+    ui.notify_warn(
+      "Skipped operation(s) expressed as a bare $ref (no inline operation object to generate from): "
+        .. table.concat(ref_skipped_operations, ", ")
     )
   end
 

@@ -42,36 +42,64 @@ local MAX_DEPTH = 8
 --- Recursively collect every file named `filename` under `root_dir`, using a
 --- bounded manual walk (rather than an unfiltered vim.fs.find) so common
 --- huge/irrelevant directories never get traversed.
+---
+--- `truncated` is an in/out `{ hit = boolean }` table (create fresh, or
+--- share across multiple calls to detect truncation anywhere across them):
+--- set to `true` whenever a directory beyond `MAX_DEPTH` is skipped, so a
+--- caller can warn that the scan may have missed a deeply-nested config
+--- file instead of silently returning an incomplete/empty result.
 ---@param root_dir string
 ---@param filename string
 ---@param depth? integer
 ---@param results? string[]
----@return string[]
-local function find_files(root_dir, filename, depth, results)
+---@param truncated? { hit: boolean }
+---@return string[] results
+---@return { hit: boolean } truncated
+local function find_files(root_dir, filename, depth, results, truncated)
   depth = depth or 0
   results = results or {}
+  truncated = truncated or { hit = false }
   if depth > MAX_DEPTH then
-    return results
+    truncated.hit = true
+    return results, truncated
   end
 
   local ok, iter = pcall(vim.fs.dir, root_dir)
   if not ok or not iter then
-    return results
+    return results, truncated
   end
 
   for name, kind in iter do
     if kind == "file" and name == filename then
       table.insert(results, root_dir .. "/" .. name)
     elseif kind == "directory" and not IGNORED_DIRS[name] and not name:match("^%.") then
-      find_files(root_dir .. "/" .. name, filename, depth + 1, results)
+      find_files(root_dir .. "/" .. name, filename, depth + 1, results, truncated)
     end
   end
 
-  return results
+  return results, truncated
+end
+
+--- Warn once that a discovery scan hit `MAX_DEPTH` and may have missed a
+--- deeply-nested application.properties/.yml/.yaml file.
+---@param root_dir string
+local function warn_truncated(root_dir)
+  ui.notify_warn(
+    string.format(
+      "Spring datasource discovery under %s hit the %d-directory depth limit -- some "
+        .. "application.properties/.yml/.yaml file(s) nested deeper may have been missed",
+      root_dir,
+      MAX_DEPTH
+    )
+  )
 end
 
 --- Parse `spring.datasource.{url,username,password}` out of flat dotted
---- `.properties` lines (`key = value`, `#`/`!` comments ignored).
+--- `.properties` lines. Java's `.properties` format allows the key/value
+--- separator to be `=`, `:`, OR plain whitespace (with no `=`/`:` at all) --
+--- e.g. `spring.datasource.password: secret` and `spring.datasource.password
+--- secret` are both valid alongside the more common `=` form. `#`/`!`
+--- comments are ignored.
 ---@param lines string[]
 ---@return { url?: string, username?: string, password?: string }
 local function parse_properties_lines(lines)
@@ -79,7 +107,7 @@ local function parse_properties_lines(lines)
   for _, line in ipairs(lines) do
     local trimmed = line:match("^%s*(.-)%s*$")
     if trimmed ~= "" and not trimmed:match("^[#!]") then
-      local key, val = trimmed:match("^([%w%.%-_]+)%s*=%s*(.-)%s*$")
+      local key, val = trimmed:match("^([%w%.%-_]+)%s*[:=]?%s*(.-)%s*$")
       if key == "spring.datasource.url" then
         raw.url = val
       elseif key == "spring.datasource.username" then
@@ -122,6 +150,15 @@ local function parse_yaml_lines(lines)
         end
         table.insert(stack, { indent = indent, key = key })
 
+        -- A bare `key:` with nothing after it (val == "") is YAML null --
+        -- the value is either absent or continues as a nested mapping on
+        -- following lines, so it must NOT be recorded here. An explicit
+        -- empty-string scalar (`key: ""` / `key: ''`) is different: `val`
+        -- is the 2-character quoted literal at this point (unquoting
+        -- happens below), so it is correctly NOT equal to "" and DOES fall
+        -- through to be recorded (as an empty string, once unquoted) --
+        -- e.g. `spring.datasource.password: ""` must resolve to an empty
+        -- password, not be treated as a missing one.
         if val ~= "" then
           local path = {}
           for _, entry in ipairs(stack) do
@@ -200,36 +237,119 @@ end
 
 --- Resolve Spring `${ENV_VAR}` / `${ENV_VAR:default}` placeholders in a
 --- config value, mirroring Spring Boot's own
---- PropertySourcesPlaceholderConfigurer semantics: a set, non-empty process
---- environment variable always wins; otherwise a matching key in the
---- project's `root_dir/.env` file (if any) is used, since that's how these
---- variables actually reach the app in the common local-dev setup; otherwise
---- the literal text after the first `:` (which may itself contain `:` or
---- `/`, e.g. a full JDBC URL default) is used; a placeholder with no default
---- and no match anywhere is left as `${VAR_NAME}` and reported as
+--- PropertySourcesPlaceholderConfigurer semantics: a SET process environment
+--- variable always wins -- including one explicitly set to the empty string
+--- (`FOO=`), which is a deliberate "use no password" idiom and must resolve
+--- to "", not be treated as though FOO were unset entirely; otherwise a
+--- matching key in the project's `root_dir/.env` file (if any) is used,
+--- under the same set-including-empty rule, since that's how these
+--- variables actually reach the app in the common local-dev setup;
+--- otherwise the literal text after the first `:` (which may itself contain
+--- `:` or `/`, e.g. a full JDBC URL default) is used; a placeholder with no
+--- default and no match anywhere is left as `${VAR_NAME}` and reported as
 --- unresolved. Values with no `${...}` at all pass through unchanged.
+---
+--- A NESTED placeholder in the default position (e.g. `${A:${B}}`) is
+--- deliberately NOT resolved -- see this module's header comment / the
+--- spec's boundary -- doing so naively via a single-level regex would find
+--- the WRONG closing `}` (the inner placeholder's), truncate the default,
+--- and leave a stray `}` in the output, silently corrupting the value. Such
+--- a placeholder is left verbatim and its outer variable name is reported
+--- as unresolved instead.
+---
+--- Two further malformed shapes are also reported as unresolved (never
+--- thrown, never silently dropped): an UNTERMINATED placeholder (`${VAR`
+--- with no matching `}`) reports the raw truncated text; a NAMELESS
+--- placeholder (`${}`, `${:default}`) reports its (empty) body rather than
+--- indexing the environment/dotenv with a nil/empty key, which would
+--- otherwise throw and abort the entire calling scan.
 ---@param value string
 ---@param dotenv table<string, string> from load_dotenv()
 ---@return string resolved
 ---@return string[] unresolved names of `${VAR}`/`${VAR:default}` placeholders that could not be resolved
 local function resolve_placeholders(value, dotenv)
   local unresolved = {}
-  local resolved = value:gsub("%${([^}:]+):?([^}]*)}", function(var_name, default)
-    local env_val = vim.env[var_name]
-    if env_val and env_val ~= "" then
-      return env_val
+  local out = {}
+  local i = 1
+  local len = #value
+
+  while i <= len do
+    local s = value:find("${", i, true)
+    if not s then
+      table.insert(out, value:sub(i))
+      break
     end
-    local dotenv_val = dotenv[var_name]
-    if dotenv_val and dotenv_val ~= "" then
-      return dotenv_val
+    table.insert(out, value:sub(i, s - 1))
+
+    -- Scan forward from just after '${', tracking brace depth so a nested
+    -- '${...}' is detected (depth > 1) rather than stopping at ITS closing
+    -- '}' as though it were the outer placeholder's.
+    local j = s + 2
+    local depth = 1
+    local nested = false
+    while j <= len and depth > 0 do
+      if value:sub(j, j + 1) == "${" then
+        depth = depth + 1
+        nested = true
+        j = j + 2
+      elseif value:sub(j, j) == "}" then
+        depth = depth - 1
+        j = j + 1
+      else
+        j = j + 1
+      end
     end
-    if default ~= "" then
-      return default
+
+    if depth > 0 then
+      -- Unterminated placeholder (no matching '}') -- nothing sane to do
+      -- but leave the rest of the string verbatim; still report it as
+      -- unresolved (every other failure path here does) so a truncated
+      -- `${VAR` doesn't silently produce an un-warned value.
+      local remainder = value:sub(s)
+      table.insert(unresolved, remainder)
+      table.insert(out, remainder)
+      i = len + 1
+    elseif nested then
+      local inner = value:sub(s + 2, j - 2)
+      local var_name = inner:match("^([^:]+)") or inner
+      table.insert(unresolved, var_name)
+      table.insert(out, value:sub(s, j - 1))
+      i = j
+    else
+      local inner = value:sub(s + 2, j - 2)
+      local var_name, default = inner:match("^([^:]+):?(.*)$")
+      if var_name == nil or var_name == "" then
+        -- A malformed placeholder with no name at all (`${}`, `${:default}`)
+        -- -- indexing vim.uv.os_getenv()/dotenv with a nil/empty key would
+        -- throw and abort the ENTIRE discover_datasources() scan for a
+        -- single bad placeholder. Treat it the same as a genuinely-missing
+        -- variable: unresolved, left verbatim.
+        table.insert(unresolved, inner)
+        table.insert(out, "${" .. inner .. "}")
+      else
+        -- vim.env[name] collapses an explicitly-empty environment variable
+        -- (`FOO=`) to Lua `nil`, indistinguishable from FOO being unset at
+        -- all -- vim.uv.os_getenv() (a thin libuv wrapper) preserves the
+        -- real distinction (returns "" vs nil respectively), which is
+        -- exactly what "empty-string-vs-unset" here depends on.
+        local env_val = vim.uv.os_getenv(var_name)
+        local dotenv_val = dotenv[var_name]
+        if env_val ~= nil then
+          table.insert(out, env_val)
+        elseif dotenv_val ~= nil then
+          table.insert(out, dotenv_val)
+        elseif default ~= "" then
+          table.insert(out, default)
+        else
+          table.insert(unresolved, var_name)
+          table.insert(out, "${" .. var_name .. "}")
+        end
+      end
+      i = j
     end
-    table.insert(unresolved, var_name)
-    return "${" .. var_name .. "}"
-  end)
-  return resolved, unresolved
+  end
+
+  return table.concat(out), unresolved
 end
 
 --- Convert a JDBC-style URL (`jdbc:postgresql://host:port/db`) plus
@@ -240,11 +360,22 @@ end
 ---@param jdbc_url string
 ---@param username string
 ---@param password string
----@return string? dadbod_url nil if `jdbc_url` doesn't look like a JDBC URL
+---@return string? dadbod_url nil if `jdbc_url` doesn't look like a JDBC URL, or its authority already carries credentials
 local function jdbc_to_dadbod_url(jdbc_url, username, password)
   local stripped = jdbc_url:gsub("^jdbc:", "")
   local scheme, rest = stripped:match("^([%w%+]+)://(.*)$")
   if not scheme then
+    return nil
+  end
+  -- An authority that already carries userinfo (`user:pass@host...`, valid
+  -- JDBC syntax for some drivers) must not get ANOTHER username:password@
+  -- spliced in front of it -- that would silently produce a corrupted URL
+  -- (`scheme://new:new@old:old@host...`) rather than cleanly failing. Only
+  -- the authority (before the first '/' that starts the path) is checked,
+  -- so an '@' legitimately appearing later in a path/query segment doesn't
+  -- false-positive.
+  local authority = rest:match("^([^/]*)") or rest
+  if authority:find("@", 1, true) then
     return nil
   end
   return scheme .. "://" .. url_encode(username) .. ":" .. url_encode(password) .. "@" .. rest
@@ -348,8 +479,12 @@ end
 function M.discover_datasources(root_dir)
   local dbs = {}
   local dotenv = load_dotenv(root_dir)
+  -- Shared across every find_files() call below so exactly one truncation
+  -- warning is emitted per discover_datasources() call, however many of the
+  -- individual scans (properties, yml, yaml) actually hit the depth cap.
+  local truncated = { hit = false }
 
-  local prop_files = find_files(root_dir, "application.properties")
+  local prop_files = find_files(root_dir, "application.properties", nil, nil, truncated)
   for _, path in ipairs(prop_files) do
     local raw = parse_properties_lines(vim.fn.readfile(path))
     local entry = build_entry(entry_name(root_dir, path, #prop_files), raw, path, dotenv)
@@ -359,20 +494,30 @@ function M.discover_datasources(root_dir)
   end
 
   if #dbs > 0 then
+    if truncated.hit then
+      warn_truncated(root_dir)
+    end
     return dbs
   end
 
   -- Spring Boot recognizes both `application.yml` and `application.yaml` as
   -- the same config tier -- collect both before falling back from the
   -- .properties tier.
-  local yml_files = find_files(root_dir, "application.yml")
-  vim.list_extend(yml_files, find_files(root_dir, "application.yaml"))
+  local yml_files = find_files(root_dir, "application.yml", nil, nil, truncated)
+  -- find_files now returns (results, truncated) -- parenthesize to keep
+  -- only the first return value, or vim.list_extend would receive the
+  -- `truncated` table as its `start` index argument.
+  vim.list_extend(yml_files, (find_files(root_dir, "application.yaml", nil, nil, truncated)))
   for _, path in ipairs(yml_files) do
     local raw = parse_yaml_lines(vim.fn.readfile(path))
     local entry = build_entry(entry_name(root_dir, path, #yml_files), raw, path, dotenv)
     if entry then
       table.insert(dbs, entry)
     end
+  end
+
+  if truncated.hit then
+    warn_truncated(root_dir)
   end
 
   return dbs
