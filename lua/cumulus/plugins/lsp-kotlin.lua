@@ -66,6 +66,9 @@ return {
             vim.keymap.set("n", "<leader>ce", function()
               require("cumulus.util.extract").extract_interface()
             end, { buffer = bufnr, desc = "Extract Interface (Kotlin)" })
+            vim.keymap.set("v", "<leader>ce", function()
+              require("cumulus.util.extract").extract_interface(true)
+            end, { buffer = bufnr, desc = "Extract Interface (Kotlin)" })
 
             vim.keymap.set("n", "<leader>ci", function()
               require("cumulus.util.extract").inline()

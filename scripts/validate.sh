@@ -295,6 +295,10 @@ if nvim -u init.lua --headless "+lua
   assert(devops.find_helm_root(empty_proj) == nil, 'find_helm_root should be nil for empty workspace')
   assert(devops.find_tf_root(999999) == nil or type(devops.find_tf_root(999999)) == 'string', 'find_tf_root invalid buffer must not error')
 
+  e.is_available = orig_is_available
+  e.discover_devops_roots = orig_discover_devops_roots
+  e.classify_workspace = orig_classify_workspace
+
   -- Story 11.3: Workspace Classification & DevOps Roots Engine Integration
   local jvm = require('cumulus.util.jvm')
   local maven_util = require('cumulus.util.maven')

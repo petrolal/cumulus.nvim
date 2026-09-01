@@ -111,7 +111,7 @@ describe("Extract (SPEC-2.2)", function()
 
         local function assert_mapping_calls(lhs, mode, key, expect_visual_arg)
           local mapping = vim.fn.maparg(lhs, mode, false, true)
-          assert.is_table(mapping, "Mapping " .. lhs .. " not found in mode " .. mode)
+          assert.is_not_nil(mapping.buffer, "Mapping " .. lhs .. " not found in mode " .. mode)
           assert.are.equal(bufnr, mapping.buffer)
           assert.is_function(mapping.callback)
           calls[key] = nil
@@ -155,7 +155,7 @@ describe("Extract (SPEC-2.2)", function()
 
       local function assert_mapping(lhs, mode)
         local mapping = vim.fn.maparg(lhs, mode, false, true)
-        assert.is_table(mapping, "Mapping " .. lhs .. " not found in mode " .. mode)
+        assert.is_not_nil(mapping.buffer, "Mapping " .. lhs .. " not found in mode " .. mode)
         assert.are.equal(1, mapping.buffer)
         assert.is_function(mapping.callback)
       end

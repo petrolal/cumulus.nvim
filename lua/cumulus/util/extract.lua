@@ -205,6 +205,8 @@ local function do_action(action_name, kind_prefix, title_substring, is_visual)
   -- on the wrong character, or an invalid one mid-codepoint) -- convert via
   -- vim.lsp.util.character_offset, per the client's own offset_encoding.
   if is_visual then
+    -- Force Neovim to exit visual mode so that '< and '> marks are updated to the current selection
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'x', false)
     local start_pos = vim.api.nvim_buf_get_mark(bufnr, "<")
     local end_pos = vim.api.nvim_buf_get_mark(bufnr, ">")
     if start_pos[1] > 0 and end_pos[1] > 0 then
