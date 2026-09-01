@@ -26,6 +26,8 @@ return {
         { "<leader>w", group = "windows", icon = "󰖲 " },
         { "<leader>l", group = "lazy/mason/lsp", icon = "󰒓 " },
         { "<leader>g", group = "git control", icon = "󰊢 " },
+        { "<leader>gc", group = "conflict/compare", icon = " " },
+        { "<leader>gx", group = "conflict: pick side", icon = "󰃻 " },
         { "<leader>o", group = "devops/infra", icon = "󱁢 " },
         { "<leader>d", group = "debug/dap", icon = "󰃤 " },
         { "<leader>D", group = "database", icon = "󰆼 " },

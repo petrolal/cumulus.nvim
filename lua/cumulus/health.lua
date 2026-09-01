@@ -242,6 +242,46 @@ function M.check()
     vim.health.warn("kulala.nvim: not resolvable -- open a .http file to lazy-load it, or run :Lazy sync")
   end
 
+  vim.health.start("Cumulus Advanced Git Conflict Resolution (Story 4.1)")
+
+  if vim.fn.executable("git") == 1 then
+    local git_ok, git_res = pcall(function()
+      return vim.system({ "git", "--version" }, { text = true, timeout = 2000 }):wait()
+    end)
+
+    local stdout
+    if git_ok and type(git_res) == "table" and git_res.code == 0 then
+      stdout = git_res.stdout or ""
+    end
+    local major, minor = (stdout or ""):match("(%d+)%.(%d+)")
+    major, minor = tonumber(major), tonumber(minor)
+
+    if not major then
+      vim.health.warn(
+        "git: installed, but `git --version` did not return a recognizable version -- ensure it is git >= 2.30"
+      )
+    elseif major > 2 or (major == 2 and minor >= 30) then
+      vim.health.ok(string.format("git: installed (v%d.%d; >= 2.30 advised)", major, minor))
+    else
+      vim.health.warn(
+        string.format("git: v%d.%d found -- git >= 2.30 is advised for the merge-conflict workflow", major, minor)
+      )
+    end
+  else
+    vim.health.error(
+      "git: NOT found on $PATH -- the <leader>gc conflict/compare commands are unavailable. Suggestion: install git"
+    )
+  end
+
+  local diffview_ok = pcall(require, "diffview")
+  if diffview_ok then
+    vim.health.ok("diffview.nvim: resolvable (3-way merge tool & file-history engine available)")
+  else
+    vim.health.warn(
+      "diffview.nvim: not resolvable -- press <leader>gco / run :DiffviewOpen to lazy-load it, or run :Lazy sync"
+    )
+  end
+
   vim.health.start("Cumulus Signature Cloud Themes (Story 5.1)")
 
   -- Test engine theme support (Story 5.1: theme data from engine, not Lua files)

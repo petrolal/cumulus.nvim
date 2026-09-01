@@ -32,3 +32,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-findings-fixes.md`
   summary: `openapi.lua`'s OpenAPI `$ref` handling covers whole-path-item and operation-level refs but not a `$ref` inside an operation's `parameters` array, which can still silently produce an incomplete/garbage request block.
   evidence: Flagged by the code-review blind-hunter layer on the review-findings-fixes diff. Handling parameter-level `$ref`s is a meaningfully broader feature (resolving `#/components/parameters/...` against the spec's `components` section) than the two `$ref` shapes this bugfix pass targeted.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-advanced-git-conflict-resolution.md`
+  summary: `cumulus.util.git.in_worktree()` probes Neovim's process CWD via `git rev-parse`, not the current buffer's directory, so editing a file that lives in a git work tree while CWD is elsewhere (a common multi-project setup) is wrongly blocked by the guard, and the converse could open a view against the wrong repo.
+  evidence: Flagged by the code-review blind-hunter layer. Left as-is for Story 4.1 because diffview.nvim itself operates on CWD's repo, so a CWD-scoped guard is at least self-consistent with what `:DiffviewOpen` would do anyway. Worth revisiting when Story 4.2 reuses this same guard for forge commands, where buffer-vs-CWD repo divergence matters more — likely wants a shared "repo root for buffer" resolver.
