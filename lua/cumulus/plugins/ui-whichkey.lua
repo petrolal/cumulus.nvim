@@ -26,8 +26,10 @@ return {
         { "<leader>w", group = "windows", icon = "󰖲 " },
         { "<leader>l", group = "lazy/mason/lsp", icon = "󰒓 " },
         { "<leader>g", group = "git control", icon = "󰊢 " },
+        -- <leader>gc children (gco/gcq/gch/gcH/gcf) are global. The <leader>gx
+        -- / <leader>gX conflict-pick groups are registered buffer-locally for
+        -- diffview buffers only -- see lua/cumulus/plugins/tools-diffview.lua.
         { "<leader>gc", group = "conflict/compare", icon = " " },
-        { "<leader>gx", group = "conflict: pick side", icon = "󰃻 " },
         { "<leader>o", group = "devops/infra", icon = "󱁢 " },
         { "<leader>d", group = "debug/dap", icon = "󰃤 " },
         { "<leader>D", group = "database", icon = "󰆼 " },

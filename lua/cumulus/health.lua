@@ -273,13 +273,28 @@ function M.check()
     )
   end
 
-  local diffview_ok = pcall(require, "diffview")
-  if diffview_ok then
-    vim.health.ok("diffview.nvim: resolvable (3-way merge tool & file-history engine available)")
-  else
-    vim.health.warn(
-      "diffview.nvim: not resolvable -- press <leader>gco / run :DiffviewOpen to lazy-load it, or run :Lazy sync"
+  -- Distinguish "diffview.nvim is not installed at all" (an error the user
+  -- fixes with :Lazy install) from "installed but not yet lazy-loaded" (a
+  -- benign warn -- pressing <leader>gco loads it).
+  local lz_ok, lz_cfg = pcall(require, "lazy.core.config")
+  local diffview_plugin = lz_ok and lz_cfg.plugins and lz_cfg.plugins["diffview.nvim"] or nil
+  if not diffview_plugin then
+    vim.health.error(
+      "diffview.nvim: not installed -- run :Lazy install (spec lives in lua/cumulus/plugins/tools-diffview.lua)"
     )
+  elseif not package.loaded["diffview"] then
+    vim.health.warn(
+      "diffview.nvim: installed but not yet lazy-loaded -- press <leader>gco / run :DiffviewOpen to load it"
+    )
+  else
+    vim.health.ok("diffview.nvim: loaded (3-way merge tool & file-history engine available)")
+  end
+
+  -- diffview.nvim's hard dependency -- without it diffview cannot load at all.
+  if pcall(require, "plenary") then
+    vim.health.ok("plenary.nvim: resolvable (diffview.nvim's hard dependency)")
+  else
+    vim.health.warn("plenary.nvim: not resolvable -- diffview's hard dependency; run :Lazy sync")
   end
 
   vim.health.start("Cumulus Signature Cloud Themes (Story 5.1)")

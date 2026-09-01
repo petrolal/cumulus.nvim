@@ -64,24 +64,39 @@ describe("SPEC-4.1 Advanced Git Conflict Resolution", function()
 
   it("configures a 3-way merge_tool layout without calling opts()", function()
     -- opts() require()s diffview.actions, so assert on source text instead.
+    -- The spec leaves diff3_mixed vs diff4_mixed free -- do not pin a literal.
     local src = read_file("lua/cumulus/plugins/tools-diffview.lua")
     assert.truthy(src:find("merge_tool", 1, true), "tools-diffview.lua must configure view.merge_tool")
-    assert.truthy(src:find("layout", 1, true), "tools-diffview.lua must set merge_tool.layout")
-    assert.truthy(src:find("diff4_mixed", 1, true), "merge_tool.layout must be diff4_mixed (distinct BASE pane)")
+    assert.truthy(src:match('layout%s*=%s*"diff[34]_mixed"'), "merge_tool.layout must be a 3-way diff[34]_mixed layout")
   end)
 
-  it("cumulus.util.git exposes in_worktree and guard", function()
+  it("cumulus.util.git exposes the shared guard + repo-root resolvers", function()
     local git = require("cumulus.util.git")
     assert.is_table(git)
     assert.is_function(git.in_worktree)
     assert.is_function(git.guard)
+    assert.is_function(git.repo_root)
+    assert.is_function(git.has_commits)
   end)
 
-  it("which-key registers the <leader>gc and <leader>gx groups", function()
+  it("tools-diffview.lua retires the file-panel picks and confirms whole-file resolution", function()
+    local src = read_file("lua/cumulus/plugins/tools-diffview.lua")
+    assert.truthy(src:find("file_panel", 1, true), "tools-diffview.lua must define a file_panel keymaps block")
+    assert.truthy(
+      src:find("vim.fn.confirm", 1, true),
+      "whole-file / delete-region resolution must go through vim.fn.confirm"
+    )
+    assert.truthy(src:find("<leader>gX", 1, true), "whole-file picks must be rebound under <leader>gX")
+  end)
+
+  it("which-key keeps <leader>gc global and drops the global <leader>gx group", function()
     local src = read_file("lua/cumulus/plugins/ui-whichkey.lua")
     assert.truthy(src:find('"<leader>gc"', 1, true), "ui-whichkey.lua must register the <leader>gc group")
     assert.truthy(src:find("conflict/compare", 1, true), "the <leader>gc group must be named conflict/compare")
-    assert.truthy(src:find('"<leader>gx"', 1, true), "ui-whichkey.lua must register the <leader>gx group")
+    assert.falsy(
+      src:match('{%s*"<leader>gx"%s*,%s*group'),
+      "ui-whichkey.lua must NOT register a global <leader>gx group (now buffer-local, from tools-diffview.lua)"
+    )
   end)
 
   it("health.lua registers the Advanced Git Conflict Resolution section", function()
