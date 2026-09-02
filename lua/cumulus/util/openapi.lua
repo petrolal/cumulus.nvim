@@ -50,8 +50,9 @@ local function build_request_block(method, path, base_url, operation)
 
   -- A CR/LF inside operationId/summary would break the single-line
   -- "### <name>" header and inject stray lines into the block -- collapse
-  -- every newline to a space so the header stays on one line.
-  name = name:gsub("[\r\n]", " ")
+  -- every run of newline characters to a single space so the header stays
+  -- on one line (a bare "\r\n" must not leave two spaces behind).
+  name = name:gsub("[\r\n]+", " ")
 
   local lines = { "### " .. name }
 
@@ -82,10 +83,14 @@ local function build_request_block(method, path, base_url, operation)
         and type(param.name) == "string"
         and (param["in"] == "query" or param["in"] == "header")
       then
-        local key = param["in"] .. "\0" .. param.name
+        -- Collapse any CR/LF in the parameter name for the same reason as the
+        -- operationId/summary header above -- a newline here would inject a
+        -- stray line into the block.
+        local pname = param.name:gsub("[\r\n]+", " ")
+        local key = param["in"] .. "\0" .. pname
         if not seen_required[key] then
           seen_required[key] = true
-          table.insert(lines, "# TODO: set required " .. param["in"] .. " parameter '" .. param.name .. "'")
+          table.insert(lines, "# TODO: set required " .. param["in"] .. " parameter '" .. pname .. "'")
         end
       end
     end
@@ -218,10 +223,11 @@ function M.generate_http_from_spec(spec_path)
       -- A valid OpenAPI path key is a template starting with "/". A key
       -- without a leading slash (e.g. "users") would generate a hostless,
       -- malformed request line -- skip it and warn, but let its siblings
-      -- generate normally.
+      -- generate normally. `x-*` keys are spec-permitted extensions on the
+      -- Paths Object, not malformed paths -- skip them silently.
       if type(path_key) == "string" and path_key:match("^/") then
         table.insert(path_keys, path_key)
-      else
+      elseif not (type(path_key) == "string" and path_key:match("^x%-")) then
         table.insert(non_slash_path_keys, tostring(path_key))
       end
     end

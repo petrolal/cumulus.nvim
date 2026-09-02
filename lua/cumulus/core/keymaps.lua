@@ -150,7 +150,7 @@ local function cumulus_http_open_in_split(text, filetype, name_hint)
   -- starts with "<name_hint>-" -- instead of stacking a fresh split on every
   -- call.
   local target_win
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     local buf = vim.api.nvim_win_get_buf(win)
     local ok_name, bufname = pcall(vim.api.nvim_buf_get_name, buf)
     if ok_name and vim.fs.basename(bufname):match("^" .. vim.pesc(name_hint) .. "%-") then
