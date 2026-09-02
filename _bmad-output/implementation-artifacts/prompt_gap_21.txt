@@ -1,4 +1,4 @@
-Read /home/petrolal/cumulus.nvim/.agents/skills/bmad-code-review/review-prompts/verification-gap.md completely and follow it as your review instructions.
+Read /home/petrolal/tetravim.nvim/.agents/skills/bmad-code-review/review-prompts/verification-gap.md completely and follow it as your review instructions.
 
 Review content:
 
@@ -8,7 +8,7 @@ index 0b5c39a..ae641b7 100644
 +++ b/_bmad-output/implementation-artifacts/deferred-work.md
 @@ -17,3 +17,7 @@
  - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-advanced-jvm-debugger-nvim-dap-integration.md`
-   summary: Scala/Metals integration added by this story covers only zero-config LSP attach + DAP registration, matching AC-1's literal scope. Full IDE-parity Metals UX is still missing: no `conform` formatter entry for `scala` (unlike its Java/Kotlin/Groovy siblings), no `:checkhealth cumulus` section for the Metals/sbt/coursier toolchain, no Metals-specific commands/keymaps (Import Build, Restart Build Server, compile/import status, worksheet eval), `metals.bare_config()` is used with no `settings` table (no status-bar/code-lens/decoration-provider feedback), and no custom `LspAttach` message for Metals in `lsp-core.lua` (unlike jdtls's).
+   summary: Scala/Metals integration added by this story covers only zero-config LSP attach + DAP registration, matching AC-1's literal scope. Full IDE-parity Metals UX is still missing: no `conform` formatter entry for `scala` (unlike its Java/Kotlin/Groovy siblings), no `:checkhealth tetravim` section for the Metals/sbt/coursier toolchain, no Metals-specific commands/keymaps (Import Build, Restart Build Server, compile/import status, worksheet eval), `metals.bare_config()` is used with no `settings` table (no status-bar/code-lens/decoration-provider feedback), and no custom `LspAttach` message for Metals in `lsp-core.lua` (unlike jdtls's).
    evidence: Flagged by the code-review blind-hunter layer. All of these are legitimate quality/completeness gaps but sit outside this story's explicit acceptance criteria (which only call for zero-config debugger setup, not full Metals workflow tooling) — worth a follow-up story rather than scope creep into this one.
 +
 +- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
@@ -44,11 +44,11 @@ index 0000000..0b9016f
 +
 +## Technical Decisions
 +
-+- Refactor logic must not introduce a centralized "LSP monolith" — plugin/config wiring stays isolated per filetype/command under `lua/cumulus/plugins/`, lazy-loaded on filetype.
++- Refactor logic must not introduce a centralized "LSP monolith" — plugin/config wiring stays isolated per filetype/command under `lua/tetravim/plugins/`, lazy-loaded on filetype.
 +- No internal cache of workspace topology: project/reference state for a refactor must be queried live from disk (e.g., `pom.xml`) or synchronously from the LSP at the moment of the operation — no stale in-memory index.
 +- Background/refactor operations should emit autocommands rather than call UI render functions directly; UI listens and renders via `vim.schedule` to avoid blocking the editor thread.
 +- UI for refactor results should call primitives directly (`snacks.nvim`, `telescope.nvim`) — no adapter/facade layer is to be introduced for "future-proofing."
-+- New refactor/extraction logic (AST analysis, reference discovery) must be implemented in pure Lua via Tree-sitter or delegated to the standard LSPs (JDTLS/Kotlin LS) — no new surface area on the legacy Scala `cumulus-engine` and no external Bash/Python parsing scripts.
++- New refactor/extraction logic (AST analysis, reference discovery) must be implemented in pure Lua via Tree-sitter or delegated to the standard LSPs (JDTLS/Kotlin LS) — no new surface area on the legacy Scala `tetravim-engine` and no external Bash/Python parsing scripts.
 +- Moving files as part of a refactor should compose with the project's buffer-based file management approach (`oil.nvim`) rather than a custom mover.
 +
 +## UX & Interaction Patterns
@@ -76,7 +76,7 @@ index 0000000..3e6276b
 +created: '2026-08-25'
 +status: 'done'
 +review_loop_iteration: 0
-+context: ['/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/epic-2-context.md']
++context: ['/home/petrolal/tetravim.nvim/_bmad-output/implementation-artifacts/epic-2-context.md']
 +baseline_commit: 'c394018bff55e904306bb58b61a2576673f2c994'
 +---
 +
@@ -84,7 +84,7 @@ index 0000000..3e6276b
 +
 +## Intent
 +
-+**Problem:** Java/Kotlin rename today is a bare `vim.lsp.buf.rename()` (`lua/cumulus/core/keymaps.lua:36-38`) that applies immediately with no cross-file preview and no awareness of Spring XML/annotation bean references LSP can't see. Large refactors risk silent breakage.
++**Problem:** Java/Kotlin rename today is a bare `vim.lsp.buf.rename()` (`lua/tetravim/core/keymaps.lua:36-38`) that applies immediately with no cross-file preview and no awareness of Spring XML/annotation bean references LSP can't see. Large refactors risk silent breakage.
 +
 +**Approach:** On JDTLS/Kotlin LS attach, override the buffer-local `<leader>cr` to run a project-wide rename: request a `textDocument/rename` WorkspaceEdit without auto-applying, merge in Tree-sitter-detected Spring bean references, preview everything via the quickfix list, and apply only on explicit confirm.
 +
@@ -93,8 +93,8 @@ index 0000000..3e6276b
 +**Always:**
 +- Java and Kotlin only, via JDTLS and Kotlin LS respectively.
 +- No edit is applied without an explicit confirm after the quickfix preview is shown.
-+- All LSP requests and Tree-sitter scans run asynchronously (`vim.system`/`vim.schedule`, per `lua/cumulus/util/sync-runner.lua`); never block the editor.
-+- Rename logic lives in new `lua/cumulus/util/refactor*.lua` modules — never adds surface to `lua/cumulus/util/engine.lua` or the Scala `cumulus-engine`.
++- All LSP requests and Tree-sitter scans run asynchronously (`vim.system`/`vim.schedule`, per `lua/tetravim/util/sync-runner.lua`); never block the editor.
++- Rename logic lives in new `lua/tetravim/util/refactor*.lua` modules — never adds surface to `lua/tetravim/util/engine.lua` or the Scala `tetravim-engine`.
 +- Global `<leader>cr` behavior for non-JVM filetypes stays untouched; override is buffer-local only.
 +
 +**Ask First:** none — UI approach (quickfix, no custom float) and Spring-reference scope (stereotype annotations, `@Autowired`, XML `<bean>`) are fixed by this spec.
@@ -117,26 +117,26 @@ index 0000000..3e6276b
 +
 +## Code Map
 +
-+- `lua/cumulus/core/keymaps.lua:36-38` -- existing global `<leader>cr` (`vim.lsp.buf.rename()`) -- leave as the non-JVM fallback, do not edit
-+- `lua/cumulus/core/keymaps.lua:68-78` -- existing `<leader>cR` single-file LSP rename -- out of scope, do not modify
-+- `lua/cumulus/plugins/lsp-core.lua:36-46` -- shared `LspAttach` autocmd (JDTLS gets a custom notify at line 12) -- reference for the attach pattern; actual override lives per-server below
++- `lua/tetravim/core/keymaps.lua:36-38` -- existing global `<leader>cr` (`vim.lsp.buf.rename()`) -- leave as the non-JVM fallback, do not edit
++- `lua/tetravim/core/keymaps.lua:68-78` -- existing `<leader>cR` single-file LSP rename -- out of scope, do not modify
++- `lua/tetravim/plugins/lsp-core.lua:36-46` -- shared `LspAttach` autocmd (JDTLS gets a custom notify at line 12) -- reference for the attach pattern; actual override lives per-server below
 +- `ftplugin/java.lua:44-59` -- JDTLS `on_attach` -- add buffer-local `<leader>cr` override here
-+- `lua/cumulus/plugins/lsp-kotlin.lua:46` -- Kotlin LS `on_attach` (already disables `documentHighlightProvider` here) -- mirror the same override
-+- `lua/cumulus/util/jvm.lua:436-486` -- existing JDTLS refactor group `<leader>jx*` (Extract Var/Const/Method) -- sibling feature; do not merge into it, keep rename on `<leader>cr`
-+- `lua/cumulus/util/sync-runner.lua` (full file) -- async convention to follow: `vim.system` + `vim.schedule`, collapsing heartbeat notify
-+- `lua/cumulus/plugins/core-treesitter.lua` -- Tree-sitter is highlighting-only today; new Spring-bean queries are net-new, no existing query code to extend
-+- `lua/cumulus/util/engine.lua:625-634,1090-1135` -- legacy Scala-backed `parse_spring_beans`/bean picker -- reference only, do not call into or extend
++- `lua/tetravim/plugins/lsp-kotlin.lua:46` -- Kotlin LS `on_attach` (already disables `documentHighlightProvider` here) -- mirror the same override
++- `lua/tetravim/util/jvm.lua:436-486` -- existing JDTLS refactor group `<leader>jx*` (Extract Var/Const/Method) -- sibling feature; do not merge into it, keep rename on `<leader>cr`
++- `lua/tetravim/util/sync-runner.lua` (full file) -- async convention to follow: `vim.system` + `vim.schedule`, collapsing heartbeat notify
++- `lua/tetravim/plugins/core-treesitter.lua` -- Tree-sitter is highlighting-only today; new Spring-bean queries are net-new, no existing query code to extend
++- `lua/tetravim/util/engine.lua:625-634,1090-1135` -- legacy Scala-backed `parse_spring_beans`/bean picker -- reference only, do not call into or extend
 +- `scripts/validate.sh:96-104` -- purged-stub assertions -- new module names must not collide with or resemble these
 +- `AGENTS.md:10,42` -- policy: Java/Kotlin only, prefer native LSP/Tree-sitter over new `engine.lua` surface
 +
 +## Tasks & Acceptance
 +
 +**Execution:**
-+- [x] `lua/cumulus/util/refactor.lua` -- new module: `M.project_rename(new_name)` requests `textDocument/rename` without auto-applying, merges Tree-sitter-detected Spring references, populates the quickfix list, confirms via `vim.ui.select`, applies via `vim.lsp.util.apply_workspace_edit` on confirm -- central async rename flow
-+- [x] `lua/cumulus/util/refactor-treesitter.lua` -- new module: Tree-sitter queries for `@Component`/`@Service`/`@Repository`/`@Controller`/`@RestController` stereotypes, `@Autowired` field references, and XML `<bean id=".." class="..">` matches for a given symbol name
++- [x] `lua/tetravim/util/refactor.lua` -- new module: `M.project_rename(new_name)` requests `textDocument/rename` without auto-applying, merges Tree-sitter-detected Spring references, populates the quickfix list, confirms via `vim.ui.select`, applies via `vim.lsp.util.apply_workspace_edit` on confirm -- central async rename flow
++- [x] `lua/tetravim/util/refactor-treesitter.lua` -- new module: Tree-sitter queries for `@Component`/`@Service`/`@Repository`/`@Controller`/`@RestController` stereotypes, `@Autowired` field references, and XML `<bean id=".." class="..">` matches for a given symbol name
 +- [x] `ftplugin/java.lua` -- in `on_attach` (lines 44-59), buffer-local override: `<leader>cr` calls `refactor.project_rename` instead of default
-+- [x] `lua/cumulus/plugins/lsp-kotlin.lua` -- in `on_attach`, mirror the same buffer-local `<leader>cr` override
-+- [x] `lua/cumulus/tests/refactor_spec.lua` -- static shape tests for the new modules' public API (busted-style, matches existing `_spec.lua` pattern)
++- [x] `lua/tetravim/plugins/lsp-kotlin.lua` -- in `on_attach`, mirror the same buffer-local `<leader>cr` override
++- [x] `lua/tetravim/tests/refactor_spec.lua` -- static shape tests for the new modules' public API (busted-style, matches existing `_spec.lua` pattern)
 +- [x] `scripts/validate-refactor.sh` -- headless behavioral smoke test against a small fixture project: rename with a Spring XML bean reference, confirm, assert all locations updated; `cquit` on assertion failure, mirroring `validate-dap-jvm.sh`
 +
 +**Acceptance Criteria:**
@@ -183,48 +183,48 @@ index 0000000..3e6276b
 +**Core rename flow**
 +
 +- Entry point: finds the JVM client, guards empty/no-op names, checks re-entrancy before anything else runs.
-+  [`refactor.lua:248`](../../lua/cumulus/util/refactor.lua#L248)
++  [`refactor.lua:248`](../../lua/tetravim/util/refactor.lua#L248)
 +
 +- Requests the WorkspaceEdit without auto-applying; timeout guard so a silent server can't hang the flow.
-+  [`refactor.lua:304`](../../lua/cumulus/util/refactor.lua#L304)
++  [`refactor.lua:304`](../../lua/tetravim/util/refactor.lua#L304)
 +
 +- Kicks off the package-scoped Spring scan once the LSP response is in hand.
-+  [`refactor.lua:344`](../../lua/cumulus/util/refactor.lua#L344)
++  [`refactor.lua:344`](../../lua/tetravim/util/refactor.lua#L344)
 +
 +- Confirm gate, then pcall-guarded apply with partial-failure reporting instead of a blanket success claim.
-+  [`refactor.lua:380`](../../lua/cumulus/util/refactor.lua#L380)
++  [`refactor.lua:380`](../../lua/tetravim/util/refactor.lua#L380)
 +
 +**Corruption fixes: duplicate occurrences & LSP/Spring overlap**
 +
 +- Root-cause fix: every whole-word occurrence on a line gets its own span, not just the first.
-+  [`refactor-treesitter.lua:65`](../../lua/cumulus/util/refactor-treesitter.lua#L65)
++  [`refactor-treesitter.lua:65`](../../lua/tetravim/util/refactor-treesitter.lua#L65)
 +
 +- Dedupes raw hits to one per (file, line) before classifying, so duplicate occurrences can't double-classify.
-+  [`refactor-treesitter.lua:491`](../../lua/cumulus/util/refactor-treesitter.lua#L491)
++  [`refactor-treesitter.lua:491`](../../lua/tetravim/util/refactor-treesitter.lua#L491)
 +
 +- Drops any Spring-scanned location that overlaps something the LSP edit already covers.
-+  [`refactor.lua:108`](../../lua/cumulus/util/refactor.lua#L108)
++  [`refactor.lua:108`](../../lua/tetravim/util/refactor.lua#L108)
 +
 +- Applies the Spring splices; now failure-tracked per file instead of silently swallowing errors.
-+  [`refactor.lua:176`](../../lua/cumulus/util/refactor.lua#L176)
++  [`refactor.lua:176`](../../lua/tetravim/util/refactor.lua#L176)
 +
 +**Package-scoping guard (cross-package name collisions)**
 +
 +- Extracts a file's declared package so same-named classes in other packages can be excluded.
-+  [`refactor-treesitter.lua:84`](../../lua/cumulus/util/refactor-treesitter.lua#L84)
++  [`refactor-treesitter.lua:84`](../../lua/tetravim/util/refactor-treesitter.lua#L84)
 +
 +- XML bean classification also extracts the FQN package prefix off the `class` attribute.
-+  [`refactor-treesitter.lua:105`](../../lua/cumulus/util/refactor-treesitter.lua#L105)
++  [`refactor-treesitter.lua:105`](../../lua/tetravim/util/refactor-treesitter.lua#L105)
 +
 +**XML comment filtering**
 +
 +- Lightweight multi-line `<!-- -->` state scan so a commented-out bean is never treated as live.
-+  [`refactor-treesitter.lua:221`](../../lua/cumulus/util/refactor-treesitter.lua#L221)
++  [`refactor-treesitter.lua:221`](../../lua/tetravim/util/refactor-treesitter.lua#L221)
 +
 +**Tree-sitter precision filter (parse-once-per-file)**
 +
 +- Parses each file's tree once and reuses it across every hit, instead of re-parsing per occurrence.
-+  [`refactor-treesitter.lua:264`](../../lua/cumulus/util/refactor-treesitter.lua#L264)
++  [`refactor-treesitter.lua:264`](../../lua/tetravim/util/refactor-treesitter.lua#L264)
 +
 +**Buffer-local keymap wiring**
 +
@@ -232,21 +232,21 @@ index 0000000..3e6276b
 +  [`java.lua:65`](../../ftplugin/java.lua#L65)
 +
 +- Mirrors the same override for Kotlin LS.
-+  [`lsp-kotlin.lua:61`](../../lua/cumulus/plugins/lsp-kotlin.lua#L61)
++  [`lsp-kotlin.lua:61`](../../lua/tetravim/plugins/lsp-kotlin.lua#L61)
 +
 +**Tests & fixtures**
 +
 +- Unit test proving the duplicate-occurrence corruption bug is fixed (the reviewer's exact repro line).
-+  [`refactor_spec.lua:267`](../../lua/cumulus/tests/refactor_spec.lua#L267)
++  [`refactor_spec.lua:267`](../../lua/tetravim/tests/refactor_spec.lua#L267)
 +
 +- Unit test for the LSP/Spring overlap filter.
-+  [`refactor_spec.lua:110`](../../lua/cumulus/tests/refactor_spec.lua#L110)
++  [`refactor_spec.lua:110`](../../lua/tetravim/tests/refactor_spec.lua#L110)
 +
 +- Unit test proving a same-named class in a different package is left untouched.
-+  [`refactor_spec.lua:316`](../../lua/cumulus/tests/refactor_spec.lua#L316)
++  [`refactor_spec.lua:316`](../../lua/tetravim/tests/refactor_spec.lua#L316)
 +
 +- Real (non-substring-match) keymap-installation test: invokes `on_attach`, asserts a genuine mapping via `vim.fn.maparg`.
-+  [`refactor_spec.lua:383`](../../lua/cumulus/tests/refactor_spec.lua#L383)
++  [`refactor_spec.lua:383`](../../lua/tetravim/tests/refactor_spec.lua#L383)
 +
 +- End-to-end fixture covering duplicate occurrences, LSP/Spring overlap, a commented bean, and a cross-package tree.
 +  [`validate-refactor.sh:119`](../../scripts/validate-refactor.sh#L119)
@@ -260,8 +260,8 @@ index 920e486..4caf8e6 100644
  generated: 08-25-2026 02:55
 -last_updated: 08-25-2026 09:42
 +last_updated: 08-25-2026 18:36
- project: cumulus.nvim
- project_key: cumulus
+ project: tetravim.nvim
+ project_key: tetravim
  tracking_system: local
 @@ -37,11 +37,11 @@ story_location: EPICS_AND_STORIES.md
  development_status:
@@ -292,15 +292,15 @@ index 94d4b57..f944075 100644
 +    -- Only this Java buffer gets the project-wide, preview-then-confirm
 +    -- flow; the global mapping for non-JVM filetypes is untouched.
 +    vim.keymap.set("n", "<leader>cr", function()
-+      require("cumulus.util.refactor").project_rename()
++      require("tetravim.util.refactor").project_rename()
 +    end, { buffer = bufnr, desc = "Project-Wide Rename (Java)" })
    end,
  }
  
-diff --git a/lua/cumulus/plugins/lsp-kotlin.lua b/lua/cumulus/plugins/lsp-kotlin.lua
+diff --git a/lua/tetravim/plugins/lsp-kotlin.lua b/lua/tetravim/plugins/lsp-kotlin.lua
 index 0baf386..c70d07b 100644
---- a/lua/cumulus/plugins/lsp-kotlin.lua
-+++ b/lua/cumulus/plugins/lsp-kotlin.lua
+--- a/lua/tetravim/plugins/lsp-kotlin.lua
++++ b/lua/tetravim/plugins/lsp-kotlin.lua
 @@ -43,7 +43,7 @@ return {
              end
              return { JAVA_HOME = java21_home }
@@ -320,16 +320,16 @@ index 0baf386..c70d07b 100644
 +            -- ftplugin/java.lua. Global <leader>cr for non-JVM filetypes
 +            -- stays untouched.
 +            vim.keymap.set("n", "<leader>cr", function()
-+              require("cumulus.util.refactor").project_rename()
++              require("tetravim.util.refactor").project_rename()
 +            end, { buffer = bufnr, desc = "Project-Wide Rename (Kotlin)" })
            end,
            settings = {
              kotlin = {
-diff --git a/lua/cumulus/tests/refactor_spec.lua b/lua/cumulus/tests/refactor_spec.lua
+diff --git a/lua/tetravim/tests/refactor_spec.lua b/lua/tetravim/tests/refactor_spec.lua
 new file mode 100644
 index 0000000..e11c038
 --- /dev/null
-+++ b/lua/cumulus/tests/refactor_spec.lua
++++ b/lua/tetravim/tests/refactor_spec.lua
 @@ -0,0 +1,417 @@
 +-- SPEC-2.1: Project-Wide Safe Rename (Java & Kotlin) -- static shape tests
 +--
@@ -345,9 +345,9 @@ index 0000000..e11c038
 +-- most bug-prone piece (duplicate-occurrence and package-scoping fixes).
 +
 +describe("Refactor (SPEC-2.1)", function()
-+  describe("cumulus.util.refactor", function()
++  describe("tetravim.util.refactor", function()
 +    it("should expose project_rename and the internal rename pipeline", function()
-+      local refactor = require("cumulus.util.refactor")
++      local refactor = require("tetravim.util.refactor")
 +      assert.is_table(refactor)
 +      assert.is_function(refactor.project_rename)
 +      assert.is_function(refactor.find_jvm_client)
@@ -359,7 +359,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("should notify and return without erroring when no JVM LSP is attached", function()
-+      local refactor = require("cumulus.util.refactor")
++      local refactor = require("tetravim.util.refactor")
 +      vim.cmd("enew")
 +      -- A fresh scratch buffer has no LSP clients attached at all.
 +      assert.is_nil(refactor.find_jvm_client(vim.api.nvim_get_current_buf()))
@@ -369,7 +369,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("should reject a second project_rename while one is already in flight (M._busy)", function()
-+      local refactor = require("cumulus.util.refactor")
++      local refactor = require("tetravim.util.refactor")
 +      local notified = {}
 +      local orig_notify = vim.notify
 +      vim.notify = function(msg, level)
@@ -387,7 +387,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("should flatten a WorkspaceEdit's `changes` into uri/range locations", function()
-+      local refactor = require("cumulus.util.refactor")
++      local refactor = require("tetravim.util.refactor")
 +      local edit = {
 +        changes = {
 +          ["file:///a/Foo.java"] = {
@@ -402,7 +402,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("should not drop a location under a generated/build directory", function()
-+      local refactor = require("cumulus.util.refactor")
++      local refactor = require("tetravim.util.refactor")
 +      local edit = {
 +        changes = {
 +          ["file:///proj/target/generated-sources/Foo.java"] = {
@@ -421,7 +421,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("should flatten a WorkspaceEdit's `documentChanges` (TextDocumentEdit) into locations", function()
-+      local refactor = require("cumulus.util.refactor")
++      local refactor = require("tetravim.util.refactor")
 +      local edit = {
 +        documentChanges = {
 +          {
@@ -441,7 +441,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("filter_overlapping_spring_items should drop a Spring item overlapping an LSP-covered range", function()
-+      local refactor = require("cumulus.util.refactor")
++      local refactor = require("tetravim.util.refactor")
 +      local lsp_items = {
 +        { filename = "/a/Foo.java", lnum = 5, col = 10, end_col = 20 },
 +      }
@@ -458,7 +458,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("spring_items_to_qf should tag each item with a kind label and preserve position", function()
-+      local refactor = require("cumulus.util.refactor")
++      local refactor = require("tetravim.util.refactor")
 +      local qf = refactor.spring_items_to_qf({
 +        {
 +          file = "/a/beans.xml",
@@ -479,8 +479,8 @@ index 0000000..e11c038
 +    it(
 +      "apply_spring_edits should rename BOTH occurrences on a line with the symbol twice, without corruption",
 +      function()
-+        local refactor = require("cumulus.util.refactor")
-+        local ts = require("cumulus.util.refactor-treesitter")
++        local refactor = require("tetravim.util.refactor")
++        local ts = require("tetravim.util.refactor-treesitter")
 +        local file = vim.fn.tempname() .. ".java"
 +        vim.fn.writefile({
 +          "public class Consumer {",
@@ -517,7 +517,7 @@ index 0000000..e11c038
 +    )
 +
 +    it("apply_spring_edits should report a failed file rather than silently under-counting", function()
-+      local refactor = require("cumulus.util.refactor")
++      local refactor = require("tetravim.util.refactor")
 +      local items = {
 +        {
 +          file = "/nonexistent/path/that/cannot/exist/Foo.xml",
@@ -534,9 +534,9 @@ index 0000000..e11c038
 +    end)
 +  end)
 +
-+  describe("cumulus.util.refactor-treesitter", function()
++  describe("tetravim.util.refactor-treesitter", function()
 +    it("should expose the scan/classification API", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      assert.is_table(ts)
 +      assert.is_function(ts.scan_root_async)
 +      assert.is_function(ts.raw_hits_async)
@@ -548,7 +548,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it('should classify a Spring XML <bean class="..."> entry referencing the symbol', function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      local line = '  <bean id="fooService" class="com.example.FooService"/>'
 +      local occurrences = ts.classify_xml_line(line, "FooService")
 +      assert.are.equal(1, #occurrences)
@@ -558,13 +558,13 @@ index 0000000..e11c038
 +    end)
 +
 +    it("should not classify an XML line that merely mentions the symbol outside a bean class attribute", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      local line = "  <!-- FooService is wired below -->"
 +      assert.is_nil(ts.classify_xml_line(line, "FooService"))
 +    end)
 +
 +    it("should treat a bare simple-name (no package) bean class attribute as package-undeterminable", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      local line = '  <bean id="fooService" class="FooService"/>'
 +      local occurrences = ts.classify_xml_line(line, "FooService")
 +      assert.are.equal(1, #occurrences)
@@ -572,19 +572,19 @@ index 0000000..e11c038
 +    end)
 +
 +    it("is_inside_xml_comment should detect a bean entry inside a single-line XML comment", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      local lines = { "<beans>", '<!-- <bean id="x" class="com.example.FooService"/> -->', "</beans>" }
 +      assert.is_true(ts.is_inside_xml_comment(lines, 2, 30))
 +    end)
 +
 +    it("is_inside_xml_comment should not flag a live (non-commented) bean entry", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      local lines = { "<beans>", '<bean id="x" class="com.example.FooService"/>', "</beans>" }
 +      assert.is_false(ts.is_inside_xml_comment(lines, 2, 20))
 +    end)
 +
 +    it("should classify an @Autowired field of the renamed type", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      local lines = {
 +        "public class Consumer {",
 +        "  @Autowired",
@@ -598,7 +598,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("should classify BOTH occurrences when the renamed type appears twice on one line", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      local lines = {
 +        "public class Consumer {",
 +        "  @Autowired",
@@ -615,7 +615,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("should classify a stereotype-annotated class declaration", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      local lines = {
 +        "package com.example;",
 +        "",
@@ -629,7 +629,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("should not classify a field of the renamed type without @Autowired or a stereotype", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      local lines = {
 +        "public class Consumer {",
 +        "  private FooService fooService;",
@@ -640,7 +640,7 @@ index 0000000..e11c038
 +    end)
 +
 +    it("file_package should extract a Java/Kotlin package declaration", function()
-+      local ts = require("cumulus.util.refactor-treesitter")
++      local ts = require("tetravim.util.refactor-treesitter")
 +      assert.are.equal("com.example", ts.file_package({ "package com.example;", "", "class Foo {}" }))
 +      assert.are.equal("com.example.sub", ts.file_package({ "package com.example.sub", "class Foo" }))
 +      assert.is_nil(ts.file_package({ "class Foo {}" }))
@@ -649,7 +649,7 @@ index 0000000..e11c038
 +    it(
 +      "scan_root_async should package-scope Spring matches: renaming com.example.FooService must not touch com.other.FooService",
 +      function()
-+        local ts = require("cumulus.util.refactor-treesitter")
++        local ts = require("tetravim.util.refactor-treesitter")
 +        local root = vim.fn.tempname()
 +        vim.fn.mkdir(root .. "/com/example", "p")
 +        vim.fn.mkdir(root .. "/com/other", "p")
@@ -710,13 +710,13 @@ index 0000000..e11c038
 +      local content = f:read("*a")
 +      f:close()
 +      assert.is_truthy(content:match('"<leader>cr"'))
-+      assert.is_truthy(content:match('require%("cumulus%.util%.refactor"%)%.project_rename'))
++      assert.is_truthy(content:match('require%("tetravim%.util%.refactor"%)%.project_rename'))
 +    end)
 +
 +    it(
 +      "lsp-kotlin.lua's on_attach should install a REAL buffer-local <leader>cr mapping that dispatches into refactor.project_rename",
 +      function()
-+        local lsp_kotlin = require("cumulus.plugins.lsp-kotlin")
++        local lsp_kotlin = require("tetravim.plugins.lsp-kotlin")
 +        local on_attach = lsp_kotlin[2].opts.servers.kotlin_language_server.on_attach
 +        assert.is_function(on_attach)
 +
@@ -733,7 +733,7 @@ index 0000000..e11c038
 +        assert.are.equal(1, mapping.buffer)
 +        assert.is_function(mapping.callback)
 +
-+        local refactor = require("cumulus.util.refactor")
++        local refactor = require("tetravim.util.refactor")
 +        local called = false
 +        local orig_project_rename = refactor.project_rename
 +        refactor.project_rename = function(...)
@@ -748,13 +748,13 @@ index 0000000..e11c038
 +    )
 +  end)
 +end)
-diff --git a/lua/cumulus/util/refactor-treesitter.lua b/lua/cumulus/util/refactor-treesitter.lua
+diff --git a/lua/tetravim/util/refactor-treesitter.lua b/lua/tetravim/util/refactor-treesitter.lua
 new file mode 100644
 index 0000000..ba09971
 --- /dev/null
-+++ b/lua/cumulus/util/refactor-treesitter.lua
++++ b/lua/tetravim/util/refactor-treesitter.lua
 @@ -0,0 +1,587 @@
-+-- Cumulus Refactor: Tree-sitter/text-assisted Spring reference scan (SPEC-2.1)
++-- TetraVim Refactor: Tree-sitter/text-assisted Spring reference scan (SPEC-2.1)
 +--
 +-- JDTLS/Kotlin LS's textDocument/rename only ever touches locations the
 +-- language server can resolve via normal type/reference analysis. Spring's
@@ -1087,7 +1087,7 @@ index 0000000..ba09971
 +  "Spring-reference scan unavailable (neither 'rg' nor 'grep' could be run) -- XML/@Autowired/stereotype coverage may be incomplete for this rename"
 +
 +local function warn_scan_unavailable()
-+  vim.notify(SCAN_UNAVAILABLE_MSG, vim.log.levels.WARN, { title = "Cumulus Refactor" })
++  vim.notify(SCAN_UNAVAILABLE_MSG, vim.log.levels.WARN, { title = "TetraVim Refactor" })
 +end
 +
 +--- Find candidate files under `root` that mention `symbol` as a whole word,
@@ -1332,7 +1332,7 @@ index 0000000..ba09971
 +          .. " candidate file(s), coverage may be incomplete: "
 +          .. table.concat(failed_files, ", "),
 +        vim.log.levels.WARN,
-+        { title = "Cumulus Refactor" }
++        { title = "TetraVim Refactor" }
 +      )
 +    end
 +
@@ -1341,13 +1341,13 @@ index 0000000..ba09971
 +end
 +
 +return M
-diff --git a/lua/cumulus/util/refactor.lua b/lua/cumulus/util/refactor.lua
+diff --git a/lua/tetravim/util/refactor.lua b/lua/tetravim/util/refactor.lua
 new file mode 100644
 index 0000000..dfc9f8a
 --- /dev/null
-+++ b/lua/cumulus/util/refactor.lua
++++ b/lua/tetravim/util/refactor.lua
 @@ -0,0 +1,446 @@
-+-- Cumulus Refactor: Project-Wide Safe Rename (SPEC-2.1)
++-- TetraVim Refactor: Project-Wide Safe Rename (SPEC-2.1)
 +--
 +-- Java/Kotlin rename today is a bare vim.lsp.buf.rename() (see the global
 +-- <leader>cr in core/keymaps.lua) -- it applies immediately, with no
@@ -1394,15 +1394,15 @@ index 0000000..dfc9f8a
 +}
 +
 +local function notify_err(msg)
-+  vim.notify(msg, vim.log.levels.ERROR, { title = "Cumulus Refactor" })
++  vim.notify(msg, vim.log.levels.ERROR, { title = "TetraVim Refactor" })
 +end
 +
 +local function notify_warn(msg)
-+  vim.notify(msg, vim.log.levels.WARN, { title = "Cumulus Refactor" })
++  vim.notify(msg, vim.log.levels.WARN, { title = "TetraVim Refactor" })
 +end
 +
 +local function notify_info(msg)
-+  vim.notify(msg, vim.log.levels.INFO, { title = "Cumulus Refactor" })
++  vim.notify(msg, vim.log.levels.INFO, { title = "TetraVim Refactor" })
 +end
 +
 +--- Find the JDTLS/Kotlin LS client attached to `bufnr`, if any.
@@ -1710,7 +1710,7 @@ index 0000000..dfc9f8a
 +  local lsp_items = vim.lsp.util.locations_to_items(locations, jvm_client.offset_encoding)
 +
 +  local root = jvm_client.config.root_dir or vim.fn.getcwd()
-+  local refactor_ts = require("cumulus.util.refactor-treesitter")
++  local refactor_ts = require("tetravim.util.refactor-treesitter")
 +  local old_package = refactor_ts.file_package(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
 +
 +  refactor_ts.scan_root_async(root, old_name, old_package, function(spring_items)
@@ -1817,7 +1817,7 @@ index 0000000..5a9f2b7
 +
 +set -e
 +
-+echo "=== Cumulus Project-Wide Safe Rename (SPEC-2.1) Smoke Test ==="
++echo "=== TetraVim Project-Wide Safe Rename (SPEC-2.1) Smoke Test ==="
 +
 +FIXTURE_DIR="$(mktemp -d)"
 +trap 'rm -rf "$FIXTURE_DIR"' EXIT
@@ -1893,21 +1893,21 @@ index 0000000..5a9f2b7
 +echo "[1/4] Static: refactor.lua / refactor-treesitter.lua module shape..."
 +nvim -u init.lua --headless -c "lua
 +local ok, err = pcall(function()
-+  local refactor = require('cumulus.util.refactor')
++  local refactor = require('tetravim.util.refactor')
 +  assert(type(refactor.project_rename) == 'function', 'project_rename missing')
 +  assert(type(refactor.find_jvm_client) == 'function', 'find_jvm_client missing')
 +  assert(type(refactor.workspace_edit_to_locations) == 'function', 'workspace_edit_to_locations missing')
 +
-+  local ts = require('cumulus.util.refactor-treesitter')
++  local ts = require('tetravim.util.refactor-treesitter')
 +  assert(type(ts.scan_root_async) == 'function', 'scan_root_async missing')
 +  assert(type(ts.classify_xml_line) == 'function', 'classify_xml_line missing')
 +  assert(type(ts.classify_jvm_line) == 'function', 'classify_jvm_line missing')
 +
 +  -- Buffer-local wiring: verify the keymap plumbing source, not a live attach.
 +  local java_src = io.open('ftplugin/java.lua', 'r'):read('*a')
-+  assert(java_src:match('cumulus%.util%.refactor'), 'ftplugin/java.lua must wire up refactor.project_rename')
-+  local kotlin_src = io.open('lua/cumulus/plugins/lsp-kotlin.lua', 'r'):read('*a')
-+  assert(kotlin_src:match('cumulus%.util%.refactor'), 'lsp-kotlin.lua must wire up refactor.project_rename')
++  assert(java_src:match('tetravim%.util%.refactor'), 'ftplugin/java.lua must wire up refactor.project_rename')
++  local kotlin_src = io.open('lua/tetravim/plugins/lsp-kotlin.lua', 'r'):read('*a')
++  assert(kotlin_src:match('tetravim%.util%.refactor'), 'lsp-kotlin.lua must wire up refactor.project_rename')
 +end)
 +if not ok then
 +  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
@@ -1992,7 +1992,7 @@ index 0000000..5a9f2b7
 +  -- vim.fn.expand('<cword>') at the cursor, exactly like the real
 +  -- <leader>cr keymap would.
 +  vim.api.nvim_win_set_cursor(0, { 6, 13 })
-+  local refactor = require('cumulus.util.refactor')
++  local refactor = require('tetravim.util.refactor')
 +  refactor.project_rename('BarService')
 +
 +  -- The rename pipeline is async (vim.system for the Tree-sitter/Spring
@@ -2100,7 +2100,7 @@ index 0000000..5a9f2b7
 +  -- vim.fn.expand('<cword>') at the cursor, exactly like the real
 +  -- <leader>cr keymap would.
 +  vim.api.nvim_win_set_cursor(0, { 6, 13 })
-+  local refactor = require('cumulus.util.refactor')
++  local refactor = require('tetravim.util.refactor')
 +  refactor.project_rename('ShouldNotApply')
 +
 +  vim.wait(2000, function() return false end, 100)
@@ -2154,7 +2154,7 @@ index 0000000..5a9f2b7
 +  -- vim.fn.expand('<cword>') at the cursor, exactly like the real
 +  -- <leader>cr keymap would.
 +  vim.api.nvim_win_set_cursor(0, { 6, 13 })
-+  local refactor = require('cumulus.util.refactor')
++  local refactor = require('tetravim.util.refactor')
 +  refactor.project_rename('Consumer')
 +
 +  vim.wait(2000, function() return false end, 100)

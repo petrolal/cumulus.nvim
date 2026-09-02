@@ -25,7 +25,7 @@
 
 set -e
 
-echo "=== Cumulus HTTP Client & REST API Explorer (SPEC-3.2) Smoke Test ==="
+echo "=== TetraVim HTTP Client & REST API Explorer (SPEC-3.2) Smoke Test ==="
 
 FIXTURE_ROOT="$(mktemp -d)"
 trap 'rm -rf "$FIXTURE_ROOT"' EXIT
@@ -99,13 +99,13 @@ fi
 echo "[1/14] Static: openapi.lua / http.lua export the required functions; tools-http.lua references kulala..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local openapi = require('cumulus.util.openapi')
+  local openapi = require('tetravim.util.openapi')
   assert(type(openapi.generate_http_from_spec) == 'function', 'generate_http_from_spec missing')
 
-  local http = require('cumulus.util.http')
+  local http = require('tetravim.util.http')
   assert(type(http.jq_filter) == 'function', 'jq_filter missing')
 
-  local tools_http_src = io.open('lua/cumulus/plugins/tools-http.lua', 'r'):read('*a')
+  local tools_http_src = io.open('lua/tetravim/plugins/tools-http.lua', 'r'):read('*a')
   assert(tools_http_src:match('kulala'), 'tools-http.lua must reference kulala')
 end)
 if not ok then
@@ -119,7 +119,7 @@ end
 echo "[2/14] Functional: tools-http.lua's plugin spec forces a persistent split (never floating) and lazy-loads on ft=http..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local spec = require('cumulus.plugins.tools-http')
+  local spec = require('tetravim.plugins.tools-http')
   assert(spec[1] and spec[1][1] == 'mistweaverco/kulala.nvim', 'spec[1] must be the kulala.nvim plugin fragment')
   assert(type(spec[1].ft) == 'table' and vim.tbl_contains(spec[1].ft, 'http'), 'plugin must lazy-load on ft=http')
   assert(type(spec[1].opts) == 'table' and type(spec[1].opts.ui) == 'table', 'plugin opts.ui missing')
@@ -137,7 +137,7 @@ end
 echo "[3/14] Functional: valid JSON OpenAPI spec (2 paths, 3 operations) -> one .http request block per operation with method/url/headers..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local openapi = require('cumulus.util.openapi')
+  local openapi = require('tetravim.util.openapi')
   local text = openapi.generate_http_from_spec('$FIXTURE_ROOT/spec.json')
   assert(type(text) == 'string', 'expected .http text, got nil')
 
@@ -166,7 +166,7 @@ local ok, err = pcall(function()
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
 
-  local openapi = require('cumulus.util.openapi')
+  local openapi = require('tetravim.util.openapi')
   local text = openapi.generate_http_from_spec('$FIXTURE_ROOT/spec-with-refs.json')
 
   vim.notify = orig
@@ -207,7 +207,7 @@ local ok, err = pcall(function()
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
 
-  local openapi = require('cumulus.util.openapi')
+  local openapi = require('tetravim.util.openapi')
   local text = openapi.generate_http_from_spec('$FIXTURE_ROOT/spec-with-server-var.json')
 
   vim.notify = orig
@@ -242,7 +242,7 @@ local ok, err = pcall(function()
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
 
-  local openapi = require('cumulus.util.openapi')
+  local openapi = require('tetravim.util.openapi')
   local text = openapi.generate_http_from_spec('$FIXTURE_ROOT/spec.yaml')
 
   vim.notify = orig
@@ -269,7 +269,7 @@ local ok, err = pcall(function()
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
 
-  local openapi = require('cumulus.util.openapi')
+  local openapi = require('tetravim.util.openapi')
   local text = openapi.generate_http_from_spec('$NONEXISTENT_SPEC')
 
   vim.notify = orig
@@ -301,7 +301,7 @@ local ok, err = pcall(function()
     return orig_executable(name)
   end
 
-  local http = require('cumulus.util.http')
+  local http = require('tetravim.util.http')
   local cb_called = false
   http.jq_filter('{}', '.', function() cb_called = true end)
 
@@ -328,7 +328,7 @@ if [ "$JQ_AVAILABLE" -eq 1 ]; then
   echo "[9/14] Functional: jq installed, valid filter -> filtered output delivered via callback..."
   nvim -u init.lua --headless -c "lua
   local ok, err = pcall(function()
-    local http = require('cumulus.util.http')
+    local http = require('tetravim.util.http')
     local done, result = false, nil
     http.jq_filter('{\"a\":1}', '.a', function(text)
       result = text
@@ -354,7 +354,7 @@ if [ "$JQ_AVAILABLE" -eq 1 ]; then
     local orig = vim.notify
     vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
 
-    local http = require('cumulus.util.http')
+    local http = require('tetravim.util.http')
     local cb_called, done = false, false
     http.jq_filter('{\"a\":1}', 'this is not valid jq (((', function()
       cb_called = true
@@ -390,7 +390,7 @@ fi
 echo "[11/14] Functional: <leader>H keymaps (run request, generate from OpenAPI, jq-filter) are registered by keymaps.lua..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  require('cumulus.core.keymaps')
+  require('tetravim.core.keymaps')
   local maps = vim.api.nvim_get_keymap('n')
   local function find(suffix)
     for _, m in ipairs(maps) do
@@ -413,7 +413,7 @@ end
 echo "[12/14] Functional: <leader>Ho's actual callback (not just its existence) generates .http content into a real, non-floating split with filetype=http..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  require('cumulus.core.keymaps')
+  require('tetravim.core.keymaps')
   local maps = vim.api.nvim_get_keymap('n')
   local ho = nil
   for _, m in ipairs(maps) do
@@ -455,7 +455,7 @@ if [ "$JQ_AVAILABLE" -eq 1 ]; then
   echo "[13/14] Functional: <leader>Hj's actual callback (not just its existence) jq-filters the current buffer into a real, non-floating split..."
   nvim -u init.lua --headless -c "lua
   local ok, err = pcall(function()
-    require('cumulus.core.keymaps')
+    require('tetravim.core.keymaps')
     local maps = vim.api.nvim_get_keymap('n')
     local hj = nil
     for _, m in ipairs(maps) do

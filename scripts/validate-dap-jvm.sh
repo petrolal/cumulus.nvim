@@ -9,12 +9,12 @@
 
 set -e
 
-echo "=== Cumulus JVM Debugger (SPEC-1.1) Smoke Test ==="
+echo "=== TetraVim JVM Debugger (SPEC-1.1) Smoke Test ==="
 
 echo "[1/3] Static: Mason package + lsp-scala module shape..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local mason = require('cumulus.plugins.tools-mason')
+  local mason = require('tetravim.plugins.tools-mason')
   local ensure = nil
   for _, spec in ipairs(mason) do
     if spec.opts and spec.opts.ensure_installed then
@@ -28,7 +28,7 @@ local ok, err = pcall(function()
   end
   assert(found, 'metals missing from tools-mason ensure_installed')
 
-  local lsp_scala = require('cumulus.plugins.lsp-scala')
+  local lsp_scala = require('tetravim.plugins.lsp-scala')
   assert(type(lsp_scala) == 'table' and type(lsp_scala[1]) == 'table', 'lsp-scala must return a valid lazy.nvim spec table')
   assert(lsp_scala[1][1] == 'scalameta/nvim-metals', 'lsp-scala spec must declare scalameta/nvim-metals')
   local ft = lsp_scala[1].ft
@@ -39,7 +39,7 @@ local ok, err = pcall(function()
   -- Regression guard: the four generic breakpoint/logpoint/exception/eval
   -- keymaps must actually be bound in tools-dap-devops.lua's keys table --
   -- a rename or drop here would otherwise go undetected.
-  local dap_devops = require('cumulus.plugins.tools-dap-devops')
+  local dap_devops = require('tetravim.plugins.tools-dap-devops')
   local keys = dap_devops[1].keys
   local key_fns = {}
   for _, k in ipairs(keys) do
@@ -67,7 +67,7 @@ local ok, err = pcall(function()
   -- keys table, rather than reimplementing their guard logic here, so this
   -- test exercises the real bound code (including the whitespace-only
   -- input guard).
-  local dap_devops = require('cumulus.plugins.tools-dap-devops')
+  local dap_devops = require('tetravim.plugins.tools-dap-devops')
   local key_fns = {}
   for _, k in ipairs(dap_devops[1].keys) do
     key_fns[k[1]] = k[2]

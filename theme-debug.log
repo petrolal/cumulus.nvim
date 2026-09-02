@@ -222,3 +222,193 @@
 17:41:21 Checking theme: name=gcp-theme, provider=gcp
 17:41:21 Checking theme: name=oci-theme, provider=oci
 17:41:21 ERROR: Theme not loaded
+17:43:06 === load_saved_theme() called ===
+17:43:06 Current theme: FLAVOR=aws-theme
+17:43:06 Clean theme: FLAVOR=aws
+17:43:06 Checking theme: name=aws-theme, provider=aws
+17:43:06 Checking theme: name=azure-theme, provider=azure
+17:43:06 Checking theme: name=gcp-theme, provider=gcp
+17:43:06 Checking theme: name=oci-theme, provider=oci
+17:43:06 ERROR: Theme not loaded
+17:52:02 === load_saved_theme() called ===
+17:52:02 Current theme: FLAVOR=aws-theme
+17:52:02 Clean theme: FLAVOR=aws
+17:52:02 Checking theme: name=aws-theme, provider=aws
+17:52:02 Checking theme: name=azure-theme, provider=azure
+17:52:02 Checking theme: name=gcp-theme, provider=gcp
+17:52:02 Checking theme: name=oci-theme, provider=oci
+17:52:02 ERROR: Theme not loaded
+18:02:23 === load_saved_theme() called ===
+18:02:23 Current theme: FLAVOR=aws-theme
+18:02:23 Clean theme: FLAVOR=aws
+18:02:23 Checking theme: name=aws-theme, provider=aws
+18:02:23 Checking theme: name=azure-theme, provider=azure
+18:02:23 Checking theme: name=gcp-theme, provider=gcp
+18:02:23 Checking theme: name=oci-theme, provider=oci
+18:02:23 ERROR: Theme not loaded
+18:03:59 === load_saved_theme() called ===
+18:03:59 Current theme: FLAVOR=aws-theme
+18:03:59 Clean theme: FLAVOR=aws
+18:03:59 Checking theme: name=aws-theme, provider=aws
+18:03:59 Checking theme: name=azure-theme, provider=azure
+18:03:59 Checking theme: name=gcp-theme, provider=gcp
+18:03:59 Checking theme: name=oci-theme, provider=oci
+18:03:59 ERROR: Theme not loaded
+18:06:20 === load_saved_theme() called ===
+18:06:20 Current theme: FLAVOR=aws-theme
+18:06:20 Clean theme: FLAVOR=aws
+18:06:20 Checking theme: name=aws-theme, provider=aws
+18:06:20 Checking theme: name=azure-theme, provider=azure
+18:06:20 Checking theme: name=gcp-theme, provider=gcp
+18:06:20 Checking theme: name=oci-theme, provider=oci
+18:06:20 ERROR: Theme not loaded
+18:06:23 === load_saved_theme() called ===
+18:06:23 Current theme: FLAVOR=aws-theme
+18:06:23 Clean theme: FLAVOR=aws
+18:06:23 Checking theme: name=aws-theme, provider=aws
+18:06:23 Checking theme: name=azure-theme, provider=azure
+18:06:23 Checking theme: name=gcp-theme, provider=gcp
+18:06:23 Checking theme: name=oci-theme, provider=oci
+18:06:23 ERROR: Theme not loaded
+18:06:27 === load_saved_theme() called ===
+18:06:27 Current theme: FLAVOR=aws-theme
+18:06:27 Clean theme: FLAVOR=aws
+18:06:27 Checking theme: name=aws-theme, provider=aws
+18:06:27 Checking theme: name=azure-theme, provider=azure
+18:06:27 Checking theme: name=gcp-theme, provider=gcp
+18:06:27 Checking theme: name=oci-theme, provider=oci
+18:06:27 ERROR: Theme not loaded
+18:07:31 === load_saved_theme() called ===
+18:07:31 Current theme: FLAVOR=aws-theme
+18:07:31 Clean theme: FLAVOR=aws
+18:07:31 Checking theme: name=aws-theme, provider=aws
+18:07:31 Checking theme: name=azure-theme, provider=azure
+18:07:31 Checking theme: name=gcp-theme, provider=gcp
+18:07:31 Checking theme: name=oci-theme, provider=oci
+18:07:31 ERROR: Theme not loaded
+18:07:51 === load_saved_theme() called ===
+18:07:51 Current theme: FLAVOR=aws-theme
+18:07:51 Clean theme: FLAVOR=aws
+18:07:51 Checking theme: name=aws-theme, provider=aws
+18:07:51 Checking theme: name=azure-theme, provider=azure
+18:07:51 Checking theme: name=gcp-theme, provider=gcp
+18:07:51 Checking theme: name=oci-theme, provider=oci
+18:07:51 ERROR: Theme not loaded
+18:08:40 === load_saved_theme() called ===
+18:08:40 Current theme: FLAVOR=aws-theme
+18:08:40 Clean theme: FLAVOR=aws
+18:08:40 Checking theme: name=aws-theme, provider=aws
+18:08:40 Checking theme: name=azure-theme, provider=azure
+18:08:40 Checking theme: name=gcp-theme, provider=gcp
+18:08:40 Checking theme: name=oci-theme, provider=oci
+18:08:40 ERROR: Theme not loaded
+18:11:38 === load_saved_theme() called ===
+18:11:38 Current theme: FLAVOR=aws-theme
+18:11:38 Clean theme: FLAVOR=aws
+18:11:38 Checking theme: name=aws-theme, provider=aws
+18:11:38 Checking theme: name=azure-theme, provider=azure
+18:11:38 Checking theme: name=gcp-theme, provider=gcp
+18:11:38 Checking theme: name=oci-theme, provider=oci
+18:11:38 ERROR: Theme not loaded
+18:34:05 === load_saved_theme() called ===
+18:34:05 Current theme: aws-theme
+18:34:05 Clean theme: aws
+18:34:05 Checking theme: name=aws-theme, provider=aws
+18:34:05 MATCH! Loading provider: aws
+18:34:05 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:34:05 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:34:06 load_provider_highlights: Applied Tetris base palette.
+18:34:06 SUCCESS: Theme loaded!
+18:36:43 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:36:43 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:36:43 load_provider_highlights: Applied Tetris base palette.
+18:36:43 === load_saved_theme() called ===
+18:36:43 Current theme: aws-theme
+18:36:43 Clean theme: aws
+18:36:43 Checking theme: name=aws-theme, provider=aws
+18:36:43 MATCH! Loading provider: aws
+18:36:43 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:36:43 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:36:43 load_provider_highlights: Applied Tetris base palette.
+18:36:43 SUCCESS: Theme loaded!
+18:36:57 === load_saved_theme() called ===
+18:36:57 Current theme: aws-theme
+18:36:57 Clean theme: aws
+18:36:57 Checking theme: name=aws-theme, provider=aws
+18:36:57 MATCH! Loading provider: aws
+18:36:57 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:36:57 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:36:57 load_provider_highlights: Applied Tetris base palette.
+18:36:57 SUCCESS: Theme loaded!
+18:36:59 === load_saved_theme() called ===
+18:36:59 Current theme: aws-theme
+18:36:59 Clean theme: aws
+18:36:59 Checking theme: name=aws-theme, provider=aws
+18:36:59 MATCH! Loading provider: aws
+18:36:59 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:36:59 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:36:59 load_provider_highlights: Applied Tetris base palette.
+18:36:59 SUCCESS: Theme loaded!
+18:37:11 === load_saved_theme() called ===
+18:37:11 Current theme: aws-theme
+18:37:11 Clean theme: aws
+18:37:11 Checking theme: name=aws-theme, provider=aws
+18:37:11 MATCH! Loading provider: aws
+18:37:11 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:37:11 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:37:11 load_provider_highlights: Applied Tetris base palette.
+18:37:11 SUCCESS: Theme loaded!
+18:37:49 === load_saved_theme() called ===
+18:37:49 Current theme: aws-theme
+18:37:49 Clean theme: aws
+18:37:49 Checking theme: name=aws-theme, provider=aws
+18:37:49 MATCH! Loading provider: aws
+18:37:49 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:37:49 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:37:49 load_provider_highlights: Applied Tetris base palette.
+18:37:49 SUCCESS: Theme loaded!
+18:37:57 === load_saved_theme() called ===
+18:37:57 Current theme: aws-theme
+18:37:57 Clean theme: aws
+18:37:57 Checking theme: name=aws-theme, provider=aws
+18:37:57 MATCH! Loading provider: aws
+18:37:57 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:37:57 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:37:57 load_provider_highlights: Applied Tetris base palette.
+18:37:57 SUCCESS: Theme loaded!
+18:39:40 === load_saved_theme() called ===
+18:39:40 Current theme: aws-theme
+18:39:40 Clean theme: aws
+18:39:40 Checking theme: name=aws-theme, provider=aws
+18:39:40 MATCH! Loading provider: aws
+18:39:40 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:39:40 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:39:40 load_provider_highlights: Applied Tetris base palette.
+18:39:40 SUCCESS: Theme loaded!
+18:46:24 === load_saved_theme() called ===
+18:46:24 Current theme: aws-theme
+18:46:24 Clean theme: aws
+18:46:24 Checking theme: name=aws-theme, provider=aws
+18:46:24 MATCH! Loading provider: aws
+18:46:24 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:46:24 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:46:24 load_provider_highlights: Applied Tetris base palette.
+18:46:24 SUCCESS: Theme loaded!
+18:47:43 === load_saved_theme() called ===
+18:47:43 Current theme: aws-theme
+18:47:43 Clean theme: aws
+18:47:43 Checking theme: name=aws-theme, provider=aws
+18:47:43 MATCH! Loading provider: aws
+18:47:43 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:47:43 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:47:43 load_provider_highlights: Applied Tetris base palette.
+18:47:43 SUCCESS: Theme loaded!
+18:48:09 === load_saved_theme() called ===
+18:48:09 Current theme: aws-theme
+18:48:09 Clean theme: aws
+18:48:09 Checking theme: name=aws-theme, provider=aws
+18:48:09 MATCH! Loading provider: aws
+18:48:09 load_provider_highlights: Loading native dotfile theme for 'aws'
+18:48:09 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+18:48:09 load_provider_highlights: Applied Tetris base palette.
+18:48:09 SUCCESS: Theme loaded!

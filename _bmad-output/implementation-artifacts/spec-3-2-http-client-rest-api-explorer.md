@@ -4,7 +4,7 @@ type: 'feature'
 created: '2026-08-26'
 status: 'done'
 review_loop_iteration: 0
-context: ['/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/epic-3-context.md']
+context: ['/home/petrolal/tetravim.nvim/_bmad-output/implementation-artifacts/epic-3-context.md']
 baseline_commit: '61633a32aec732c87972512e6a9a8ba2070d6531'
 ---
 
@@ -23,7 +23,7 @@ baseline_commit: '61633a32aec732c87972512e6a9a8ba2070d6531'
 - `jq` filtering shells out to a real `jq` binary via `vim.system` (async, per `profiling.lua`'s established pattern) — never reimplement jq logic in Lua.
 - OpenAPI template generation supports JSON specs only, parsed via `vim.json.decode`; never write a YAML parser for this.
 - Response/filtered output renders in a persistent split, never a floating window, per this epic's established UX pattern.
-- Follow `tools-dadbod.lua`'s plugin-isolation shape: new feature lives in its own `lua/cumulus/plugins/tools-http.lua` file with `init`/`config` split.
+- Follow `tools-dadbod.lua`'s plugin-isolation shape: new feature lives in its own `lua/tetravim/plugins/tools-http.lua` file with `init`/`config` split.
 - New keymaps live under a dedicated `<leader>H` group — never under `<leader>o` (reserved for the engine-backed Terraform/CFN/Ansible/Docker/Helm suite, per the precedent set in Story 3.1).
 
 **Ask First:**
@@ -49,21 +49,21 @@ baseline_commit: '61633a32aec732c87972512e6a9a8ba2070d6531'
 
 ## Code Map
 
-- `lua/cumulus/plugins/tools-dadbod.lua` -- Story 3.1's plugin-isolation reference: `init()`/`config()` split, `ft`-triggered lazy load, dependency wiring. Copy this shape for `tools-http.lua`.
-- `lua/cumulus/util/ui.lua:13-42` -- `notify_info/notify_warn/notify_err` wrappers; use these, never raw `vim.notify`.
-- `lua/cumulus/util/profiling.lua:47-131` -- canonical `vim.system(cmd, {text=true}, function(out) vim.schedule(function() ... end) end)` async pattern; model `jq` invocation and OpenAPI generation's file I/O callbacks on this.
-- `lua/cumulus/core/keymaps.lua:137-140` -- where Story 3.1 added the `<leader>D` group; add a new `<leader>H` block the same way (leave `<leader>D` and `<leader>o` untouched).
-- `lua/cumulus/plugins/ui-whichkey.lua:31` -- where the `"database"` group label was registered for `<leader>D`; register an `"http"` group label for `<leader>H` the same way.
+- `lua/tetravim/plugins/tools-dadbod.lua` -- Story 3.1's plugin-isolation reference: `init()`/`config()` split, `ft`-triggered lazy load, dependency wiring. Copy this shape for `tools-http.lua`.
+- `lua/tetravim/util/ui.lua:13-42` -- `notify_info/notify_warn/notify_err` wrappers; use these, never raw `vim.notify`.
+- `lua/tetravim/util/profiling.lua:47-131` -- canonical `vim.system(cmd, {text=true}, function(out) vim.schedule(function() ... end) end)` async pattern; model `jq` invocation and OpenAPI generation's file I/O callbacks on this.
+- `lua/tetravim/core/keymaps.lua:137-140` -- where Story 3.1 added the `<leader>D` group; add a new `<leader>H` block the same way (leave `<leader>D` and `<leader>o` untouched).
+- `lua/tetravim/plugins/ui-whichkey.lua:31` -- where the `"database"` group label was registered for `<leader>D`; register an `"http"` group label for `<leader>H` the same way.
 - `ftplugin/sql.lua` -- minimal buffer-local-settings shape (indent, commentstring) to model a new `ftplugin/http.lua` on.
 - `scripts/validate-db.sh` -- current best-practice smoke-test model (fixture-based, `cquit 1` on failure) for the new `scripts/validate-http.sh`.
 
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lua/cumulus/plugins/tools-http.lua` (NEW) -- add the `kulala.nvim` plugin spec (`ft = {"http"}`), configure its response display for a persistent split (consult its own docs for the exact option once installed; if none exists, halt per the "Ask First" boundary), register `<leader>H` keymaps for: run current request, generate `.http` from an OpenAPI spec, and jq-filter the last response -- delivers `.http` execution.
-- [x] `lua/cumulus/util/openapi.lua` (NEW) -- `M.generate_http_from_spec(spec_path)`: read a JSON OpenAPI file via `vim.json.decode`, walk `paths`, emit one `.http`-formatted request block per operation (method + url + headers); warn and return nil for `.yaml`/`.yml` or unreadable input -- delivers OpenAPI template generation.
-- [x] `lua/cumulus/util/http.lua` (NEW) -- `M.jq_filter(json_text, filter_expr, callback)`: guard `vim.fn.executable("jq") == 1` (else `notify_err` with an install hint), shell out via `vim.system` per the `profiling.lua` pattern, surface jq's stderr through `notify_err` on nonzero exit -- delivers jq filtering.
-- [x] `lua/cumulus/core/keymaps.lua` -- add the `<leader>H` keymap group wiring the three actions above together.
+- [x] `lua/tetravim/plugins/tools-http.lua` (NEW) -- add the `kulala.nvim` plugin spec (`ft = {"http"}`), configure its response display for a persistent split (consult its own docs for the exact option once installed; if none exists, halt per the "Ask First" boundary), register `<leader>H` keymaps for: run current request, generate `.http` from an OpenAPI spec, and jq-filter the last response -- delivers `.http` execution.
+- [x] `lua/tetravim/util/openapi.lua` (NEW) -- `M.generate_http_from_spec(spec_path)`: read a JSON OpenAPI file via `vim.json.decode`, walk `paths`, emit one `.http`-formatted request block per operation (method + url + headers); warn and return nil for `.yaml`/`.yml` or unreadable input -- delivers OpenAPI template generation.
+- [x] `lua/tetravim/util/http.lua` (NEW) -- `M.jq_filter(json_text, filter_expr, callback)`: guard `vim.fn.executable("jq") == 1` (else `notify_err` with an install hint), shell out via `vim.system` per the `profiling.lua` pattern, surface jq's stderr through `notify_err` on nonzero exit -- delivers jq filtering.
+- [x] `lua/tetravim/core/keymaps.lua` -- add the `<leader>H` keymap group wiring the three actions above together.
 - [x] `ftplugin/http.lua` (NEW) -- buffer-local settings for `.http` files, mirroring `ftplugin/sql.lua`.
 - [x] `scripts/validate-http.sh` (NEW) -- smoke test: static shape checks (`openapi.lua`/`http.lua` export the functions above; `tools-http.lua` references `kulala`) plus functional fixture tests for every I/O-matrix row above (skip/warn gracefully, not fail, if `jq` isn't installed in the test environment); `cquit 1` on any real failure.
 
@@ -95,44 +95,44 @@ return M
 
 **Commands:**
 - `bash scripts/validate-http.sh` -- expected: all checks pass, exit code 0 (jq-dependent checks skip gracefully with a clear note if `jq` isn't installed, rather than failing the whole run).
-- `nvim --headless -u init.lua -c "lua assert(require('cumulus.util.openapi').generate_http_from_spec); assert(require('cumulus.util.http').jq_filter)" -c "qa"` -- expected: no error output, clean exit.
+- `nvim --headless -u init.lua -c "lua assert(require('tetravim.util.openapi').generate_http_from_spec); assert(require('tetravim.util.http').jq_filter)" -c "qa"` -- expected: no error output, clean exit.
 
 ## Suggested Review Order
 
 **Plugin Wiring (kulala.nvim as the execution engine)**
 
 - Entry point: `kulala.nvim` plugin spec, lazy-loaded on `.http` buffers, forcing persistent-split display per the epic's UX pattern.
-  [`tools-http.lua:15`](../../lua/cumulus/plugins/tools-http.lua#L15)
+  [`tools-http.lua:15`](../../lua/tetravim/plugins/tools-http.lua#L15)
 
 - `<leader>Hr` now guards against running outside a `.http` buffer instead of surfacing kulala's own raw error (review fix).
-  [`keymaps.lua:162`](../../lua/cumulus/core/keymaps.lua#L162)
+  [`keymaps.lua:162`](../../lua/tetravim/core/keymaps.lua#L162)
 
 - Shared split-opening helper, switched to `vsplit` to match kulala's own vertical response-window orientation (review fix).
-  [`keymaps.lua:148`](../../lua/cumulus/core/keymaps.lua#L148)
+  [`keymaps.lua:148`](../../lua/tetravim/core/keymaps.lua#L148)
 
 **OpenAPI-to-.http Template Generation**
 
 - Core parser: JSON-only by design (no YAML parser), walks `paths`, sorts for deterministic output.
-  [`openapi.lua:72`](../../lua/cumulus/util/openapi.lua#L72)
+  [`openapi.lua:72`](../../lua/tetravim/util/openapi.lua#L72)
 
 - Per-operation block builder -- now type-guards `operationId`/`summary` so a malformed spec degrades gracefully instead of crashing (review fix).
-  [`openapi.lua:40`](../../lua/cumulus/util/openapi.lua#L40)
+  [`openapi.lua:40`](../../lua/tetravim/util/openapi.lua#L40)
 
 - `<leader>Ho` keymap: prompts for a spec path, generates the template, opens it in a persistent split.
-  [`keymaps.lua:177`](../../lua/cumulus/core/keymaps.lua#L177)
+  [`keymaps.lua:177`](../../lua/tetravim/core/keymaps.lua#L177)
 
 **jq Response Filtering**
 
 - Shells out to a real `jq` binary async, with a timeout guard added in review (was previously unbounded).
-  [`http.lua:25`](../../lua/cumulus/util/http.lua#L25)
+  [`http.lua:25`](../../lua/tetravim/util/http.lua#L25)
 
 - `<leader>Hj` keymap: filters the current buffer's JSON through a user-supplied jq expression.
-  [`keymaps.lua:191`](../../lua/cumulus/core/keymaps.lua#L191)
+  [`keymaps.lua:191`](../../lua/tetravim/core/keymaps.lua#L191)
 
 **Peripherals**
 
 - `:checkhealth` entry for `jq`/`kulala.nvim`, added in review to match the established convention for other DevOps CLI dependencies.
-  [`health.lua:187`](../../lua/cumulus/health.lua#L187)
+  [`health.lua:187`](../../lua/tetravim/health.lua#L187)
 
 - Smoke test, strengthened in review to invoke the actual `<leader>Ho`/`<leader>Hj` callbacks (not just assert the keymaps exist) and check real split/filetype behavior.
   [`validate-http.sh:1`](../../scripts/validate-http.sh#L1)

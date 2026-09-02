@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Cumulus Neovim Bootstrap
+# TetraVim Neovim Bootstrap
 # Initializes the Neovim environment and installs basic dependencies
 
 set -euo pipefail
 
 echo "=================================================="
-echo "          Cumulus Neovim Bootstrap                "
+echo "          TetraVim Neovim Bootstrap                "
 echo "=================================================="
 echo ""
 

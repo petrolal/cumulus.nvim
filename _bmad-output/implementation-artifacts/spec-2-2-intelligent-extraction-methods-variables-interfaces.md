@@ -4,7 +4,7 @@ type: 'feature'
 created: '2026-08-25'
 status: 'done'
 review_loop_iteration: 0
-context: ['/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/epic-2-context.md']
+context: ['/home/petrolal/tetravim.nvim/_bmad-output/implementation-artifacts/epic-2-context.md']
 baseline_commit: 'f4b7c7481f6ef0e8e70485b9f5a3b165a7e23ad1'
 ---
 
@@ -12,9 +12,9 @@ baseline_commit: 'f4b7c7481f6ef0e8e70485b9f5a3b165a7e23ad1'
 
 ## Intent
 
-**Problem:** `<leader>jxv/jxc/jxm` (`lua/cumulus/util/jvm.lua:436-462`) already give Java-only, immediate-apply Extract Variable/Constant/Method via `nvim-jdtls`, satisfying that part of the AC as-is. But "Extract Interface" and "Inline Variable/Method" don't exist anywhere in the codebase, and every existing extraction path applies edits with zero preview — inconsistent with the dry-run-before-apply standard Story 2.1 established for refactors.
+**Problem:** `<leader>jxv/jxc/jxm` (`lua/tetravim/util/jvm.lua:436-462`) already give Java-only, immediate-apply Extract Variable/Constant/Method via `nvim-jdtls`, satisfying that part of the AC as-is. But "Extract Interface" and "Inline Variable/Method" don't exist anywhere in the codebase, and every existing extraction path applies edits with zero preview — inconsistent with the dry-run-before-apply standard Story 2.1 established for refactors.
 
-**Approach:** Add a new `lua/cumulus/util/extract.lua` module providing `extract_interface()` and `inline()`, both for Java and Kotlin, driven by generic `textDocument/codeAction` requests (filtered by `kind` prefix `refactor.extract.interface` / `refactor.inline`) rather than jdtls-specific commands (none exist for these). Route results through Story 2.1's dry-run pattern: quickfix preview + `vim.ui.select` confirm before applying, reusing `refactor.lua`'s `find_jvm_client`/`workspace_edit_to_locations`/busy-guard primitives. Leave `<leader>jxv/jxc/jxm` untouched.
+**Approach:** Add a new `lua/tetravim/util/extract.lua` module providing `extract_interface()` and `inline()`, both for Java and Kotlin, driven by generic `textDocument/codeAction` requests (filtered by `kind` prefix `refactor.extract.interface` / `refactor.inline`) rather than jdtls-specific commands (none exist for these). Route results through Story 2.1's dry-run pattern: quickfix preview + `vim.ui.select` confirm before applying, reusing `refactor.lua`'s `find_jvm_client`/`workspace_edit_to_locations`/busy-guard primitives. Leave `<leader>jxv/jxc/jxm` untouched.
 
 ## Boundaries & Constraints
 
@@ -48,27 +48,27 @@ baseline_commit: 'f4b7c7481f6ef0e8e70485b9f5a3b165a7e23ad1'
 
 ## Code Map
 
-- `lua/cumulus/util/jvm.lua:436-486` -- existing `<leader>jx*` (Extract Var/Const/Method, jdtls-specific, immediate-apply, Java-only) -- sibling feature, do not modify
-- `lua/cumulus/util/refactor.lua:62-70` -- `M.find_jvm_client(bufnr)` -- reuse to locate JDTLS/Kotlin LS client
-- `lua/cumulus/util/refactor.lua:78-97` -- `M.workspace_edit_to_locations(workspace_edit)` -- reuse to build quickfix items from a WorkspaceEdit
-- `lua/cumulus/util/refactor.lua:248-292,304-444` -- `M.project_rename`/`_do_rename`/`_show_preview` -- the busy-guard + async-request + quickfix + `vim.ui.select` confirm pattern to replicate structurally in the new module
-- `lua/cumulus/util/refactor-treesitter.lua:264-302` -- `M._ts_root_for`/`M._is_comment_or_string_node` -- reusable parse-once Tree-sitter helpers if AST inspection is needed to scope a codeAction request (e.g. class range for extract-interface)
+- `lua/tetravim/util/jvm.lua:436-486` -- existing `<leader>jx*` (Extract Var/Const/Method, jdtls-specific, immediate-apply, Java-only) -- sibling feature, do not modify
+- `lua/tetravim/util/refactor.lua:62-70` -- `M.find_jvm_client(bufnr)` -- reuse to locate JDTLS/Kotlin LS client
+- `lua/tetravim/util/refactor.lua:78-97` -- `M.workspace_edit_to_locations(workspace_edit)` -- reuse to build quickfix items from a WorkspaceEdit
+- `lua/tetravim/util/refactor.lua:248-292,304-444` -- `M.project_rename`/`_do_rename`/`_show_preview` -- the busy-guard + async-request + quickfix + `vim.ui.select` confirm pattern to replicate structurally in the new module
+- `lua/tetravim/util/refactor-treesitter.lua:264-302` -- `M._ts_root_for`/`M._is_comment_or_string_node` -- reusable parse-once Tree-sitter helpers if AST inspection is needed to scope a codeAction request (e.g. class range for extract-interface)
 - `ftplugin/java.lua:44-69` (override added at 65-67 for `<leader>cr`) -- add new buffer-local `<leader>ce`/`<leader>ci` here, same pattern, comment cites SPEC-2.2
-- `lua/cumulus/plugins/lsp-kotlin.lua:46-64` (override added at 61-63 for `<leader>cr`) -- mirror the same two buffer-local keymaps
-- `lua/cumulus/core/keymaps.lua:33-86` -- global `<leader>c*` group; `<leader>ce`/`<leader>ci` confirmed free, no collision
-- `lua/cumulus/tests/refactor_spec.lua` (full file) -- structure/style to match for the new `extract_spec.lua` (static shape tests, buffer-local wiring check via `io.open`/`maparg`)
+- `lua/tetravim/plugins/lsp-kotlin.lua:46-64` (override added at 61-63 for `<leader>cr`) -- mirror the same two buffer-local keymaps
+- `lua/tetravim/core/keymaps.lua:33-86` -- global `<leader>c*` group; `<leader>ce`/`<leader>ci` confirmed free, no collision
+- `lua/tetravim/tests/refactor_spec.lua` (full file) -- structure/style to match for the new `extract_spec.lua` (static shape tests, buffer-local wiring check via `io.open`/`maparg`)
 - `scripts/validate-refactor.sh` (full file) -- 4-phase structure/mocking approach (`vim.lsp.get_clients`, `vim.lsp.buf_request_all`, `vim.ui.select` mocks, `cquit` on assertion failure) to mirror in `validate-extract.sh`
 - `AGENTS.md:34` -- test-split policy: static shape in `_spec.lua`, real-plugin-runtime behavior in `validate-*.sh`
 
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lua/cumulus/util/extract.lua` -- new module: `M.extract_interface()` requests `textDocument/codeAction` scoped to the class under cursor, filters for `kind` prefix `refactor.extract.interface`, resolves/executes to get a `WorkspaceEdit`, previews via quickfix (`refactor.workspace_edit_to_locations`), confirms via `vim.ui.select`, applies via `vim.lsp.util.apply_workspace_edit` -- new capability, no existing wrapper
-- [x] `lua/cumulus/util/extract.lua` -- `M.inline()` requests `textDocument/codeAction` at cursor, filters for `kind` prefix `refactor.inline`, same preview/confirm/apply flow -- new capability, no existing wrapper
-- [x] `lua/cumulus/util/extract.lua` -- module-level `M._busy` reentrancy guard, mirroring `refactor.lua`'s pattern -- prevents overlapping previews/confirms
+- [x] `lua/tetravim/util/extract.lua` -- new module: `M.extract_interface()` requests `textDocument/codeAction` scoped to the class under cursor, filters for `kind` prefix `refactor.extract.interface`, resolves/executes to get a `WorkspaceEdit`, previews via quickfix (`refactor.workspace_edit_to_locations`), confirms via `vim.ui.select`, applies via `vim.lsp.util.apply_workspace_edit` -- new capability, no existing wrapper
+- [x] `lua/tetravim/util/extract.lua` -- `M.inline()` requests `textDocument/codeAction` at cursor, filters for `kind` prefix `refactor.inline`, same preview/confirm/apply flow -- new capability, no existing wrapper
+- [x] `lua/tetravim/util/extract.lua` -- module-level `M._busy` reentrancy guard, mirroring `refactor.lua`'s pattern -- prevents overlapping previews/confirms
 - [x] `ftplugin/java.lua` -- in `on_attach`, buffer-local `<leader>ce` -> `extract.extract_interface()`, `<leader>ci` -> `extract.inline()`
-- [x] `lua/cumulus/plugins/lsp-kotlin.lua` -- in `on_attach`, mirror the same two buffer-local overrides
-- [x] `lua/cumulus/tests/extract_spec.lua` -- static shape tests for the new module's public API, matching `refactor_spec.lua`'s pattern
+- [x] `lua/tetravim/plugins/lsp-kotlin.lua` -- in `on_attach`, mirror the same two buffer-local overrides
+- [x] `lua/tetravim/tests/extract_spec.lua` -- static shape tests for the new module's public API, matching `refactor_spec.lua`'s pattern
 - [x] `scripts/validate-extract.sh` -- headless behavioral smoke test: happy-path extract-interface, happy-path inline, cancel path, no-code-action path; `cquit` on assertion failure
 
 **Acceptance Criteria:**
@@ -99,16 +99,16 @@ Unlike Story 2.1's rename (LSP has a dedicated `textDocument/rename` request), e
 **Core Extraction Logic**
 
 - Orchestrates async codeAction retrieval, filtering, dry-run preview, and application.
-  [`extract.lua:1`](../../lua/cumulus/util/extract.lua#L1)
+  [`extract.lua:1`](../../lua/tetravim/util/extract.lua#L1)
 
 - Manages busy guard state and constructs the specific LSP request with diagnostics.
-  [`extract.lua:231`](../../lua/cumulus/util/extract.lua#L231)
+  [`extract.lua:231`](../../lua/tetravim/util/extract.lua#L231)
 
 - Handles LSP response, correctly unwraps commands via codeAction/resolve with a timeout.
-  [`extract.lua:129`](../../lua/cumulus/util/extract.lua#L129)
+  [`extract.lua:129`](../../lua/tetravim/util/extract.lua#L129)
 
 - Formats WorkspaceEdits for the quickfix list and drives the vim.ui.select confirmation.
-  [`extract.lua:194`](../../lua/cumulus/util/extract.lua#L194)
+  [`extract.lua:194`](../../lua/tetravim/util/extract.lua#L194)
 
 **Keymap Integration**
 
@@ -116,12 +116,12 @@ Unlike Story 2.1's rename (LSP has a dedicated `textDocument/rename` request), e
   [`java.lua:68`](../../ftplugin/java.lua#L68)
 
 - Mirrors identical extraction keymap overrides for Kotlin.
-  [`lsp-kotlin.lua:32`](../../lua/cumulus/plugins/lsp-kotlin.lua#L32)
+  [`lsp-kotlin.lua:32`](../../lua/tetravim/plugins/lsp-kotlin.lua#L32)
 
 **Testing and Verification**
 
 - Static testing ensuring module shape, busy-guard logic, and map wiring.
-  [`extract_spec.lua:1`](../../lua/cumulus/tests/extract_spec.lua#L1)
+  [`extract_spec.lua:1`](../../lua/tetravim/tests/extract_spec.lua#L1)
 
 - Headless smoke testing that mocks complex async LSP response flows to ensure reliability.
   [`validate-extract.sh:1`](../../scripts/validate-extract.sh#L1)

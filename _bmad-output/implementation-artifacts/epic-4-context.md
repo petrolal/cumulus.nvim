@@ -20,7 +20,7 @@ Bring the version-control and pull-request workflow fully inside the editor so a
 - Checking out a PR's branch must be a single command.
 - Both GitHub and GitLab must be supported as review backends.
 - All forge network calls and git operations must be strictly asynchronous — no editor freeze while fetching PRs, diffs, or comment threads (project-wide non-functional requirement).
-- Deliver functionality via pure Lua and well-established Neovim plugins; add no new surface area to the legacy Scala `cumulus-engine`, and no external Bash/Python helper scripts.
+- Deliver functionality via pure Lua and well-established Neovim plugins; add no new surface area to the legacy Scala `tetravim-engine`, and no external Bash/Python helper scripts.
 - Scope is single-operator efficiency. Complex multi-user / collaborative-editing features are explicitly out of scope.
 
 ## Technical Decisions
@@ -29,7 +29,7 @@ Bring the version-control and pull-request workflow fully inside the editor so a
 - **Event-driven UI:** git and forge-API results must emit Neovim autocommands; UI components listen and render asynchronously via `vim.schedule`. Never update UI directly from a background callback.
 - **Headless external execution:** shell out to `git` and forge CLIs/APIs (e.g. `gh`, `glab`) via `vim.system`, never `:terminal`. Pipe output into native UI (splits, quickfix, notifications).
 - **Stateless project context:** do not cache PR lists, diffs, review threads, or repo topology across sessions; fetch on demand from git or the forge API.
-- **Decentralized plugin config:** git and review plugin configuration is isolated by filetype/command under `lua/cumulus/plugins/`, never merged into a global config file.
+- **Decentralized plugin config:** git and review plugin configuration is isolated by filetype/command under `lua/tetravim/plugins/`, never merged into a global config file.
 - **Direct UI coupling:** call `snacks.nvim` and `telescope.nvim` primitives directly; do not build adapter/facade layers.
 - **Display placement:** referenceable, long-lived output (PR diffs, review comment threads, blame history, conflict views) belongs in persistent splits / the bottom drawer. Floating windows are reserved for ephemeral pickers and momentary confirmations, and use rounded borders plus the active cloud colorscheme.
 

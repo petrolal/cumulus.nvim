@@ -16,7 +16,7 @@
 
 set -e
 
-echo "=== Cumulus Project-Wide Safe Rename (SPEC-2.1) Smoke Test ==="
+echo "=== TetraVim Project-Wide Safe Rename (SPEC-2.1) Smoke Test ==="
 
 FIXTURE_DIR="$(mktemp -d)"
 trap 'rm -rf "$FIXTURE_DIR"' EXIT
@@ -111,12 +111,12 @@ XML
 echo "[1/5] Static: refactor.lua / refactor-treesitter.lua module shape..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local refactor = require('cumulus.util.refactor')
+  local refactor = require('tetravim.util.refactor')
   assert(type(refactor.project_rename) == 'function', 'project_rename missing')
   assert(type(refactor.find_jvm_client) == 'function', 'find_jvm_client missing')
   assert(type(refactor.workspace_edit_to_locations) == 'function', 'workspace_edit_to_locations missing')
 
-  local ts = require('cumulus.util.refactor-treesitter')
+  local ts = require('tetravim.util.refactor-treesitter')
   assert(type(ts.scan_root_async) == 'function', 'scan_root_async missing')
   assert(type(ts.classify_xml_line) == 'function', 'classify_xml_line missing')
   assert(type(ts.classify_jvm_line) == 'function', 'classify_jvm_line missing')
@@ -127,7 +127,7 @@ local ok, err = pcall(function()
   -- (not gated on LSP on_attach), so the no-JVM-LSP I/O matrix row still
   -- produces project_rename own visible notify from the keymap itself.
   local java_src = io.open('ftplugin/java.lua', 'r'):read('*a')
-  assert(java_src:match('cumulus%.util%.refactor'), 'ftplugin/java.lua must wire up refactor.project_rename')
+  assert(java_src:match('tetravim%.util%.refactor'), 'ftplugin/java.lua must wire up refactor.project_rename')
   local cr_set = java_src:find('keymap.set', 1, true)
   local oa_pos = java_src:find('on_attach', 1, true)
   assert(java_src:find('<leader>cr', 1, true), 'ftplugin/java.lua must bind <leader>cr')
@@ -136,7 +136,7 @@ local ok, err = pcall(function()
   assert(kotlin_ft, 'ftplugin/kotlin.lua must exist and bind <leader>cr for every kotlin buffer')
   local kotlin_src = kotlin_ft:read('*a')
   assert(
-    kotlin_src:match('cumulus%.util%.refactor') and kotlin_src:match('<leader>cr'),
+    kotlin_src:match('tetravim%.util%.refactor') and kotlin_src:match('<leader>cr'),
     'ftplugin/kotlin.lua must wire up refactor.project_rename on <leader>cr'
   )
 end)
@@ -224,7 +224,7 @@ local ok, err = pcall(function()
   -- vim.fn.expand('<cword>') at the cursor, exactly like the real
   -- <leader>cr keymap would.
   vim.api.nvim_win_set_cursor(0, { 6, 13 })
-  local refactor = require('cumulus.util.refactor')
+  local refactor = require('tetravim.util.refactor')
   refactor.project_rename('BarService')
 
   -- The rename pipeline is async (vim.system for the Tree-sitter/Spring
@@ -342,7 +342,7 @@ local ok, err = pcall(function()
   -- vim.fn.expand('<cword>') at the cursor, exactly like the real
   -- <leader>cr keymap would.
   vim.api.nvim_win_set_cursor(0, { 6, 13 })
-  local refactor = require('cumulus.util.refactor')
+  local refactor = require('tetravim.util.refactor')
   refactor.project_rename('ShouldNotApply')
 
   vim.wait(2000, function() return false end, 100)
@@ -396,7 +396,7 @@ local ok, err = pcall(function()
   -- vim.fn.expand('<cword>') at the cursor, exactly like the real
   -- <leader>cr keymap would.
   vim.api.nvim_win_set_cursor(0, { 6, 13 })
-  local refactor = require('cumulus.util.refactor')
+  local refactor = require('tetravim.util.refactor')
   refactor.project_rename('Consumer')
 
   vim.wait(2000, function() return false end, 100)
@@ -453,7 +453,7 @@ local ok, err = pcall(function()
     return orig_system(cmd, opts, callback)
   end
 
-  local ts = require('cumulus.util.refactor-treesitter')
+  local ts = require('tetravim.util.refactor-treesitter')
   local result = nil
   ts.scan_root_async(root, 'FooService', 'com.example', function(items)
     result = items

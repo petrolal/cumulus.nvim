@@ -21,7 +21,7 @@ Eliminate the need for external tools like DataGrip, DBeaver, Postman, or AWS Co
 - `.http` files must be directly executable, with formatted JSON/XML responses viewable in a split buffer.
 - REST API tooling should support extracting OpenAPI specs to auto-generate request templates, and should support `jq` filtering on JSON responses.
 - All operations in this epic are user-initiated, synchronous-feeling actions on demand (query execution, request execution) — background/async execution must still never block the editor UI (applies project-wide, not epic-specific).
-- No new custom backend/engine surface area: functionality must be delivered via native Lua, Tree-sitter, LSP, or well-established Neovim plugins — not by extending the legacy Scala `cumulus-engine`.
+- No new custom backend/engine surface area: functionality must be delivered via native Lua, Tree-sitter, LSP, or well-established Neovim plugins — not by extending the legacy Scala `tetravim-engine`.
 
 ## Technical Decisions
 
@@ -31,7 +31,7 @@ Eliminate the need for external tools like DataGrip, DBeaver, Postman, or AWS Co
 - **Stateless project context:** Don't cache database connection info or discovered credentials in memory across sessions; discover them on demand by parsing config files (e.g., `application.yml`/`application.properties`) or querying live sources.
 - **Named plugin integrations to use:**
   - Database Explorer: `vim-dadbod` and `vim-dadbod-ui`.
-  - Decentralized plugin loading: configs for these features must be isolated by filetype/command in `lua/cumulus/plugins/`, not merged into a global config file.
+  - Decentralized plugin loading: configs for these features must be isolated by filetype/command in `lua/tetravim/plugins/`, not merged into a global config file.
 - **Result/response display:** Long-lived or referenceable output (query result grids, HTTP responses) belongs in persistent splits, not floating windows — floating windows are reserved for ephemeral, task-focused interactions (pickers, momentary confirmations).
 
 ## UX & Interaction Patterns

@@ -1,4 +1,4 @@
--- Cumulus SQL Buffer Conventions (DataGrip Parity follow-up)
+-- TetraVim SQL Buffer Conventions (DataGrip Parity follow-up)
 -- Sets buffer-local formatting and comment handling for SQL files
 
 -- Indentation: 2-space soft tabs (DataGrip default)

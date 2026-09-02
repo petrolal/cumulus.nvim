@@ -1,4 +1,4 @@
-Read /home/petrolal/cumulus.nvim/_bmad/render/bmad-build/cumulus-nvim-1c7ec725996c/b8986111a76dbfcb3009/review-prompts/edge-case-hunter.md completely and follow it as your review instructions.
+Read /home/petrolal/tetravim.nvim/_bmad/render/bmad-build/tetravim-nvim-1c7ec725996c/b8986111a76dbfcb3009/review-prompts/edge-case-hunter.md completely and follow it as your review instructions.
 
 Review content:
 
@@ -8,25 +8,25 @@ index b41e348..402285a 100644
 +++ b/ftplugin/java.lua
 @@ -73,6 +73,16 @@ local config = {
      vim.keymap.set("n", "<leader>ci", function()
-       require("cumulus.util.extract").inline()
+       require("tetravim.util.extract").inline()
      end, { buffer = bufnr, desc = "Inline (Java)" })
 +    
 +    vim.keymap.set({ "n", "v" }, "<leader>cm", function()
-+      require("cumulus.util.extract").extract_method()
++      require("tetravim.util.extract").extract_method()
 +    end, { buffer = bufnr, desc = "Extract Method (Java)" })
 +    vim.keymap.set({ "n", "v" }, "<leader>cv", function()
-+      require("cumulus.util.extract").extract_variable()
++      require("tetravim.util.extract").extract_variable()
 +    end, { buffer = bufnr, desc = "Extract Variable (Java)" })
 +    vim.keymap.set({ "n", "v" }, "<leader>cc", function()
-+      require("cumulus.util.extract").extract_constant()
++      require("tetravim.util.extract").extract_constant()
 +    end, { buffer = bufnr, desc = "Extract Constant (Java)" })
    end,
  }
  
-diff --git a/lua/cumulus/core/devops.lua b/lua/cumulus/core/devops.lua
+diff --git a/lua/tetravim/core/devops.lua b/lua/tetravim/core/devops.lua
 index 3d1ceb0..b8b8dce 100644
---- a/lua/cumulus/core/devops.lua
-+++ b/lua/cumulus/core/devops.lua
+--- a/lua/tetravim/core/devops.lua
++++ b/lua/tetravim/core/devops.lua
 @@ -28,6 +28,24 @@ local function get_first_root(roots, key)
    return items[1]
  end
@@ -77,31 +77,31 @@ index 3d1ceb0..b8b8dce 100644
  -- Root discovery functions using factory pattern to eliminate duplication
  M.find_tf_root = create_root_finder("terraform")
  M.find_cfn_root = create_root_finder("sam")
-diff --git a/lua/cumulus/plugins/lsp-kotlin.lua b/lua/cumulus/plugins/lsp-kotlin.lua
+diff --git a/lua/tetravim/plugins/lsp-kotlin.lua b/lua/tetravim/plugins/lsp-kotlin.lua
 index ba04f3d..2531e72 100644
---- a/lua/cumulus/plugins/lsp-kotlin.lua
-+++ b/lua/cumulus/plugins/lsp-kotlin.lua
+--- a/lua/tetravim/plugins/lsp-kotlin.lua
++++ b/lua/tetravim/plugins/lsp-kotlin.lua
 @@ -69,6 +69,16 @@ return {
              vim.keymap.set("n", "<leader>ci", function()
-               require("cumulus.util.extract").inline()
+               require("tetravim.util.extract").inline()
              end, { buffer = bufnr, desc = "Inline (Kotlin)" })
 +
 +            vim.keymap.set({ "n", "v" }, "<leader>cm", function()
-+              require("cumulus.util.extract").extract_method()
++              require("tetravim.util.extract").extract_method()
 +            end, { buffer = bufnr, desc = "Extract Method (Kotlin)" })
 +            vim.keymap.set({ "n", "v" }, "<leader>cv", function()
-+              require("cumulus.util.extract").extract_variable()
++              require("tetravim.util.extract").extract_variable()
 +            end, { buffer = bufnr, desc = "Extract Variable (Kotlin)" })
 +            vim.keymap.set({ "n", "v" }, "<leader>cc", function()
-+              require("cumulus.util.extract").extract_constant()
++              require("tetravim.util.extract").extract_constant()
 +            end, { buffer = bufnr, desc = "Extract Constant (Kotlin)" })
            end,
            settings = {
              kotlin = {
-diff --git a/lua/cumulus/tests/extract_spec.lua b/lua/cumulus/tests/extract_spec.lua
+diff --git a/lua/tetravim/tests/extract_spec.lua b/lua/tetravim/tests/extract_spec.lua
 index 2432522..7d825bd 100644
---- a/lua/cumulus/tests/extract_spec.lua
-+++ b/lua/cumulus/tests/extract_spec.lua
+--- a/lua/tetravim/tests/extract_spec.lua
++++ b/lua/tetravim/tests/extract_spec.lua
 @@ -7,6 +7,9 @@ describe("Extract (SPEC-2.2)", function()
        assert.is_table(extract)
        assert.is_function(extract.extract_interface)
@@ -122,20 +122,20 @@ index 2432522..7d825bd 100644
        assert.is_not_nil(f)
        local content = f:read("*a")
 @@ -39,9 +42,15 @@ describe("Extract (SPEC-2.2)", function()
-       assert.is_truthy(content:match('require%("cumulus%.util%.extract"%)%.extract_interface'))
+       assert.is_truthy(content:match('require%("tetravim%.util%.extract"%)%.extract_interface'))
        assert.is_truthy(content:match('"<leader>ci"'))
-       assert.is_truthy(content:match('require%("cumulus%.util%.extract"%)%.inline'))
+       assert.is_truthy(content:match('require%("tetravim%.util%.extract"%)%.inline'))
 +      assert.is_truthy(content:match('"<leader>cm"'))
-+      assert.is_truthy(content:match('require%("cumulus%.util%.extract"%)%.extract_method'))
++      assert.is_truthy(content:match('require%("tetravim%.util%.extract"%)%.extract_method'))
 +      assert.is_truthy(content:match('"<leader>cv"'))
-+      assert.is_truthy(content:match('require%("cumulus%.util%.extract"%)%.extract_variable'))
++      assert.is_truthy(content:match('require%("tetravim%.util%.extract"%)%.extract_variable'))
 +      assert.is_truthy(content:match('"<leader>cc"'))
-+      assert.is_truthy(content:match('require%("cumulus%.util%.extract"%)%.extract_constant'))
++      assert.is_truthy(content:match('require%("tetravim%.util%.extract"%)%.extract_constant'))
      end)
  
 -    it("lsp-kotlin.lua's on_attach should install REAL buffer-local <leader>ce and <leader>ci mappings", function()
 +    it("lsp-kotlin.lua's on_attach should install REAL buffer-local mappings", function()
-       local lsp_kotlin = require("cumulus.plugins.lsp-kotlin")
+       local lsp_kotlin = require("tetravim.plugins.lsp-kotlin")
        local on_attach = lsp_kotlin[2].opts.servers.kotlin_language_server.on_attach
        assert.is_function(on_attach)
 @@ -54,15 +63,21 @@ describe("Extract (SPEC-2.2)", function()
@@ -168,12 +168,12 @@ index 2432522..7d825bd 100644
      end)
    end)
  end)
-diff --git a/lua/cumulus/util/extract.lua b/lua/cumulus/util/extract.lua
+diff --git a/lua/tetravim/util/extract.lua b/lua/tetravim/util/extract.lua
 index b81f627..3661819 100644
---- a/lua/cumulus/util/extract.lua
-+++ b/lua/cumulus/util/extract.lua
+--- a/lua/tetravim/util/extract.lua
++++ b/lua/tetravim/util/extract.lua
 @@ -16,7 +16,7 @@ local function notify_info(msg)
-   vim.notify(msg, vim.log.levels.INFO, { title = "Cumulus Extract" })
+   vim.notify(msg, vim.log.levels.INFO, { title = "TetraVim Extract" })
  end
  
 -local function handle_action_response(bufnr, jvm_client, action_name, responses, kind_prefix)
@@ -248,10 +248,10 @@ index b81f627..3661819 100644
 +end
 +
  return M
-diff --git a/lua/cumulus/util/jvm.lua b/lua/cumulus/util/jvm.lua
+diff --git a/lua/tetravim/util/jvm.lua b/lua/tetravim/util/jvm.lua
 index 6e914fe..d786ee0 100644
---- a/lua/cumulus/util/jvm.lua
-+++ b/lua/cumulus/util/jvm.lua
+--- a/lua/tetravim/util/jvm.lua
++++ b/lua/tetravim/util/jvm.lua
 @@ -434,33 +434,6 @@ function M.setup_keymaps()
    end, { desc = "Flyway: Validate Migrations" })
  
@@ -284,7 +284,7 @@ index 6e914fe..d786ee0 100644
 -  end, { desc = "JDTLS: Extract Method" })
 -
    map("n", "<leader>jxo", function()
-     require("cumulus.util.engine").optimize_imports_buffer()
+     require("tetravim.util.engine").optimize_imports_buffer()
    end, { desc = "Optimize Java/Kotlin Imports" })
 diff --git a/scripts/validate-extract.sh b/scripts/validate-extract.sh
 index 4484dc9..54b8fec 100644
@@ -292,7 +292,7 @@ index 4484dc9..54b8fec 100644
 +++ b/scripts/validate-extract.sh
 @@ -5,7 +5,7 @@ set -e
  
- echo "=== Cumulus Intelligent Extraction (SPEC-2.2) Smoke Test ==="
+ echo "=== TetraVim Intelligent Extraction (SPEC-2.2) Smoke Test ==="
  
 -FIXTURE_DIR="$(mktemp -d)"
 +export FIXTURE_DIR="$(mktemp -d)"
@@ -406,7 +406,7 @@ index 4484dc9..54b8fec 100644
 +  vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
 +  vim.api.nvim_win_set_cursor(0, { 5, 8 })
 +  
-+  local extract = require('cumulus.util.extract')
++  local extract = require('tetravim.util.extract')
 +  extract.extract_method()
 +
 +  vim.wait(1000, function() return false end, 100)
@@ -474,7 +474,7 @@ index 4484dc9..54b8fec 100644
 +  vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
 +  vim.api.nvim_win_set_cursor(0, { 5, 8 })
 +  
-+  local extract = require('cumulus.util.extract')
++  local extract = require('tetravim.util.extract')
 +  extract.extract_variable()
 +
 +  vim.wait(1000, function() return false end, 100)
@@ -542,7 +542,7 @@ index 4484dc9..54b8fec 100644
 +  vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
 +  vim.api.nvim_win_set_cursor(0, { 5, 8 })
 +  
-+  local extract = require('cumulus.util.extract')
++  local extract = require('tetravim.util.extract')
 +  extract.extract_constant()
 +
 +  vim.wait(1000, function() return false end, 100)
@@ -609,7 +609,7 @@ index 4484dc9..54b8fec 100644
 +  vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
 +  vim.api.nvim_win_set_cursor(0, { 5, 8 })
 +  
-+  local extract = require('cumulus.util.extract')
++  local extract = require('tetravim.util.extract')
 +  extract.extract_method()
 +
 +  vim.wait(1000, function() return false end, 100)
@@ -677,7 +677,7 @@ index 4484dc9..54b8fec 100644
 +  vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
 +  vim.api.nvim_win_set_cursor(0, { 5, 8 })
 +  
-+  local extract = require('cumulus.util.extract')
++  local extract = require('tetravim.util.extract')
 +  extract.extract_variable()
 +
 +  vim.wait(1000, function() return false end, 100)
@@ -745,7 +745,7 @@ index 4484dc9..54b8fec 100644
 +  vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
 +  vim.api.nvim_win_set_cursor(0, { 5, 8 })
 +  
-+  local extract = require('cumulus.util.extract')
++  local extract = require('tetravim.util.extract')
 +  extract.extract_constant()
 +
 +  vim.wait(1000, function() return false end, 100)

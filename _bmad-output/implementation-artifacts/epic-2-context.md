@@ -22,11 +22,11 @@ Provide project-wide, safe, and intelligent refactoring tools that give develope
 
 ## Technical Decisions
 
-- Refactor logic must not introduce a centralized "LSP monolith" — plugin/config wiring stays isolated per filetype/command under `lua/cumulus/plugins/`, lazy-loaded on filetype.
+- Refactor logic must not introduce a centralized "LSP monolith" — plugin/config wiring stays isolated per filetype/command under `lua/tetravim/plugins/`, lazy-loaded on filetype.
 - No internal cache of workspace topology: project/reference state for a refactor must be queried live from disk (e.g., `pom.xml`) or synchronously from the LSP at the moment of the operation — no stale in-memory index.
 - Background/refactor operations should emit autocommands rather than call UI render functions directly; UI listens and renders via `vim.schedule` to avoid blocking the editor thread.
 - UI for refactor results should call primitives directly (`snacks.nvim`, `telescope.nvim`) — no adapter/facade layer is to be introduced for "future-proofing."
-- New refactor/extraction logic (AST analysis, reference discovery) must be implemented in pure Lua via Tree-sitter or delegated to the standard LSPs (JDTLS/Kotlin LS) — no new surface area on the legacy Scala `cumulus-engine` and no external Bash/Python parsing scripts.
+- New refactor/extraction logic (AST analysis, reference discovery) must be implemented in pure Lua via Tree-sitter or delegated to the standard LSPs (JDTLS/Kotlin LS) — no new surface area on the legacy Scala `tetravim-engine` and no external Bash/Python parsing scripts.
 - Moving files as part of a refactor should compose with the project's buffer-based file management approach (`oil.nvim`) rather than a custom mover.
 
 ## UX & Interaction Patterns

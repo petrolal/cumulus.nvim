@@ -12,7 +12,7 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/spec-3-2-http-cl
 
 ## Intent
 
-**Problem:** A multi-lens review of the shipped SPEC-3.2 HTTP Client found defensive-guard gaps: relative or `"/"` OpenAPI `servers` URLs generate hostless request lines with no warning; `vim.fn.expand` mangles spec paths containing `%`/`#`; `kulala.run()` and the `<leader>Hj` filter target are unguarded (raw stack trace / filters the wrong buffer); `cumulus_http_open_in_split` makes file-backed listed buffers that `:w` dumps into the repo; a few malformed-spec shapes crash or emit garbage blocks; and `:checkhealth` omits `curl` (kulala's request backend).
+**Problem:** A multi-lens review of the shipped SPEC-3.2 HTTP Client found defensive-guard gaps: relative or `"/"` OpenAPI `servers` URLs generate hostless request lines with no warning; `vim.fn.expand` mangles spec paths containing `%`/`#`; `kulala.run()` and the `<leader>Hj` filter target are unguarded (raw stack trace / filters the wrong buffer); `tetravim_http_open_in_split` makes file-backed listed buffers that `:w` dumps into the repo; a few malformed-spec shapes crash or emit garbage blocks; and `:checkhealth` omits `curl` (kulala's request backend).
 
 **Approach:** Apply targeted guards to the five implementation files. No happy-path behavior changes — only added warnings, fallbacks, `pcall`s, and buffer hygiene. Verification-side work (new `_spec.lua` files, extra `validate-http.sh` rows, wiring into `validate.sh`) is split to a follow-up tracked in `deferred-work.md`; the existing 14-step `validate-http.sh` must keep passing.
 
@@ -20,12 +20,12 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/spec-3-2-http-cl
 
 **Always:**
 - Keep `kulala.nvim` as the sole `.http` engine and `jq` (via `vim.system`) as the sole filter engine — no new HTTP or JSON logic in Lua.
-- Route every message through `cumulus.util.ui` `notify_info/notify_warn/notify_err`, never raw `vim.notify`.
+- Route every message through `tetravim.util.ui` `notify_info/notify_warn/notify_err`, never raw `vim.notify`.
 - Preserve the persistent-split / never-floating response UX, the `<leader>H` group, and deterministic (sorted) generator output. Do not touch `<leader>o` or `<leader>D`.
 - The existing `scripts/validate-http.sh` must still pass unchanged after these fixes.
 
 **Ask First:**
-- If moving `looks_like_json` from `core/keymaps.lua` into `cumulus.util.http` reveals any other caller, stop and confirm.
+- If moving `looks_like_json` from `core/keymaps.lua` into `tetravim.util.http` reveals any other caller, stop and confirm.
 - If a fix can't be made without changing the original SPEC-3.2 frozen I/O contract, stop and ask.
 
 **Never:**
@@ -55,21 +55,21 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/spec-3-2-http-cl
 
 ## Code Map
 
-- `lua/cumulus/util/openapi.lua` -- `generate_http_from_spec` at `:83`. `vim.fn.expand` at `:101` → `vim.fs.normalize`. `base_url` derivation `:130-142` (relative / `""`-after-strip guard + multi-server `notify_info`). Path-key loop `:171-214` (skip non-`/` keys, collect + warn). `build_request_block` `:40-81` (sanitize `name` `:42-49`; required-param TODO lines before the request line near `:66`). BOM strip before `vim.json.decode` at `:119`.
-- `lua/cumulus/util/http.lua` -- `jq_filter` at `:25`, argv `{ "jq", filter_expr }` at `:44` → `{ "jq", "--", filter_expr }`. Timeout branch `:50` is already correct on the installed Neovim 0.12 (`vim.system{timeout=…}` → `code=124, signal=15`, verified empirically) — no change. Add `M.looks_like_json` here, moved verbatim from `keymaps.lua:200-214`.
-- `lua/cumulus/core/keymaps.lua` -- `cumulus_http_open_in_split` `:148-160` (scratch buffer + window reuse by `name_hint` prefix). `<leader>Hr` `:162` (`pcall` around `kulala.run` at `:174`). `looks_like_json` `:200-214` (delete; re-`require` from `util.http`). `<leader>Hj` `:217-240` (target selection + `desc` → `"jq-Filter JSON Response/Buffer"`).
-- `lua/cumulus/plugins/tools-http.lua` -- `:15-33` kulala spec; add one comment line noting kulala shells out to `curl`. No option change.
-- `lua/cumulus/health.lua` -- Story 3.2 section from `:220`; `jq` tool table `:222-228`. Add a `curl` `vim.fn.executable` check in the same shape (install hint `apt install curl / brew install curl`).
+- `lua/tetravim/util/openapi.lua` -- `generate_http_from_spec` at `:83`. `vim.fn.expand` at `:101` → `vim.fs.normalize`. `base_url` derivation `:130-142` (relative / `""`-after-strip guard + multi-server `notify_info`). Path-key loop `:171-214` (skip non-`/` keys, collect + warn). `build_request_block` `:40-81` (sanitize `name` `:42-49`; required-param TODO lines before the request line near `:66`). BOM strip before `vim.json.decode` at `:119`.
+- `lua/tetravim/util/http.lua` -- `jq_filter` at `:25`, argv `{ "jq", filter_expr }` at `:44` → `{ "jq", "--", filter_expr }`. Timeout branch `:50` is already correct on the installed Neovim 0.12 (`vim.system{timeout=…}` → `code=124, signal=15`, verified empirically) — no change. Add `M.looks_like_json` here, moved verbatim from `keymaps.lua:200-214`.
+- `lua/tetravim/core/keymaps.lua` -- `tetravim_http_open_in_split` `:148-160` (scratch buffer + window reuse by `name_hint` prefix). `<leader>Hr` `:162` (`pcall` around `kulala.run` at `:174`). `looks_like_json` `:200-214` (delete; re-`require` from `util.http`). `<leader>Hj` `:217-240` (target selection + `desc` → `"jq-Filter JSON Response/Buffer"`).
+- `lua/tetravim/plugins/tools-http.lua` -- `:15-33` kulala spec; add one comment line noting kulala shells out to `curl`. No option change.
+- `lua/tetravim/health.lua` -- Story 3.2 section from `:220`; `jq` tool table `:222-228`. Add a `curl` `vim.fn.executable` check in the same shape (install hint `apt install curl / brew install curl`).
 - `_bmad-output/implementation-artifacts/deferred-work.md` -- remove the single `<leader>H*` keymap-block entry ("Deferred from: code review of spec-2-1", cites `core/keymaps.lua:64-214`); this spec resolves all of it. Leave every other entry byte-for-byte.
 
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lua/cumulus/util/openapi.lua` -- (1) `vim.fn.expand` → `vim.fs.normalize`; (2) after the trailing-slash strip, `if base_url == "" then base_url = "{{baseUrl}}"` and `elseif base_url ~= "{{baseUrl}}" and not base_url:match("^%a[%w+.-]*://") then notify_warn` it is relative; (3) `notify_info` naming the chosen server when `#spec.servers > 1`; (4) skip any `path_key` not matching `^/`, collect and `notify_warn` them; (5) `name = name:gsub("[\r\n]", " ")` in `build_request_block`; (6) strip a leading `\239\187\191` BOM before `vim.json.decode`; (7) for each `operation.parameters[]` with `required == true` and `["in"]` in `{query,header}`, emit a deduped `# TODO: set required <in> parameter '<name>'` line before the request line.
-- [x] `lua/cumulus/util/http.lua` -- argv → `{ "jq", "--", filter_expr }`; add `M.looks_like_json(text)` moved verbatim from `keymaps.lua`.
-- [x] `lua/cumulus/core/keymaps.lua` -- `cumulus_http_open_in_split`: `nvim_create_buf(false, true)`, set `buftype=nofile` / `bufhidden=wipe` / `swapfile=false`, and reuse an existing window whose buffer name starts with `name_hint .. "-"` instead of always `botright vsplit`. `<leader>Hr`: `pcall(kulala.run)`, `notify_err` on failure. Delete local `looks_like_json`; call `require("cumulus.util.http").looks_like_json`. `<leader>Hj`: if `&ft == "http"` `notify_err` (move to response/JSON buffer) and return; if `&ft == "kulala_ui"` filter that buffer's lines; else keep the current-buffer path with the existing soft `looks_like_json` warning; `desc` → `"jq-Filter JSON Response/Buffer"`.
-- [x] `lua/cumulus/plugins/tools-http.lua` -- add a comment noting kulala uses `curl` as its request backend.
-- [x] `lua/cumulus/health.lua` -- add a `curl` `vim.fn.executable` check next to `jq` in the Story 3.2 section.
+- [x] `lua/tetravim/util/openapi.lua` -- (1) `vim.fn.expand` → `vim.fs.normalize`; (2) after the trailing-slash strip, `if base_url == "" then base_url = "{{baseUrl}}"` and `elseif base_url ~= "{{baseUrl}}" and not base_url:match("^%a[%w+.-]*://") then notify_warn` it is relative; (3) `notify_info` naming the chosen server when `#spec.servers > 1`; (4) skip any `path_key` not matching `^/`, collect and `notify_warn` them; (5) `name = name:gsub("[\r\n]", " ")` in `build_request_block`; (6) strip a leading `\239\187\191` BOM before `vim.json.decode`; (7) for each `operation.parameters[]` with `required == true` and `["in"]` in `{query,header}`, emit a deduped `# TODO: set required <in> parameter '<name>'` line before the request line.
+- [x] `lua/tetravim/util/http.lua` -- argv → `{ "jq", "--", filter_expr }`; add `M.looks_like_json(text)` moved verbatim from `keymaps.lua`.
+- [x] `lua/tetravim/core/keymaps.lua` -- `tetravim_http_open_in_split`: `nvim_create_buf(false, true)`, set `buftype=nofile` / `bufhidden=wipe` / `swapfile=false`, and reuse an existing window whose buffer name starts with `name_hint .. "-"` instead of always `botright vsplit`. `<leader>Hr`: `pcall(kulala.run)`, `notify_err` on failure. Delete local `looks_like_json`; call `require("tetravim.util.http").looks_like_json`. `<leader>Hj`: if `&ft == "http"` `notify_err` (move to response/JSON buffer) and return; if `&ft == "kulala_ui"` filter that buffer's lines; else keep the current-buffer path with the existing soft `looks_like_json` warning; `desc` → `"jq-Filter JSON Response/Buffer"`.
+- [x] `lua/tetravim/plugins/tools-http.lua` -- add a comment noting kulala uses `curl` as its request backend.
+- [x] `lua/tetravim/health.lua` -- add a `curl` `vim.fn.executable` check next to `jq` in the Story 3.2 section.
 - [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- delete the `<leader>H*` keymap-block entry only; other entries untouched.
 
 **Acceptance Criteria:**
@@ -100,7 +100,7 @@ The `http.lua` timeout branch already fires correctly on the installed Neovim (`
 **Commands:**
 - `stylua lua/ ftplugin/ init.lua` -- expected: no diff.
 - `bash scripts/validate-http.sh` -- expected: all steps pass (jq-dependent ones skip gracefully if `jq` is absent), exit 0.
-- `nvim --headless -u init.lua -c "lua assert(require('cumulus.util.openapi').generate_http_from_spec); assert(require('cumulus.util.http').jq_filter); assert(require('cumulus.util.http').looks_like_json)" -c "qa"` -- expected: clean exit, no output.
+- `nvim --headless -u init.lua -c "lua assert(require('tetravim.util.openapi').generate_http_from_spec); assert(require('tetravim.util.http').jq_filter); assert(require('tetravim.util.http').looks_like_json)" -c "qa"` -- expected: clean exit, no output.
 
 **Manual checks:**
 - With a real endpoint: `<leader>Hr` renders the response in a right split (never floating); `<leader>Hj` on that response window filters it; re-running `<leader>Ho` reuses the generated-template window instead of opening a second one.
@@ -110,60 +110,60 @@ The `http.lua` timeout branch already fires correctly on the installed Neovim (`
 **Buffer & window hygiene (entry point)**
 
 - Start here: scratch buffer + tab-scoped window reuse is the core UX contract of this remediation.
-  [`keymaps.lua:148`](../../lua/cumulus/core/keymaps.lua#L148)
+  [`keymaps.lua:148`](../../lua/tetravim/core/keymaps.lua#L148)
 
 - Window scan is tab-scoped (`nvim_tabpage_list_wins`) so reuse never yanks focus to another tabpage.
-  [`keymaps.lua:153`](../../lua/cumulus/core/keymaps.lua#L153)
+  [`keymaps.lua:153`](../../lua/tetravim/core/keymaps.lua#L153)
 
 - Unlisted `buftype=nofile` / `bufhidden=wipe` / `noswapfile` so a stray `:w` can't dump helper output into the repo.
-  [`keymaps.lua:178`](../../lua/cumulus/core/keymaps.lua#L178)
+  [`keymaps.lua:178`](../../lua/tetravim/core/keymaps.lua#L178)
 
 **Keymap guards**
 
 - `<leader>Hr` wraps `kulala.run()` in `pcall` -> `notify_err`, no raw stack trace on a malformed `.http`.
-  [`keymaps.lua:199`](../../lua/cumulus/core/keymaps.lua#L199)
+  [`keymaps.lua:199`](../../lua/tetravim/core/keymaps.lua#L199)
 
 - `<leader>Hj` refuses a `.http` source buffer outright (never shells out to `jq` on request syntax).
-  [`keymaps.lua:226`](../../lua/cumulus/core/keymaps.lua#L226)
+  [`keymaps.lua:226`](../../lua/tetravim/core/keymaps.lua#L226)
 
 - `kulala_ui` response buffer skips the soft `looks_like_json` warning (known-good body).
-  [`keymaps.lua:244`](../../lua/cumulus/core/keymaps.lua#L244)
+  [`keymaps.lua:244`](../../lua/tetravim/core/keymaps.lua#L244)
 
 **jq argv & JSON predicate**
 
 - `{ "jq", "--", filter_expr }` — a filter starting with `-` is an argument, not a flag.
-  [`http.lua:46`](../../lua/cumulus/util/http.lua#L46)
+  [`http.lua:46`](../../lua/tetravim/util/http.lua#L46)
 
 - `looks_like_json` moved verbatim from `keymaps.lua` into the http module as the single public predicate.
-  [`http.lua:78`](../../lua/cumulus/util/http.lua#L78)
+  [`http.lua:78`](../../lua/tetravim/util/http.lua#L78)
 
 **OpenAPI generator guards**
 
 - `vim.fs.normalize` replaces `vim.fn.expand` so a spec path containing `%`/`#` is not mangled.
-  [`openapi.lua:135`](../../lua/cumulus/util/openapi.lua#L135)
+  [`openapi.lua:135`](../../lua/tetravim/util/openapi.lua#L135)
 
 - Leading UTF-8 BOM stripped before `vim.json.decode` so a BOM-first spec still parses.
-  [`openapi.lua:157`](../../lua/cumulus/util/openapi.lua#L157)
+  [`openapi.lua:157`](../../lua/tetravim/util/openapi.lua#L157)
 
 - Bare-slash server URL -> `{{baseUrl}}` placeholder + `notify_warn`; relative URL warns; multi-server names the pick.
-  [`openapi.lua:183`](../../lua/cumulus/util/openapi.lua#L183)
+  [`openapi.lua:183`](../../lua/tetravim/util/openapi.lua#L183)
 
 - Unresolved `{variable}` in the server URL warns (out-of-scope substitution) rather than looking like a bug.
-  [`openapi.lua:210`](../../lua/cumulus/util/openapi.lua#L210)
+  [`openapi.lua:210`](../../lua/tetravim/util/openapi.lua#L210)
 
 - CR/LF in `operationId`/`summary` collapses to one space (`[\r\n]+`) so the `### ` header stays single-line.
-  [`openapi.lua:55`](../../lua/cumulus/util/openapi.lua#L55)
+  [`openapi.lua:55`](../../lua/tetravim/util/openapi.lua#L55)
 
 - Required query/header params emit a deduped `# TODO` line; the param name is CR/LF-sanitized the same way.
-  [`openapi.lua:89`](../../lua/cumulus/util/openapi.lua#L89)
+  [`openapi.lua:89`](../../lua/tetravim/util/openapi.lua#L89)
 
 - Non-`/` path keys are skipped + warned, but `^x-` spec extensions on the Paths Object are skipped silently.
-  [`openapi.lua:230`](../../lua/cumulus/util/openapi.lua#L230)
+  [`openapi.lua:230`](../../lua/tetravim/util/openapi.lua#L230)
 
 **Peripherals**
 
 - `:checkhealth` gains a `curl` row (kulala's actual request backend for `<leader>Hr`).
-  [`health.lua:229`](../../lua/cumulus/health.lua#L229)
+  [`health.lua:229`](../../lua/tetravim/health.lua#L229)
 
 - Comment noting kulala shells out to `curl`; no option change.
-  [`tools-http.lua:16`](../../lua/cumulus/plugins/tools-http.lua#L16)
+  [`tools-http.lua:16`](../../lua/tetravim/plugins/tools-http.lua#L16)

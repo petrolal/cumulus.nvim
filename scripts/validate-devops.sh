@@ -9,7 +9,7 @@
 # Context: `create_root_finder` closes over `resolve_search_dir`, and
 # `M.find_tf_root`/`M.find_cfn_root`/`M.find_ansible_root`/`M.find_docker_root`/
 # `M.find_helm_root` are each built by calling `create_root_finder(...)` at
-# module-load time. A prior version of lua/cumulus/core/devops.lua declared
+# module-load time. A prior version of lua/tetravim/core/devops.lua declared
 # these `M.find_*_root` assignments BEFORE `resolve_search_dir`/
 # `create_root_finder` existed, which is a silent trap in Lua: the
 # assignments themselves don't error at load time (forward local references
@@ -27,7 +27,7 @@ echo "=== DevOps Root-Finder Declaration-Order Regression Guard ==="
 echo "[1/2] Static: devops.lua declares resolve_search_dir and create_root_finder BEFORE any M.find_*_root assignment..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local src = io.open('lua/cumulus/core/devops.lua', 'r'):read('*a')
+  local src = io.open('lua/tetravim/core/devops.lua', 'r'):read('*a')
 
   local resolve_pos = src:find('local function resolve_search_dir')
   local factory_pos = src:find('local function create_root_finder')
@@ -54,10 +54,10 @@ else
 end
 " -c "qa!"
 
-echo "[2/2] Behavioral: every M.find_*_root function is REAL-CALLABLE (unmocked engine) without erroring, regardless of whether the Cumulus engine binary is available in this environment..."
+echo "[2/2] Behavioral: every M.find_*_root function is REAL-CALLABLE (unmocked engine) without erroring, regardless of whether the TetraVim engine binary is available in this environment..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local devops = require('cumulus.core.devops')
+  local devops = require('tetravim.core.devops')
 
   local finders = {
     'find_tf_root',
@@ -70,7 +70,7 @@ local ok, err = pcall(function()
   vim.cmd('enew')
   local bufnr = vim.api.nvim_get_current_buf()
 
-  -- Suppress the 'Cumulus engine not found' ERROR notify this may fire in
+  -- Suppress the 'TetraVim engine not found' ERROR notify this may fire in
   -- an environment without the compiled engine binary -- this script only
   -- cares that the CALL ITSELF doesn't throw a Lua error (the
   -- declaration-order bug), not engine availability.
@@ -78,7 +78,7 @@ local ok, err = pcall(function()
   vim.notify = function() end
 
   for _, name in ipairs(finders) do
-    assert(type(devops[name]) == 'function', name .. ' is not a function on cumulus.core.devops')
+    assert(type(devops[name]) == 'function', name .. ' is not a function on tetravim.core.devops')
     local call_ok, call_err = pcall(devops[name], bufnr)
     if not call_ok then
       vim.notify = orig_notify

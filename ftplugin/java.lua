@@ -8,7 +8,7 @@
 -- (via project_rename's own guard) rather than silently falling through to
 -- the default rename. The global mapping for non-JVM filetypes is untouched.
 vim.keymap.set("n", "<leader>cr", function()
-  require("cumulus.util.refactor").project_rename()
+  require("tetravim.util.refactor").project_rename()
 end, { buffer = 0, desc = "Project-Wide Rename (Java)" })
 
 local ok, jdtls = pcall(require, "jdtls")
@@ -59,7 +59,7 @@ local config = {
       jdtls_dap.setup_dap_main_class_configs()
     end
     -- Setup Spring Boot DAP configurations (SPEC-006)
-    local ok_sb, springboot_debug = pcall(require, "cumulus.util.springboot-debug")
+    local ok_sb, springboot_debug = pcall(require, "tetravim.util.springboot-debug")
     if ok_sb and springboot_debug.setup_springboot_dap then
       springboot_debug.setup_springboot_dap(root_dir)
     end
@@ -75,43 +75,43 @@ local config = {
 
     -- SPEC-2.2: Intelligent Extraction
     vim.keymap.set("n", "<leader>ce", function()
-      require("cumulus.util.extract").extract_interface()
+      require("tetravim.util.extract").extract_interface()
     end, { buffer = bufnr, desc = "Extract Interface (Java)" })
     vim.keymap.set("v", "<leader>ce", function()
-      require("cumulus.util.extract").extract_interface(true)
+      require("tetravim.util.extract").extract_interface(true)
     end, { buffer = bufnr, desc = "Extract Interface (Java)" })
 
     vim.keymap.set("n", "<leader>ci", function()
-      require("cumulus.util.extract").inline()
+      require("tetravim.util.extract").inline()
     end, { buffer = bufnr, desc = "Inline (Java)" })
     vim.keymap.set("v", "<leader>ci", function()
-      require("cumulus.util.extract").inline(true)
+      require("tetravim.util.extract").inline(true)
     end, { buffer = bufnr, desc = "Inline (Java)" })
 
     vim.keymap.set("n", "<leader>cm", function()
-      require("cumulus.util.extract").extract_method()
+      require("tetravim.util.extract").extract_method()
     end, { buffer = bufnr, desc = "Extract Method (Java)" })
     vim.keymap.set("v", "<leader>cm", function()
-      require("cumulus.util.extract").extract_method(true)
+      require("tetravim.util.extract").extract_method(true)
     end, { buffer = bufnr, desc = "Extract Method (Java)" })
 
     vim.keymap.set("n", "<leader>cv", function()
-      require("cumulus.util.extract").extract_variable()
+      require("tetravim.util.extract").extract_variable()
     end, { buffer = bufnr, desc = "Extract Variable (Java)" })
     vim.keymap.set("v", "<leader>cv", function()
-      require("cumulus.util.extract").extract_variable(true)
+      require("tetravim.util.extract").extract_variable(true)
     end, { buffer = bufnr, desc = "Extract Variable (Java)" })
 
     vim.keymap.set("n", "<leader>cc", function()
-      require("cumulus.util.extract").extract_constant()
+      require("tetravim.util.extract").extract_constant()
     end, { buffer = bufnr, desc = "Extract Constant (Java)" })
     vim.keymap.set("v", "<leader>cc", function()
-      require("cumulus.util.extract").extract_constant(true)
+      require("tetravim.util.extract").extract_constant(true)
     end, { buffer = bufnr, desc = "Extract Constant (Java)" })
   end,
 }
 
 -- Capture JDTLS start time for sync health check (SPEC-005)
-_G.cumulus_jdtls_start_time = os.time()
+_G.tetravim_jdtls_start_time = os.time()
 
 jdtls.start_or_attach(config)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cumulus Neovim: Development Initialization
+# TetraVim Neovim: Development Initialization
 # Lightweight setup for developers - just config + plugins, no deps/engine/validation
 
 set -euo pipefail
@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "=================================================="
-echo "   Cumulus Neovim: Developer Setup               "
+echo "   TetraVim Neovim: Developer Setup               "
 echo "=================================================="
 echo ""
 
@@ -71,9 +71,9 @@ echo "  ✨ Ready for development!                      "
 echo "=================================================="
 echo ""
 echo "Next steps:"
-echo "  • nvim                     # Launch Cumulus"
-echo "  • :checkhealth cumulus     # Verify setup"
-echo "  • :help cumulus            # Read docs"
+echo "  • nvim                     # Launch TetraVim"
+echo "  • :checkhealth tetravim     # Verify setup"
+echo "  • :help tetravim            # Read docs"
 echo ""
 echo "Development notes:"
 echo "  • Config is symlinked from: $REPO_DIR"

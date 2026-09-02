@@ -18,4 +18,4 @@ Ensure the IDE never crashes, handles massive monorepos gracefully, provides cle
 - Language servers (like JDTLS) must have defined memory limits to prevent OOM errors, and an auto-restart mechanism must be in place.
 - Installation must support 100% headless setup via bootstrap scripts.
 - Healthchecks must output machine-readable JSON for compliance validation.
-- The editor theme and visual identity must synchronize with external `cumulus.dotfile` configurations and apply consistently across all UI primitives (e.g., lualine, telescope).
+- The editor theme and visual identity must synchronize with external `tetravim.dotfile` configurations and apply consistently across all UI primitives (e.g., lualine, telescope).

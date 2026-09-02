@@ -26,16 +26,16 @@ baseline_commit: '2d5be6b5093b60e568bfed3b8589195f68d10b5c'
 
 ## Code Map
 
-- `lua/cumulus/plugins/editor-snacks.lua` -- Contains the current `<leader>e` mapping which must be removed.
-- `lua/cumulus/plugins/editor-oil.lua` (New File) -- Will contain the `stevearc/oil.nvim` plugin specification and keymaps.
+- `lua/tetravim/plugins/editor-snacks.lua` -- Contains the current `<leader>e` mapping which must be removed.
+- `lua/tetravim/plugins/editor-oil.lua` (New File) -- Will contain the `stevearc/oil.nvim` plugin specification and keymaps.
 
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lua/cumulus/plugins/editor-snacks.lua` -- Remove the `<leader>e` keymap bound to `Snacks.explorer()` in the `keys` table, and remove any leftover `explorer` configuration from the `opts` block.
-- [x] `lua/cumulus/plugins/editor-oil.lua` -- Add a Lazy specification for `stevearc/oil.nvim` that returns the table directly without unnecessary nesting. Map `<leader>e` to open Oil (`<cmd>Oil<cr>`) with description "File Explorer".
-- [x] `lua/cumulus/plugins/editor-oil.lua` -- Configure setup options: `default_file_explorer = true`, `delete_to_trash = true`, and `view_options.show_hidden = false`.
-- [x] `lua/cumulus/plugins/editor-oil.lua` -- To support directory opening (`nvim .`) while respecting the lazy-loading constraint, add an `init` hook in the Lazy spec that eagerly loads `oil.nvim` only if the first argument is a directory.
+- [x] `lua/tetravim/plugins/editor-snacks.lua` -- Remove the `<leader>e` keymap bound to `Snacks.explorer()` in the `keys` table, and remove any leftover `explorer` configuration from the `opts` block.
+- [x] `lua/tetravim/plugins/editor-oil.lua` -- Add a Lazy specification for `stevearc/oil.nvim` that returns the table directly without unnecessary nesting. Map `<leader>e` to open Oil (`<cmd>Oil<cr>`) with description "File Explorer".
+- [x] `lua/tetravim/plugins/editor-oil.lua` -- Configure setup options: `default_file_explorer = true`, `delete_to_trash = true`, and `view_options.show_hidden = false`.
+- [x] `lua/tetravim/plugins/editor-oil.lua` -- To support directory opening (`nvim .`) while respecting the lazy-loading constraint, add an `init` hook in the Lazy spec that eagerly loads `oil.nvim` only if the first argument is a directory.
 - [x] `scripts/validate.sh` -- Add a verification step to ensure `<leader>e` is mapped to `<cmd>Oil<cr>` and `oil` module is available.
 
 **Acceptance Criteria:**
@@ -59,10 +59,10 @@ baseline_commit: '2d5be6b5093b60e568bfed3b8589195f68d10b5c'
 **Core Feature: Stateless File Management**
 
 - Configure stevearc/oil.nvim as the primary file manager, mapping to `<leader>e` and lazy-loading effectively.
-  [`editor-oil.lua:1`](../../lua/cumulus/plugins/editor-oil.lua#L1)
+  [`editor-oil.lua:1`](../../lua/tetravim/plugins/editor-oil.lua#L1)
 
 - Remove the legacy Snacks file explorer keymap.
-  [`editor-snacks.lua:159`](../../lua/cumulus/plugins/editor-snacks.lua#L159)
+  [`editor-snacks.lua:159`](../../lua/tetravim/plugins/editor-snacks.lua#L159)
 
 **Verification**
 

@@ -1,6 +1,6 @@
-# Cumulus: Enterprise IDE Migration - Epics & Stories
+# TetraVim: Enterprise IDE Migration - Epics & Stories
 
-**Product Vision:** Migrate `cumulus.nvim` from a powerful Neovim distribution into a fully stable, enterprise-grade, production-ready IDE that serves as a complete replacement for IntelliJ IDEA for JVM (Java, Kotlin, Scala) and Cloud Native development, while preserving the lightweight, keyboard-driven Neovim philosophy.
+**Product Vision:** Migrate `tetravim.nvim` from a powerful Neovim distribution into a fully stable, enterprise-grade, production-ready IDE that serves as a complete replacement for IntelliJ IDEA for JVM (Java, Kotlin, Scala) and Cloud Native development, while preserving the lightweight, keyboard-driven Neovim philosophy.
 
 **Status:** Ready for Sprint Planning  
 **Last Updated:** 2026-08-25  
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-To completely replace IntelliJ IDEA in enterprise environments, `cumulus.nvim` must provide absolute stability, advanced debugging and profiling, seamless database integration, and robust project-wide refactoring, without sacrificing the performance and ergonomics of Neovim.
+To completely replace IntelliJ IDEA in enterprise environments, `tetravim.nvim` must provide absolute stability, advanced debugging and profiling, seamless database integration, and robust project-wide refactoring, without sacrificing the performance and ergonomics of Neovim.
 
 This plan breaks down the migration into actionable Epics:
 
@@ -147,11 +147,11 @@ This plan breaks down the migration into actionable Epics:
 
 ## Story 5.3: Global Visual Identity & Dotfile Sync
 **As a** developer  
-**I want to** have a consistent visual identity that shares the `cumulus.dotfile` theme  
+**I want to** have a consistent visual identity that shares the `tetravim.dotfile` theme  
 **So that** my entire development environment, from terminal to editor, feels unified  
 
 **Acceptance Criteria:**
-- [ ] Extract existing color palettes to align with `cumulus.dotfile`.
+- [ ] Extract existing color palettes to align with `tetravim.dotfile`.
 - [ ] Create a shared theme bridge or sync mechanism to consume external color configurations.
 - [ ] Ensure all UI primitives (lualine, telescope, etc.) respect the dotfile theme.
 

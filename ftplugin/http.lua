@@ -1,4 +1,4 @@
--- Cumulus .http Buffer Conventions (SPEC-3.2: HTTP Client & REST API Explorer)
+-- TetraVim .http Buffer Conventions (SPEC-3.2: HTTP Client & REST API Explorer)
 -- Sets buffer-local formatting and comment handling for .http files
 -- (IntelliJ HTTP Client / kulala.nvim syntax)
 

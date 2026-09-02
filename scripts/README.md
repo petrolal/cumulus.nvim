@@ -1,4 +1,4 @@
-# Cumulus Installation Scripts
+# TetraVim Installation Scripts
 
 ## Quick Reference
 
@@ -19,7 +19,7 @@ cn install
 ```
 - Full system setup
 - Installs dependencies (git, nvim, java, ripgrep)
-- Builds/downloads cumulus-engine
+- Builds/downloads tetravim-engine
 - Complete verification
 
 ---
@@ -45,8 +45,8 @@ cn install
 
 **Example:**
 ```bash
-git clone https://github.com/petrolal/cumulus.nvim.git
-cd cumulus.nvim
+git clone https://github.com/petrolal/tetravim.nvim.git
+cd tetravim.nvim
 bash scripts/dev-init.sh
 nvim
 ```
@@ -75,7 +75,7 @@ nvim
 
 **What it does:**
 1. Checks/installs system dependencies
-2. Builds/downloads cumulus-engine
+2. Builds/downloads tetravim-engine
 3. Symlinks `~/.config/nvim` → repo
 4. Syncs plugins
 5. Verifies health
@@ -100,7 +100,7 @@ Just delegates to `install-cn.sh`.
 ## Decision Tree
 
 ```
-Are you a developer working on cumulus.nvim?
+Are you a developer working on tetravim.nvim?
 ├─ YES → bash scripts/dev-init.sh
 └─ NO (end user)
    ├─ In the repo? → bash bootstrap.sh

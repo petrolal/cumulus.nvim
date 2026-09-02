@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cumulus Neovim: Unified Installation Script
+# TetraVim Neovim: Unified Installation Script
 # Single entry point for all setup: cn install
 
 set -euo pipefail
@@ -17,7 +17,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # ============================================================================
 check_and_install_deps() {
   echo "=================================================="
-  echo "        Cumulus Neovim: Full Installation        "
+  echo "        TetraVim Neovim: Full Installation        "
   echo "=================================================="
   echo ""
   echo "[1/5] Checking system dependencies..."
@@ -124,7 +124,7 @@ setup_config() {
 
   NVIM_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
 
-  # Backup existing config if not already a cumulus symlink
+  # Backup existing config if not already a tetravim symlink
   if [ -e "$NVIM_CONFIG" ] && [ ! -L "$NVIM_CONFIG" ]; then
     BACKUP="$NVIM_CONFIG.backup.$(date +%s)"
     echo "  ⚠ Backing up existing nvim config to $BACKUP"
@@ -136,7 +136,7 @@ setup_config() {
     rm "$NVIM_CONFIG"
   fi
 
-  # Create symlink to cumulus repo
+  # Create symlink to tetravim repo
   mkdir -p "$(dirname "$NVIM_CONFIG")"
   ln -sf "$REPO_DIR" "$NVIM_CONFIG"
   echo "  ✔ Configuration linked: $NVIM_CONFIG → $REPO_DIR"
@@ -167,7 +167,7 @@ setup_launcher() {
   CN_LAUNCHER="$LOCAL_BIN/cn"
   cat << 'EOF' > "$CN_LAUNCHER"
 #!/usr/bin/env bash
-# Cumulus Neovim Launcher
+# TetraVim Neovim Launcher
 # Usage: cn [install|update|command...]
 
 REPO_DIR=""
@@ -178,13 +178,13 @@ fi
 case "${1:-}" in
   setup|sync)
     if [ -z "$REPO_DIR" ]; then
-      echo "✖ Cumulus Neovim not found. Clone the repo and run: bash bootstrap.sh"
+      echo "✖ TetraVim Neovim not found. Clone the repo and run: bash bootstrap.sh"
       exit 1
     fi
     exec bash "$REPO_DIR/scripts/install-cn.sh"
     ;;
   *)
-    # Just launch nvim with cumulus config
+    # Just launch nvim with tetravim config
     exec nvim "$@"
     ;;
 esac
@@ -199,7 +199,7 @@ EOF
         if ! grep -q "export PATH.*\.local/bin" "$RC" 2>/dev/null; then
           {
             echo ""
-            echo "# Add ~/.local/bin to PATH for Cumulus"
+            echo "# Add ~/.local/bin to PATH for TetraVim"
             echo "export PATH=\"\$HOME/.local/bin:\$PATH\""
           } >> "$RC"
         fi
@@ -210,7 +210,7 @@ EOF
 
   echo ""
   echo "  Quick start:"
-  echo "    • Launch Cumulus: nvim"
+  echo "    • Launch TetraVim: nvim"
   echo "    • Check status: cn status"
   echo "    • Update: cn setup"
   echo "    • Get help: cn --help"
@@ -227,20 +227,20 @@ verify_install() {
   if [ -f "$HEALTH_SCRIPT" ]; then
     if bash "$HEALTH_SCRIPT"; then
       echo "=================================================="
-      echo "  🎉 Cumulus Neovim Ready! 🎉"
+      echo "  🎉 TetraVim Neovim Ready! 🎉"
       echo "=================================================="
       echo ""
       echo "Next steps:"
       echo "  1. Launch Neovim: nvim"
-      echo "  2. Check health: :checkhealth cumulus"
-      echo "  3. Read docs: :help cumulus"
+      echo "  2. Check health: :checkhealth tetravim"
+      echo "  3. Read docs: :help tetravim"
       return 0
     fi
   fi
 
   echo "=================================================="
   echo "  ⚠ Installation complete, but health check had issues"
-  echo "  Run inside nvim: :checkhealth cumulus"
+  echo "  Run inside nvim: :checkhealth tetravim"
   echo "=================================================="
 }
 

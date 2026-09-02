@@ -2,16 +2,16 @@ stepsCompleted:
   - step-01-validate-prerequisites
   - step-02-design-epics
 inputDocuments:
-  - /home/petrolal/cumulus.nvim/_bmad-output/specs/spec-cumulus.nvim/SPEC.md
-  - /home/petrolal/cumulus.nvim/_bmad-output/planning-artifacts/architecture/architecture-cumulus.nvim-2026-08-25/ARCHITECTURE-SPINE.md
-  - /home/petrolal/cumulus.nvim/_bmad-output/planning-artifacts/ux-designs/ux-cumulus.nvim-2026-08-25/DESIGN.md
-  - /home/petrolal/cumulus.nvim/_bmad-output/planning-artifacts/ux-designs/ux-cumulus.nvim-2026-08-25/EXPERIENCE.md
+  - /home/petrolal/tetravim.nvim/_bmad-output/specs/spec-tetravim.nvim/SPEC.md
+  - /home/petrolal/tetravim.nvim/_bmad-output/planning-artifacts/architecture/architecture-tetravim.nvim-2026-08-25/ARCHITECTURE-SPINE.md
+  - /home/petrolal/tetravim.nvim/_bmad-output/planning-artifacts/ux-designs/ux-tetravim.nvim-2026-08-25/DESIGN.md
+  - /home/petrolal/tetravim.nvim/_bmad-output/planning-artifacts/ux-designs/ux-tetravim.nvim-2026-08-25/EXPERIENCE.md
 ---
 
-# cumulus.nvim - Epic Breakdown
+# tetravim.nvim - Epic Breakdown
 
 ## Overview
-This document provides the complete epic and story breakdown for cumulus.nvim, decomposing the requirements from the new Lua migration Spec, UX Design, and Architecture requirements into implementable stories.
+This document provides the complete epic and story breakdown for tetravim.nvim, decomposing the requirements from the new Lua migration Spec, UX Design, and Architecture requirements into implementable stories.
 
 ## Epic 1: Core Lua Migration & UI Primitives
 
@@ -31,7 +31,7 @@ So that I can leverage standard Neovim buffer commands rather than a complex sid
 ### Story 1.2: Native Spring Boot Discovery
 As a Java developer,
 I want to discover Spring Beans and Endpoints using native Lua and Tree-sitter,
-So that I can navigate my project without relying on the legacy cumulus-engine.
+So that I can navigate my project without relying on the legacy tetravim-engine.
 
 **Acceptance Criteria:**
 **Given** I am in a Spring Boot project

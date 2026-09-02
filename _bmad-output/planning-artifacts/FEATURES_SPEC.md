@@ -1,12 +1,12 @@
-# Cumulus IDE - Feature Specifications
+# TetraVim IDE - Feature Specifications
 
-This document outlines all core features that `cumulus.nvim` must maintain and support as it transitions from a custom Scala backend to a pure Neovim-plugin architecture. Any AI agents or developers contributing to this project must ensure these features are fully implemented using standard Lua plugins and Language Servers.
+This document outlines all core features that `tetravim.nvim` must maintain and support as it transitions from a custom Scala backend to a pure Neovim-plugin architecture. Any AI agents or developers contributing to this project must ensure these features are fully implemented using standard Lua plugins and Language Servers.
 
 ## 1. Cloud Theme System
 - **Feature:** Multi-cloud theme provider that alters UI colors, highlighting, and icons based on the target cloud environment.
 - **Supported Themes:** `aws`, `azure`, `gcp`, `oci` (Oracle Cloud Infrastructure).
 - **Keymap:** `<leader>ct` to switch themes dynamically.
-- **Migration Strategy:** Implement a custom Lua module (`lua/cumulus/theme/init.lua`) that bridges with base color schemes (e.g., Catppuccin or Tokyonight) and applies specific highlight overrides (e.g., AWS orange, Azure blue).
+- **Migration Strategy:** Implement a custom Lua module (`lua/tetravim/theme/init.lua`) that bridges with base color schemes (e.g., Catppuccin or Tokyonight) and applies specific highlight overrides (e.g., AWS orange, Azure blue).
 
 ## 2. Spring Ecosystem Integration
 - **Feature:** Deep insight into Spring Boot applications.

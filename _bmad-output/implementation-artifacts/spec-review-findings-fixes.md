@@ -28,16 +28,16 @@ baseline_commit: '13f9835702a51d857f6ce8ec956970396bbabfae'
 
 ## Code Map
 
-- `lua/cumulus/util/refactor-treesitter.lua:548-551` -- `scan_root_async`'s JVM `package_ok` check compares candidate file's own package to `old_package` only; misses cross-package `@Autowired` usage.
-- `lua/cumulus/util/refactor.lua` -- `M._show_preview` (apply_workspace_edit, ~line 416), `M._on_rename_response` (root fallback, ~line 367), `project_rename` (busy-flag on ui.input, ~line 269-284).
-- `lua/cumulus/util/extract.lua` -- `handle_action_response` (ambiguous first-match selection), `do_action` (visual-mode byte-vs-char offsets), both share the new lock module.
-- New `lua/cumulus/util/action-lock.lua` -- shared busy lock consumed by refactor.lua and extract.lua (replaces each module's own `M._busy`).
-- `lua/cumulus/util/db.lua` -- `parse_properties_lines` (`:`/whitespace separators), `parse_yaml_lines` (explicit empty-string scalar), `resolve_placeholders` (empty-string-vs-unset, nested placeholder), `jdbc_to_dadbod_url` (already-has-credentials), `find_files`/`discover_datasources` (MAX_DEPTH truncation warning).
-- `lua/cumulus/plugins/tools-dadbod.lua` -- extract discovery+assign into a named local fn; add `DirChanged` autocmd re-invoking it.
-- `lua/cumulus/util/openapi.lua` -- `method_entries` loop (operation-level `$ref` skip+warn), `base_url` resolution (unresolved `{var}` template warning), `build_request_block` (BODY_METHODS empty-body placeholder, path-param TODO comments).
-- `lua/cumulus/core/keymaps.lua:191-205` -- `<leader>Hj` add a soft JSON-shape check before jq_filter.
-- `lua/cumulus/health.lua` -- add SPEC-2.1 (`rg`/`grep`) and SPEC-3.1 (`vim-dadbod-completion`, `sql` treesitter parser) sections, mirroring the existing SPEC-3.2 section (~line 187).
-- `lua/cumulus/tests/extract_spec.lua:36-51` -- replace the regex-only java.lua test with a dynamic one, mirroring `refactor_spec.lua:374-405`'s `loadfile` + mocked `jdtls.start_or_attach` pattern, covering all 5 keymaps (ce/ci/cm/cv/cc).
+- `lua/tetravim/util/refactor-treesitter.lua:548-551` -- `scan_root_async`'s JVM `package_ok` check compares candidate file's own package to `old_package` only; misses cross-package `@Autowired` usage.
+- `lua/tetravim/util/refactor.lua` -- `M._show_preview` (apply_workspace_edit, ~line 416), `M._on_rename_response` (root fallback, ~line 367), `project_rename` (busy-flag on ui.input, ~line 269-284).
+- `lua/tetravim/util/extract.lua` -- `handle_action_response` (ambiguous first-match selection), `do_action` (visual-mode byte-vs-char offsets), both share the new lock module.
+- New `lua/tetravim/util/action-lock.lua` -- shared busy lock consumed by refactor.lua and extract.lua (replaces each module's own `M._busy`).
+- `lua/tetravim/util/db.lua` -- `parse_properties_lines` (`:`/whitespace separators), `parse_yaml_lines` (explicit empty-string scalar), `resolve_placeholders` (empty-string-vs-unset, nested placeholder), `jdbc_to_dadbod_url` (already-has-credentials), `find_files`/`discover_datasources` (MAX_DEPTH truncation warning).
+- `lua/tetravim/plugins/tools-dadbod.lua` -- extract discovery+assign into a named local fn; add `DirChanged` autocmd re-invoking it.
+- `lua/tetravim/util/openapi.lua` -- `method_entries` loop (operation-level `$ref` skip+warn), `base_url` resolution (unresolved `{var}` template warning), `build_request_block` (BODY_METHODS empty-body placeholder, path-param TODO comments).
+- `lua/tetravim/core/keymaps.lua:191-205` -- `<leader>Hj` add a soft JSON-shape check before jq_filter.
+- `lua/tetravim/health.lua` -- add SPEC-2.1 (`rg`/`grep`) and SPEC-3.1 (`vim-dadbod-completion`, `sql` treesitter parser) sections, mirroring the existing SPEC-3.2 section (~line 187).
+- `lua/tetravim/tests/extract_spec.lua:36-51` -- replace the regex-only java.lua test with a dynamic one, mirroring `refactor_spec.lua:374-405`'s `loadfile` + mocked `jdtls.start_or_attach` pattern, covering all 5 keymaps (ce/ci/cm/cv/cc).
 - `scripts/validate-extract.sh` -- currently corrupted (2.3M lines, ~184 unique); replace wholesale with a real behavioral smoke test mirroring `validate-refactor.sh`'s mocked-LSP-seam pattern, exercising `do_action`/`handle_action_response` for at least `extract_method`.
 - `scripts/validate-refactor.sh` -- extend fixture with a cross-package consumer that imports the renamed class (proves the package_ok fix); add a case forcing the grep fallback (stub `vim.system` to fail the `rg` call) to cover `M._grep_fallback`.
 - `scripts/validate-http.sh` -- add fixture paths for a whole-path-item `$ref` (already-implemented, untested) and an operation-level `$ref` (new fix), asserting both are skipped with a warning and other operations still generate.
@@ -66,7 +66,7 @@ baseline_commit: '13f9835702a51d857f6ce8ec956970396bbabfae'
 - `db.lua`'s new `find_files` now returns `(results, truncated)`; one existing call site (`vim.list_extend(yml_files, find_files(...))`) needed parenthesizing to avoid passing `truncated` as `vim.list_extend`'s `start` argument.
 - `resolve_placeholders` reads env vars via `vim.uv.os_getenv` instead of `vim.env[name]` -- `vim.env` collapses an explicitly-empty variable (`FOO=`) to Lua `nil`, which would have silently defeated the empty-string-vs-unset fix.
 - Updated the two pre-existing `M._busy`-based tests (`refactor_spec.lua`, `extract_spec.lua`) to drive the shared `action-lock.lua` instead, since `M._busy` no longer exists; added a new cross-module lock integration test.
-- `stylua` incidentally reformatted two pre-existing trailing-whitespace violations in `ftplugin/java.lua` and `lua/cumulus/plugins/lsp-kotlin.lua` (unrelated to this bugfix's scope, whitespace-only).
+- `stylua` incidentally reformatted two pre-existing trailing-whitespace violations in `ftplugin/java.lua` and `lua/tetravim/plugins/lsp-kotlin.lua` (unrelated to this bugfix's scope, whitespace-only).
 
 **Acceptance Criteria:**
 - Given a class renamed via `<leader>cr`, when a different-package file `@Autowired`-injects it by imported simple name, then that file's reference is included in the rename preview and applied.
@@ -111,60 +111,60 @@ Shared lock module (`action-lock.lua`) is a ~15-line table with three functions;
 **Cross-package Spring rename correctness (the highest-severity fix)**
 
 - Entry point: a same-file-package-only check missed the common cross-package `@Autowired` case.
-  [`refactor-treesitter.lua:582`](../../lua/cumulus/util/refactor-treesitter.lua#L582)
+  [`refactor-treesitter.lua:582`](../../lua/tetravim/util/refactor-treesitter.lua#L582)
 
 - New helper admitting a cross-package candidate that imports the renamed symbol.
-  [`refactor-treesitter.lua:110`](../../lua/cumulus/util/refactor-treesitter.lua#L110)
+  [`refactor-treesitter.lua:110`](../../lua/tetravim/util/refactor-treesitter.lua#L110)
 
 - Root-dir cwd-fallback removed -- warns and skips the Spring scan rather than guessing the wrong tree.
-  [`refactor.lua:383`](../../lua/cumulus/util/refactor.lua#L383)
+  [`refactor.lua:383`](../../lua/tetravim/util/refactor.lua#L383)
 
 **Shared action-lock (cross-module race prevention)**
 
 - New ~15-line shared lock replacing each module's private `M._busy`.
-  [`action-lock.lua:18`](../../lua/cumulus/util/action-lock.lua#L18)
+  [`action-lock.lua:18`](../../lua/tetravim/util/action-lock.lua#L18)
 
 - `refactor.lua` now requires the shared lock instead of its own flag.
-  [`refactor.lua:37`](../../lua/cumulus/util/refactor.lua#L37)
+  [`refactor.lua:37`](../../lua/tetravim/util/refactor.lua#L37)
 
 - Every `vim.ui.select`/`vim.ui.input` call is `pcall`-wrapped so a throwing UI provider can't strand the lock.
-  [`refactor.lua:436`](../../lua/cumulus/util/refactor.lua#L436)
+  [`refactor.lua:436`](../../lua/tetravim/util/refactor.lua#L436)
 
 - Same `pcall`-around-`vim.ui.select` guard applied to extract.lua's two confirm/disambiguation prompts.
-  [`extract.lua:122`](../../lua/cumulus/util/extract.lua#L122)
+  [`extract.lua:122`](../../lua/tetravim/util/extract.lua#L122)
 
 **Extract: disambiguation and multi-byte correctness**
 
 - Collects every matching code action instead of picking the first; prompts when ambiguous.
-  [`extract.lua:122`](../../lua/cumulus/util/extract.lua#L122)
+  [`extract.lua:122`](../../lua/tetravim/util/extract.lua#L122)
 
 - Visual-mode selection converted from byte columns to LSP character offsets.
-  [`extract.lua:215`](../../lua/cumulus/util/extract.lua#L215)
+  [`extract.lua:215`](../../lua/tetravim/util/extract.lua#L215)
 
 **DB credential discovery edge cases**
 
 - `resolve_placeholders`: nested/unterminated/nameless placeholders now reported unresolved instead of corrupting the value or throwing.
-  [`db.lua:270`](../../lua/cumulus/util/db.lua#L270)
+  [`db.lua:270`](../../lua/tetravim/util/db.lua#L270)
 
 - JDBC URL whose authority already carries credentials is now skipped rather than double-spliced.
-  [`db.lua:364`](../../lua/cumulus/util/db.lua#L364)
+  [`db.lua:364`](../../lua/tetravim/util/db.lua#L364)
 
 - `.properties`/`.yml` parsers: `:`/whitespace separators and explicit empty-string scalars.
-  [`db.lua:105`](../../lua/cumulus/util/db.lua#L105)
+  [`db.lua:105`](../../lua/tetravim/util/db.lua#L105)
 
 - `DirChanged` re-runs discovery on project switch, scoped to global-only `:cd` (not `:lcd`/`:tcd`).
-  [`tools-dadbod.lua:67`](../../lua/cumulus/plugins/tools-dadbod.lua#L67)
+  [`tools-dadbod.lua:67`](../../lua/tetravim/plugins/tools-dadbod.lua#L67)
 
 **OpenAPI `$ref` and template handling**
 
 - Operation-level `$ref` (as opposed to whole-path-item `$ref`, already handled) now skipped with a warning.
-  [`openapi.lua:193`](../../lua/cumulus/util/openapi.lua#L193)
+  [`openapi.lua:193`](../../lua/tetravim/util/openapi.lua#L193)
 
 - Unresolved `{variable}` template in a server URL now warns instead of silently baking in the literal.
-  [`openapi.lua:149`](../../lua/cumulus/util/openapi.lua#L149)
+  [`openapi.lua:149`](../../lua/tetravim/util/openapi.lua#L149)
 
 - Path-parameter TODO comments deduped by name.
-  [`openapi.lua:61`](../../lua/cumulus/util/openapi.lua#L61)
+  [`openapi.lua:61`](../../lua/tetravim/util/openapi.lua#L61)
 
 **DevOps regression guard**
 
@@ -174,10 +174,10 @@ Shared lock module (`action-lock.lua`) is a ~15-line table with three functions;
 **Peripherals: health checks, keymaps, tests**
 
 - New `:checkhealth` sections for SPEC-2.1 (`rg`/`grep`) and SPEC-3.1 (dadbod-completion, sql parser).
-  [`health.lua:116`](../../lua/cumulus/health.lua#L116)
+  [`health.lua:116`](../../lua/tetravim/health.lua#L116)
 
 - `<leader>Hj` now soft-warns on non-JSON input without false-positiving on JSON Lines.
-  [`keymaps.lua:217`](../../lua/cumulus/core/keymaps.lua#L217)
+  [`keymaps.lua:217`](../../lua/tetravim/core/keymaps.lua#L217)
 
 - Rewritten from a corrupted 2.3M-line file into a real behavioral smoke test for the extract dispatch pipeline.
   [`validate-extract.sh:1`](../../scripts/validate-extract.sh#L1)

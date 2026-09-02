@@ -14,7 +14,7 @@
 # Stages:
 #   [0/7] install diffview.nvim (install-only; lazy-lock.json restored after)
 #   [1/7] plugin loads; :Diffview* commands + <leader>gc* mappings resolve
-#   [2/7] :checkhealth cumulus carries the new section
+#   [2/7] :checkhealth tetravim carries the new section
 #   [3/7] outside a git work tree: guard + <leader>gco callback -> error, nothing opens
 #   [4/7] git binary absent ($PATH stripped): guard error mentions install/PATH; health reports "not found"
 #   [5/7] mid-merge repo: <leader>gco callback opens a diffview tabpage (real
@@ -31,7 +31,7 @@
 
 set -e
 
-echo "=== Cumulus Advanced Git Conflict Resolution (SPEC-4.1) Smoke Test ==="
+echo "=== TetraVim Advanced Git Conflict Resolution (SPEC-4.1) Smoke Test ==="
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -83,7 +83,7 @@ local ok, err = pcall(function()
   assert(mapped('gcf', { 'n' }), '<leader>gcf (toggle files) mapping missing')
 
   -- Frozen boundary: no new global keymap outside <leader>g.
-  local diffview_spec = require('cumulus.plugins.tools-diffview')[1]
+  local diffview_spec = require('tetravim.plugins.tools-diffview')[1]
   for _, k in ipairs(diffview_spec.keys) do
     assert(tostring(k[1]):match('^<leader>g'), k[1] .. ' escapes the <leader>g group')
   end
@@ -96,12 +96,12 @@ else
 end
 " -c "qa!"
 
-# -- [2/7] :checkhealth cumulus reports the new section. -----------------
-echo "[2/7] Health: :checkhealth cumulus output contains the Advanced Git Conflict Resolution section..."
-nvim --headless -u init.lua -c "checkhealth cumulus" -c "lua
+# -- [2/7] :checkhealth tetravim reports the new section. -----------------
+echo "[2/7] Health: :checkhealth tetravim output contains the Advanced Git Conflict Resolution section..."
+nvim --headless -u init.lua -c "checkhealth tetravim" -c "lua
 local ok, err = pcall(function()
   local out = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n')
-  assert(out:find('Advanced Git Conflict Resolution', 1, true), 'health section header missing from :checkhealth cumulus')
+  assert(out:find('Advanced Git Conflict Resolution', 1, true), 'health section header missing from :checkhealth tetravim')
   assert(out:lower():find('diffview', 1, true), 'health section does not mention diffview.nvim')
   assert(out:lower():find('git:', 1, true), 'health section does not report on the git binary')
 end)
@@ -109,7 +109,7 @@ if not ok then
   io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
   vim.cmd('cquit 1')
 else
-  print('OK: :checkhealth cumulus reports the Advanced Git Conflict Resolution section')
+  print('OK: :checkhealth tetravim reports the Advanced Git Conflict Resolution section')
 end
 " -c "qa!"
 
@@ -124,7 +124,7 @@ local ok, err = pcall(function()
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(errors, { msg = msg, level = level }) end
 
-  local git = require('cumulus.util.git')
+  local git = require('tetravim.util.git')
   local tabs_before = #vim.api.nvim_list_tabpages()
 
   -- direct guard()
@@ -161,7 +161,7 @@ end
 #          row. (A genuinely stripped $PATH also breaks unrelated plugins that
 #          shell out to git on load, e.g. kulala's grammar bootstrap, which
 #          would spew ENOENT tracebacks unrelated to this story.)
-echo "[4/7] Guard: with git reported absent, guard() errors (install/PATH) and :checkhealth cumulus reports git NOT found..."
+echo "[4/7] Guard: with git reported absent, guard() errors (install/PATH) and :checkhealth tetravim reports git NOT found..."
 PATCH_EXECUTABLE="vim.fn.executable = (function(o) return function(n) if n == 'git' then return 0 end return o(n) end end)(vim.fn.executable)"
 
 nvim --headless -u init.lua -c "lua $PATCH_EXECUTABLE" -c "lua
@@ -172,7 +172,7 @@ local ok, err = pcall(function()
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(errors, { msg = msg, level = level }) end
 
-  local git = require('cumulus.util.git')
+  local git = require('tetravim.util.git')
   local proceed = git.guard()
   assert(git.in_worktree() == false, 'in_worktree() must be false when git is not executable')
 
@@ -194,7 +194,7 @@ else
 end
 " -c "qa!"
 
-nvim --headless -u init.lua -c "lua $PATCH_EXECUTABLE" -c "checkhealth cumulus" -c "lua
+nvim --headless -u init.lua -c "lua $PATCH_EXECUTABLE" -c "checkhealth tetravim" -c "lua
 local ok, err = pcall(function()
   local out = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n'):lower()
   assert(out:find('advanced git conflict resolution', 1, true), 'health section missing')
@@ -204,7 +204,7 @@ if not ok then
   io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
   vim.cmd('cquit 1')
 else
-  print('OK: :checkhealth cumulus reports git NOT found when it is unavailable')
+  print('OK: :checkhealth tetravim reports git NOT found when it is unavailable')
 end
 " -c "qa!"
 
@@ -212,8 +212,8 @@ end
 echo "[5/7] Runtime: in a repo with a live merge conflict, the <leader>gco callback opens a diff4_mixed merge tabpage; <leader>gcq closes it..."
 MERGE_REPO="$(mktemp -d)"
 git -C "$MERGE_REPO" init -q
-git -C "$MERGE_REPO" config user.email cumulus-test@example.com
-git -C "$MERGE_REPO" config user.name "Cumulus Test"
+git -C "$MERGE_REPO" config user.email tetravim-test@example.com
+git -C "$MERGE_REPO" config user.name "TetraVim Test"
 git -C "$MERGE_REPO" config commit.gpgsign false
 printf 'alpha\nbeta\ngamma\n' > "$MERGE_REPO/file.txt"
 git -C "$MERGE_REPO" add file.txt
@@ -352,8 +352,8 @@ end
 echo "[7/7] Runtime: buffer-local <leader>gx3 / <leader>gX1 keymaps resolve regions; merge buffer has no <leader>c* / dx picks..."
 RESOLVE_REPO="$(mktemp -d)"
 git -C "$RESOLVE_REPO" init -q
-git -C "$RESOLVE_REPO" config user.email cumulus-test@example.com
-git -C "$RESOLVE_REPO" config user.name "Cumulus Test"
+git -C "$RESOLVE_REPO" config user.email tetravim-test@example.com
+git -C "$RESOLVE_REPO" config user.name "TetraVim Test"
 git -C "$RESOLVE_REPO" config commit.gpgsign false
 # The two edited lines sit far apart (8 unchanged lines between them) so git
 # keeps them as two distinct conflict regions rather than coalescing one.

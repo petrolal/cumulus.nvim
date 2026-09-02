@@ -4,7 +4,7 @@
 
 ## Goal
 
-Deliver a best-in-class debugging and profiling experience for JVM applications (Java, Kotlin, Scala), including Spring Boot and microservices, that rivals IntelliJ IDEA's debugger. This is the "execution parity" pillar of the broader effort to migrate `cumulus.nvim` from a Neovim distribution into a full enterprise-grade IDE replacement for IntelliJ, so debugging and profiling must be robust enough that developers never need to fall back to another tool for execution-time troubleshooting.
+Deliver a best-in-class debugging and profiling experience for JVM applications (Java, Kotlin, Scala), including Spring Boot and microservices, that rivals IntelliJ IDEA's debugger. This is the "execution parity" pillar of the broader effort to migrate `tetravim.nvim` from a Neovim distribution into a full enterprise-grade IDE replacement for IntelliJ, so debugging and profiling must be robust enough that developers never need to fall back to another tool for execution-time troubleshooting.
 
 ## Stories
 

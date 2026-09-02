@@ -1,10 +1,10 @@
-# Cumulus Neovim Installation Guide
+# TetraVim Neovim Installation Guide
 
 ## Quick Start (One Shot Install)
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/petrolal/cumulus.nvim.git ~/.config/nvim
+git clone https://github.com/petrolal/tetravim.nvim.git ~/.config/nvim
 ```
 
 ### 2. Run Setup
@@ -23,7 +23,7 @@ This single command will:
 nvim
 ```
 
-Plain `nvim` command now launches Cumulus. That's it!
+Plain `nvim` command now launches TetraVim. That's it!
 
 ---
 
@@ -36,9 +36,9 @@ Plain `nvim` command now launches Cumulus. That's it!
 - **ripgrep** - For fast file searching (Telescope)
 - **fd** - For fast file finding
 
-### Cumulus Components
+### TetraVim Components
 - **~/.config/nvim** - Symlinked to repository
-- **Lazy plugins** - All plugins from `lua/cumulus/plugins/` (nvim-jdtls, nvim-dap, etc.)
+- **Lazy plugins** - All plugins from `lua/tetravim/plugins/` (nvim-jdtls, nvim-dap, etc.)
 
 ---
 
@@ -70,7 +70,7 @@ Run inside Neovim:
 
 ## Uninstall
 
-To remove Cumulus:
+To remove TetraVim:
 
 ```bash
 # Remove configuration folder
@@ -85,5 +85,5 @@ mv ~/.config/nvim.backup.* ~/.config/nvim
 ## Getting Help
 
 Online:
-- GitHub Issues: https://github.com/petrolal/cumulus.nvim/issues
-- Documentation: https://github.com/petrolal/cumulus.nvim
+- GitHub Issues: https://github.com/petrolal/tetravim.nvim/issues
+- Documentation: https://github.com/petrolal/tetravim.nvim

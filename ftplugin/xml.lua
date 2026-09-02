@@ -1,4 +1,4 @@
--- Cumulus XML Buffer Conventions (IntelliJ Ultimate Parity; LSP/formatting owned by lsp-devops.lua)
+-- TetraVim XML Buffer Conventions (IntelliJ Ultimate Parity; LSP/formatting owned by lsp-devops.lua)
 -- Sets buffer-local formatting and comment handling for XML files
 
 -- Indentation: 2-space soft tabs (IntelliJ default)

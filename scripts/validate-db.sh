@@ -7,11 +7,11 @@
 # non-zero exit code.
 #
 # Exercises the ACTUAL plugin-spec table returned by
-# lua/cumulus/plugins/tools-dadbod.lua (via `require`, the same table
+# lua/tetravim/plugins/tools-dadbod.lua (via `require`, the same table
 # lazy.nvim would consume) -- not just string-matching its source text --
 # for the cmp-source registration wiring, the nvim-treesitter
 # ensure_installed extension, and init()'s vim.g.dbs assignment. Separately
-# exercises lua/cumulus/util/db.lua's discover_datasources() directly
+# exercises lua/tetravim/util/db.lua's discover_datasources() directly
 # against real fixture files on disk for the parsing/precedence/
 # malformed-block/encoding logic. A live `:DBUI` connection list and real
 # schema-aware completion suggestions are UI-facing and not exercised
@@ -19,7 +19,7 @@
 
 set -e
 
-echo "=== Cumulus Embedded Database Explorer (SPEC-3.1) Smoke Test ==="
+echo "=== TetraVim Embedded Database Explorer (SPEC-3.1) Smoke Test ==="
 
 FIXTURE_ROOT="$(mktemp -d)"
 trap 'rm -rf "$FIXTURE_ROOT"' EXIT
@@ -317,12 +317,12 @@ YML
 echo "[1/28] Static: db.lua module shape + tools-dadbod.lua wiring (supplementary only -- the real wiring behavior is exercised functionally below)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   assert(type(db.discover_datasources) == 'function', 'discover_datasources missing')
 
-  local dadbod_src = io.open('lua/cumulus/plugins/tools-dadbod.lua', 'r'):read('*a')
+  local dadbod_src = io.open('lua/tetravim/plugins/tools-dadbod.lua', 'r'):read('*a')
   assert(dadbod_src:match('vim%-dadbod%-completion'), 'tools-dadbod.lua must reference vim-dadbod-completion')
-  assert(dadbod_src:match('cumulus%.util%.db'), 'tools-dadbod.lua must reference cumulus.util.db')
+  assert(dadbod_src:match('tetravim%.util%.db'), 'tools-dadbod.lua must reference tetravim.util.db')
   assert(dadbod_src:match('vim%.g%.dbs'), 'tools-dadbod.lua must assign vim.g.dbs')
   assert(dadbod_src:match('\"sql\"'), 'tools-dadbod.lua must extend treesitter ensure_installed with sql')
   assert(dadbod_src:match('FileType'), 'tools-dadbod.lua must register a FileType autocmd for the cmp source')
@@ -338,7 +338,7 @@ end
 echo "[2/28] Functional: vim-dadbod-completion cmp source registration -- fresh buffer, no duplication on re-fire, and a buffer whose filetype was already sql BEFORE config() ran..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local spec = require('cumulus.plugins.tools-dadbod')
+  local spec = require('tetravim.plugins.tools-dadbod')
   assert(spec[1] and type(spec[1].config) == 'function', 'plugin spec[1].config missing')
 
   -- Buffer whose filetype is already 'sql' BEFORE config() runs -- this is
@@ -400,7 +400,7 @@ end
 echo "[3/28] Functional: nvim-treesitter ensure_installed (resolved via the plugin spec's own opts function) contains \"sql\"..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local spec = require('cumulus.plugins.tools-dadbod')
+  local spec = require('tetravim.plugins.tools-dadbod')
   assert(spec[2] and spec[2][1] == 'nvim-treesitter/nvim-treesitter', 'spec[2] must be the nvim-treesitter fragment')
   assert(type(spec[2].opts) == 'function', 'spec[2].opts must be a function (matching lsp-toml.lua pattern)')
 
@@ -422,12 +422,12 @@ local ok, err = pcall(function()
   local root = '$FIXTURE_ROOT/props-only'
   vim.cmd('cd ' .. vim.fn.fnameescape(root))
 
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local expected = db.discover_datasources(vim.fn.getcwd())
   assert(#expected == 1, 'fixture setup problem: expected discover_datasources to find 1 entry')
 
   vim.g.dbs = nil
-  local spec = require('cumulus.plugins.tools-dadbod')
+  local spec = require('tetravim.plugins.tools-dadbod')
   assert(type(spec[1].init) == 'function', 'plugin spec[1].init missing')
   spec[1].init()
 
@@ -445,18 +445,18 @@ end
 echo "[5/28] Functional: init() surfaces a WARN notification (and leaves vim.g.dbs unset) instead of silently swallowing a discover_datasources() error..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  package.loaded['cumulus.util.db'] = { discover_datasources = function() error('simulated discovery bug') end }
+  package.loaded['tetravim.util.db'] = { discover_datasources = function() error('simulated discovery bug') end }
 
   local notified = {}
   local orig_notify = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
 
   vim.g.dbs = nil
-  local spec = require('cumulus.plugins.tools-dadbod')
+  local spec = require('tetravim.plugins.tools-dadbod')
   spec[1].init()
 
   vim.notify = orig_notify
-  package.loaded['cumulus.util.db'] = nil
+  package.loaded['tetravim.util.db'] = nil
 
   assert(vim.g.dbs == nil, 'vim.g.dbs must stay unset when discovery errors')
   local saw_warn = false
@@ -476,7 +476,7 @@ end
 echo "[6/28] Behavioral: application.properties only -> one dadbod-style connection..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local root = '$FIXTURE_ROOT/props-only'
   local dbs = db.discover_datasources(root)
   assert(#dbs == 1, 'expected exactly 1 entry, got ' .. #dbs)
@@ -497,7 +497,7 @@ end
 echo "[7/28] Behavioral: application.yml AND application.yaml (both nested-indentation extensions Spring Boot recognizes) each produce one connection..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
 
   local yml_dbs = db.discover_datasources('$FIXTURE_ROOT/yml-only')
   assert(#yml_dbs == 1, 'expected exactly 1 entry from application.yml, got ' .. #yml_dbs)
@@ -526,7 +526,7 @@ end
 echo "[8/28] Behavioral: both application.properties and application.yml present -> properties wins, yml ignored..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local root = '$FIXTURE_ROOT/both'
   local dbs = db.discover_datasources(root)
   assert(#dbs == 1, 'expected exactly 1 entry (properties should win outright), got ' .. #dbs)
@@ -547,7 +547,7 @@ end
 echo "[9/28] Behavioral: no spring.datasource.* keys anywhere -> discover_datasources() returns an empty table, not an error (vim.g.dbs wiring itself is covered by [4/28]/[5/28], not asserted here)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local root = '$FIXTURE_ROOT/none'
   local dbs = db.discover_datasources(root)
   assert(type(dbs) == 'table', 'discover_datasources must always return a table')
@@ -570,7 +570,7 @@ local ok, err = pcall(function()
     table.insert(notified, { msg = msg, level = level })
   end
 
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local root = '$FIXTURE_ROOT/malformed'
   local dbs = db.discover_datasources(root)
 
@@ -596,7 +596,7 @@ end
 echo "[11/28] Behavioral: credentials containing URL-reserved characters (@, :, /) are percent-encoded, not spliced in raw..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local root = '$FIXTURE_ROOT/reserved-chars'
   local dbs = db.discover_datasources(root)
   assert(#dbs == 1, 'expected exactly 1 entry, got ' .. #dbs)
@@ -616,7 +616,7 @@ end
 echo "[12/28] Behavioral: \${VAR:default} placeholders resolve via the env var when set, else the literal default; JDBC-url-shaped defaults (containing their own ':' and '/') resolve intact..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local root = '$FIXTURE_ROOT/placeholder-with-default'
 
   -- No matching env vars set -> falls back to the literal defaults.
@@ -652,7 +652,7 @@ local ok, err = pcall(function()
   local orig_notify = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
 
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local root = '$FIXTURE_ROOT/placeholder-unresolved'
   local dbs = db.discover_datasources(root)
 
@@ -680,7 +680,7 @@ end
 echo "[14/28] Behavioral: \${VAR} placeholders with no default resolve via a project-root .env file (export prefix, comments, quoted values all handled); a real env var still wins over .env..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local root = '$FIXTURE_ROOT/dotenv-resolved'
 
   local dbs = db.discover_datasources(root)
@@ -711,7 +711,7 @@ end
 echo "[15/28] bmad-review fix: explicit YAML empty-string scalar (password: \"\") is NOT treated as missing..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local dbs = db.discover_datasources('$FIXTURE_ROOT/yaml-empty-password')
   assert(#dbs == 1, 'expected exactly 1 entry, got ' .. #dbs)
   assert(
@@ -730,7 +730,7 @@ end
 echo "[16/28] bmad-review fix: .properties accepts ':' (and bare whitespace) as the key/value separator, not just '='..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local dbs = db.discover_datasources('$FIXTURE_ROOT/properties-colon-sep')
   assert(#dbs == 1, 'expected exactly 1 entry, got ' .. #dbs)
   assert(
@@ -749,7 +749,7 @@ end
 echo "[17/28] bmad-review fix: an env var explicitly set to the empty string resolves as empty, not as unset..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   vim.fn.setenv('BMAD_REVIEW_EMPTY_PW', '')
   local dbs = db.discover_datasources('$FIXTURE_ROOT/empty-env-var')
   vim.fn.setenv('BMAD_REVIEW_EMPTY_PW', vim.NIL)
@@ -770,7 +770,7 @@ end
 echo "[18/28] bmad-review fix: a JDBC URL whose authority already carries credentials is skipped, never double-spliced..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local notified = {}
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
@@ -794,7 +794,7 @@ end
 echo "[19/28] bmad-review fix: a nested \${OUTER:\${INNER}} default is reported unresolved, never silently corrupted..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local notified = {}
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
@@ -818,7 +818,7 @@ end
 echo "[20/28] bmad-review fix: hitting the MAX_DEPTH (8) scan limit warns that coverage may be incomplete..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local notified = {}
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
@@ -842,7 +842,7 @@ end
 echo "[21/28] adversarial-review fix: an unterminated \${VAR placeholder (no closing '}') is reported unresolved, never silently corrupted or thrown from..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local notified = {}
   local orig = vim.notify
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
@@ -867,7 +867,7 @@ end
 echo "[22/28] adversarial-review fix: a nameless placeholder ('\${}' / '\${:default}') does not throw indexing the environment/dotenv with a nil/empty key -- treated as unresolved instead..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
 
   for _, fixture in ipairs({ 'nameless-placeholder', 'nameless-placeholder-with-default' }) do
     local notified = {}
@@ -896,7 +896,7 @@ end
 echo "[23/28] adversarial-review fix: an explicitly-empty .env value wins over a placeholder's own default (not treated as \"absent, use default\")..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local dbs = db.discover_datasources('$FIXTURE_ROOT/dotenv-empty-wins')
   assert(#dbs == 1, 'expected exactly 1 entry, got ' .. #dbs)
   assert(
@@ -915,10 +915,10 @@ end
 echo "[24/28] adversarial-review fix: DirChanged re-runs discovery on project switch (global-scope cd only, never window/tab-local lcd/tcd), and correctly CLEARS vim.g.dbs to nil (frozen I/O-matrix 'left unset') when switching into a project with zero datasources..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local spec = require('cumulus.plugins.tools-dadbod')
+  local spec = require('tetravim.plugins.tools-dadbod')
   spec[1].config()
 
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
 
   -- vim.fn.chdir() is the GLOBAL-scope 'cd' -- it fires a real DirChanged
   -- with v:event.scope == 'global' (verified empirically), unlike manually
@@ -970,7 +970,7 @@ end
 echo "[25/28] bmad-code-review fix: \${VAR:} (explicit empty default) resolves to an empty string (Spring semantics), not 'unresolved -> skip connection'..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local dbs = db.discover_datasources('$FIXTURE_ROOT/empty-default-placeholder')
   assert(#dbs == 1, 'expected exactly 1 connection from an empty-default placeholder, got ' .. #dbs)
   -- password resolved to '' -> percent-encoded empty -> 'user:@host'
@@ -987,7 +987,7 @@ end
 echo "[26/28] bmad-code-review fix: an application.properties under src/test/resources is NOT discovered as a real datasource..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local dbs = db.discover_datasources('$FIXTURE_ROOT/test-resources-excluded')
   assert(#dbs == 1, 'expected exactly 1 connection (src/main only), got ' .. #dbs)
   assert(dbs[1].url:match('/prod_db'), 'the src/main datasource must win, got: ' .. dbs[1].url)
@@ -1004,7 +1004,7 @@ end
 echo "[27/28] bmad-code-review fix: a multi-module root yields one entry per module with DISTINCT, path-qualified names..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local dbs = db.discover_datasources('$FIXTURE_ROOT/multi-module')
   assert(#dbs == 2, 'expected 2 connections for a 2-module project, got ' .. #dbs)
   assert(dbs[1].name ~= dbs[2].name, 'multi-module entries must have distinct names, both were: ' .. dbs[1].name)
@@ -1021,7 +1021,7 @@ end
 echo "[28/28] bmad-code-review fix: an application.properties with NO datasource keys does NOT mask a valid application.yml in the same root (properties tier wins only on a USABLE entry); and cmp source registration MERGES rather than replaces existing sources..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local db = require('cumulus.util.db')
+  local db = require('tetravim.util.db')
   local dbs = db.discover_datasources('$FIXTURE_ROOT/props-keyless-yml-valid')
   assert(#dbs == 1, 'a keyless .properties must fall through to the valid .yml, got ' .. #dbs .. ' entries')
   assert(dbs[1].url:match('@localhost:3306/fellthrough$'), 'the YAML datasource must be the one discovered, got: ' .. dbs[1].url)
@@ -1036,7 +1036,7 @@ local ok, err = pcall(function()
     vim.cmd('enew')
     local buf = vim.api.nvim_get_current_buf()
     vim.bo[buf].filetype = 'sql'
-    require('cumulus.plugins.tools-dadbod')[1].config()
+    require('tetravim.plugins.tools-dadbod')[1].config()
     local srcs = vim.api.nvim_buf_call(buf, function()
       return cmp.get_config().sources
     end)

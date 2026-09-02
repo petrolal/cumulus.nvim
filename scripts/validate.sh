@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Quick smoke validation test script for cumulus.nvim
+# Quick smoke validation test script for tetravim.nvim
 
 set -e
 
-echo "=== Cumulus Neovim Distribution Smoke Test ==="
+echo "=== TetraVim Neovim Distribution Smoke Test ==="
 
 echo "[1/7] Verifying Shell Scripts Syntax (bootstrap.sh, install.sh, validate.sh)..."
 if bash -n bootstrap.sh && bash -n scripts/install.sh && bash -n scripts/validate.sh; then
@@ -22,7 +22,7 @@ else
 fi
 
 echo "[3/7] Verifying Core Modules (Options, Keymaps, Autocmds, Health)..."
-if nvim -u init.lua --headless "+lua require('cumulus.core.options'); require('cumulus.core.keymaps'); require('cumulus.core.autocmds'); require('cumulus.health'); print('✔ Core modules loaded successfully')" +qa; then
+if nvim -u init.lua --headless "+lua require('tetravim.core.options'); require('tetravim.core.keymaps'); require('tetravim.core.autocmds'); require('tetravim.health'); print('✔ Core modules loaded successfully')" +qa; then
   echo "✔ Core modules PASSED."
 else
   echo "✖ Core modules FAILED."
@@ -30,7 +30,7 @@ else
 fi
 
 echo "[4/7] Verifying Theme System (AWS, Azure, GCP, OCI)..."
-if nvim -u init.lua --headless "+lua require('cumulus.theme').setup(); print('✔ Theme system initialized')" +qa; then
+if nvim -u init.lua --headless "+lua require('tetravim.theme').setup(); print('✔ Theme system initialized')" +qa; then
   echo "✔ Theme system PASSED."
 else
   echo "✖ Theme system FAILED."
@@ -55,7 +55,7 @@ fi
 
 echo "[6/7] Verifying Engine Bridge & DevOps Suite (Terraform, CloudFormation, Ansible, WhichKey, Mason & Scoped Buffers)..."
 if nvim -u init.lua --headless "+lua
-  local e = require('cumulus.util.engine')
+  local e = require('tetravim.util.engine')
   assert(type(e.detect_platform) == 'function', 'detect_platform not found')
   assert(type(e.install) == 'function', 'install not found')
   assert(type(e.run_command) == 'function', 'run_command not found')
@@ -93,16 +93,16 @@ if nvim -u init.lua --headless "+lua
   e.notify_err('test err', 'Test Title')
 
   -- Verify purged stub and wrapper files do not exist
-  assert(not pcall(require, 'cumulus.util.rust'), 'rust.lua must be purged')
-  assert(not pcall(require, 'cumulus.util.beans'), 'beans.lua must be purged')
-  assert(not pcall(require, 'cumulus.util.endpoints'), 'endpoints.lua must be purged')
-  assert(not pcall(require, 'cumulus.util.import-optimizer'), 'import-optimizer.lua must be purged')
-  assert(not pcall(require, 'cumulus.util.k8s-validator'), 'k8s-validator.lua must be purged')
-  assert(not pcall(require, 'cumulus.util.migrations'), 'migrations.lua must be purged')
-  assert(not pcall(require, 'cumulus.util.conflicts'), 'conflicts.lua must be purged')
-  assert(not pcall(require, 'cumulus.util.coverage'), 'coverage.lua must be purged')
-  assert(not pcall(require, 'cumulus.util.log-indexer'), 'log-indexer.lua must be purged')
-  local devops = require('cumulus.core.devops')
+  assert(not pcall(require, 'tetravim.util.rust'), 'rust.lua must be purged')
+  assert(not pcall(require, 'tetravim.util.beans'), 'beans.lua must be purged')
+  assert(not pcall(require, 'tetravim.util.endpoints'), 'endpoints.lua must be purged')
+  assert(not pcall(require, 'tetravim.util.import-optimizer'), 'import-optimizer.lua must be purged')
+  assert(not pcall(require, 'tetravim.util.k8s-validator'), 'k8s-validator.lua must be purged')
+  assert(not pcall(require, 'tetravim.util.migrations'), 'migrations.lua must be purged')
+  assert(not pcall(require, 'tetravim.util.conflicts'), 'conflicts.lua must be purged')
+  assert(not pcall(require, 'tetravim.util.coverage'), 'coverage.lua must be purged')
+  assert(not pcall(require, 'tetravim.util.log-indexer'), 'log-indexer.lua must be purged')
+  local devops = require('tetravim.core.devops')
   assert(type(devops.cfn_validate) == 'function')
   assert(type(devops.sam_local_invoke) == 'function')
   assert(type(devops.ansible_syntax_check) == 'function')
@@ -158,7 +158,7 @@ if nvim -u init.lua --headless "+lua
   assert(found_keymaps >= 26, 'DevOps keymap count mismatch: found ' .. found_keymaps .. ' of 26')
 
   -- Robust Mason spec lookup
-  local mason_plugins = require('cumulus.plugins.tools-mason')
+  local mason_plugins = require('tetravim.plugins.tools-mason')
   local ensure_installed = nil
   for _, plugin in ipairs(mason_plugins) do
     if plugin.opts and plugin.opts.ensure_installed then
@@ -176,12 +176,12 @@ if nvim -u init.lua --headless "+lua
   end
 
   -- SPEC-1.1: Advanced JVM Debugger (nvim-dap integration) -- Scala/Metals
-  local lsp_scala_ok, lsp_scala_spec = pcall(require, 'cumulus.plugins.lsp-scala')
-  assert(lsp_scala_ok, 'cumulus.plugins.lsp-scala failed to load: ' .. tostring(lsp_scala_spec))
+  local lsp_scala_ok, lsp_scala_spec = pcall(require, 'tetravim.plugins.lsp-scala')
+  assert(lsp_scala_ok, 'tetravim.plugins.lsp-scala failed to load: ' .. tostring(lsp_scala_spec))
   assert(type(lsp_scala_spec) == 'table' and type(lsp_scala_spec[1]) == 'table', 'lsp-scala must return a valid lazy.nvim spec table')
   assert(lsp_scala_spec[1][1] == 'scalameta/nvim-metals', 'lsp-scala spec must declare scalameta/nvim-metals')
-  local dap_devops_ok, dap_devops_spec = pcall(require, 'cumulus.plugins.tools-dap-devops')
-  assert(dap_devops_ok, 'cumulus.plugins.tools-dap-devops failed to load: ' .. tostring(dap_devops_spec))
+  local dap_devops_ok, dap_devops_spec = pcall(require, 'tetravim.plugins.tools-dap-devops')
+  assert(dap_devops_ok, 'tetravim.plugins.tools-dap-devops failed to load: ' .. tostring(dap_devops_spec))
   local dap_keys = dap_devops_spec[1].keys
   local dap_key_lhs = {}
   for _, k in ipairs(dap_keys) do
@@ -192,7 +192,7 @@ if nvim -u init.lua --headless "+lua
   end
 
   -- Robust Conform spec lookup
-  local conform_plugins = require('cumulus.plugins.tools-formatting')
+  local conform_plugins = require('tetravim.plugins.tools-formatting')
   local formatters_by_ft = nil
   for _, plugin in ipairs(conform_plugins) do
     if plugin.opts and plugin.opts.formatters_by_ft then
@@ -300,9 +300,9 @@ if nvim -u init.lua --headless "+lua
   e.classify_workspace = orig_classify_workspace
 
   -- Story 11.3: Workspace Classification & DevOps Roots Engine Integration
-  local jvm = require('cumulus.util.jvm')
-  local maven_util = require('cumulus.util.maven')
-  local gradle_util = require('cumulus.util.gradle')
+  local jvm = require('tetravim.util.jvm')
+  local maven_util = require('tetravim.util.maven')
+  local gradle_util = require('tetravim.util.gradle')
   assert(type(jvm.is_jvm_project) == 'function', 'jvm.is_jvm_project not found')
 
   if e.is_available() then
@@ -419,7 +419,7 @@ if nvim -u init.lua --headless "+lua
   devops.find_cfn_root = orig_find_cfn_root
 
   -- Story 1.2: Continuous Profiling
-  local profiling = require('cumulus.util.profiling')
+  local profiling = require('tetravim.util.profiling')
   assert(type(profiling.start) == 'function', 'profiling.start not found')
   assert(type(profiling.stop) == 'function', 'profiling.stop not found')
   assert(type(profiling.view) == 'function', 'profiling.view not found')
@@ -443,7 +443,7 @@ if nvim -u init.lua --headless "+lua
 
 
   local plat = e.detect_platform() or 'unknown'
-  assert(vim.fn.exists(':CumulusInstallEngine') == 2, ':CumulusInstallEngine not registered')
+  assert(vim.fn.exists(':TetraVimInstallEngine') == 2, ':TetraVimInstallEngine not registered')
   print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling, Workspace Root Discovery, Global Root Execution with Warning Toasts & JVM Debugger DAP (Scala/Metals) verified (' .. plat .. ')')
 
 " +qa; then

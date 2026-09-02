@@ -4,46 +4,46 @@ index f944075..b41e348 100644
 +++ b/ftplugin/java.lua
 @@ -65,6 +65,14 @@ local config = {
      vim.keymap.set("n", "<leader>cr", function()
-       require("cumulus.util.refactor").project_rename()
+       require("tetravim.util.refactor").project_rename()
      end, { buffer = bufnr, desc = "Project-Wide Rename (Java)" })
 +
 +    -- SPEC-2.2: Intelligent Extraction
 +    vim.keymap.set("n", "<leader>ce", function()
-+      require("cumulus.util.extract").extract_interface()
++      require("tetravim.util.extract").extract_interface()
 +    end, { buffer = bufnr, desc = "Extract Interface (Java)" })
 +    vim.keymap.set("n", "<leader>ci", function()
-+      require("cumulus.util.extract").inline()
++      require("tetravim.util.extract").inline()
 +    end, { buffer = bufnr, desc = "Inline (Java)" })
    end,
  }
  
-diff --git a/lua/cumulus/plugins/lsp-kotlin.lua b/lua/cumulus/plugins/lsp-kotlin.lua
+diff --git a/lua/tetravim/plugins/lsp-kotlin.lua b/lua/tetravim/plugins/lsp-kotlin.lua
 index c70d07b..ba04f3d 100644
---- a/lua/cumulus/plugins/lsp-kotlin.lua
-+++ b/lua/cumulus/plugins/lsp-kotlin.lua
+--- a/lua/tetravim/plugins/lsp-kotlin.lua
++++ b/lua/tetravim/plugins/lsp-kotlin.lua
 @@ -61,6 +61,14 @@ return {
              vim.keymap.set("n", "<leader>cr", function()
-               require("cumulus.util.refactor").project_rename()
+               require("tetravim.util.refactor").project_rename()
              end, { buffer = bufnr, desc = "Project-Wide Rename (Kotlin)" })
 +
 +            -- SPEC-2.2: Intelligent Extraction
 +            vim.keymap.set("n", "<leader>ce", function()
-+              require("cumulus.util.extract").extract_interface()
++              require("tetravim.util.extract").extract_interface()
 +            end, { buffer = bufnr, desc = "Extract Interface (Kotlin)" })
 +            vim.keymap.set("n", "<leader>ci", function()
-+              require("cumulus.util.extract").inline()
++              require("tetravim.util.extract").inline()
 +            end, { buffer = bufnr, desc = "Inline (Kotlin)" })
            end,
            settings = {
              kotlin = {
---- a/lua/cumulus/tests/extract_spec.lua
-+++ b/lua/cumulus/tests/extract_spec.lua
+--- a/lua/tetravim/tests/extract_spec.lua
++++ b/lua/tetravim/tests/extract_spec.lua
 -- SPEC-2.2: Intelligent Extraction -- static shape tests
 
 describe("Extract (SPEC-2.2)", function()
-  describe("cumulus.util.extract", function()
+  describe("tetravim.util.extract", function()
     it("should expose extract_interface and inline", function()
-      local extract = require("cumulus.util.extract")
+      local extract = require("tetravim.util.extract")
       assert.is_table(extract)
       assert.is_function(extract.extract_interface)
       assert.is_function(extract.inline)
@@ -51,7 +51,7 @@ describe("Extract (SPEC-2.2)", function()
     end)
 
     it("should reject a second action while one is already in flight (M._busy)", function()
-      local extract = require("cumulus.util.extract")
+      local extract = require("tetravim.util.extract")
       local notified = {}
       local orig_notify = vim.notify
       vim.notify = function(msg, level)
@@ -76,13 +76,13 @@ describe("Extract (SPEC-2.2)", function()
       local content = f:read("*a")
       f:close()
       assert.is_truthy(content:match('"<leader>ce"'))
-      assert.is_truthy(content:match('require%("cumulus%.util%.extract"%)%.extract_interface'))
+      assert.is_truthy(content:match('require%("tetravim%.util%.extract"%)%.extract_interface'))
       assert.is_truthy(content:match('"<leader>ci"'))
-      assert.is_truthy(content:match('require%("cumulus%.util%.extract"%)%.inline'))
+      assert.is_truthy(content:match('require%("tetravim%.util%.extract"%)%.inline'))
     end)
 
     it("lsp-kotlin.lua's on_attach should install REAL buffer-local <leader>ce and <leader>ci mappings", function()
-      local lsp_kotlin = require("cumulus.plugins.lsp-kotlin")
+      local lsp_kotlin = require("tetravim.plugins.lsp-kotlin")
       local on_attach = lsp_kotlin[2].opts.servers.kotlin_language_server.on_attach
       assert.is_function(on_attach)
 
@@ -106,24 +106,24 @@ describe("Extract (SPEC-2.2)", function()
     end)
   end)
 end)
---- a/lua/cumulus/util/extract.lua
-+++ b/lua/cumulus/util/extract.lua
+--- a/lua/tetravim/util/extract.lua
++++ b/lua/tetravim/util/extract.lua
 local M = {}
 
-local refactor = require("cumulus.util.refactor")
+local refactor = require("tetravim.util.refactor")
 
 M.ACTION_TIMEOUT_MS = 10000
 
 local function notify_err(msg)
-  vim.notify(msg, vim.log.levels.ERROR, { title = "Cumulus Extract" })
+  vim.notify(msg, vim.log.levels.ERROR, { title = "TetraVim Extract" })
 end
 
 local function notify_warn(msg)
-  vim.notify(msg, vim.log.levels.WARN, { title = "Cumulus Extract" })
+  vim.notify(msg, vim.log.levels.WARN, { title = "TetraVim Extract" })
 end
 
 local function notify_info(msg)
-  vim.notify(msg, vim.log.levels.INFO, { title = "Cumulus Extract" })
+  vim.notify(msg, vim.log.levels.INFO, { title = "TetraVim Extract" })
 end
 
 local function handle_action_response(bufnr, jvm_client, action_name, responses, kind_prefix)
@@ -295,7 +295,7 @@ return M
 
 set -e
 
-echo "=== Cumulus Intelligent Extraction (SPEC-2.2) Smoke Test ==="
+echo "=== TetraVim Intelligent Extraction (SPEC-2.2) Smoke Test ==="
 
 FIXTURE_DIR="$(mktemp -d)"
 trap 'rm -rf "$FIXTURE_DIR"' EXIT
@@ -316,7 +316,7 @@ JAVA
 echo "[1/4] Static: extract.lua module shape..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   assert(type(extract.extract_interface) == 'function', 'extract_interface missing')
   assert(type(extract.inline) == 'function', 'inline missing')
 
@@ -324,7 +324,7 @@ local ok, err = pcall(function()
   assert(java_src:match('extract_interface'), 'ftplugin/java.lua missing extract_interface')
   assert(java_src:match('inline'), 'ftplugin/java.lua missing inline')
 
-  local kotlin_src = io.open('lua/cumulus/plugins/lsp-kotlin.lua', 'r'):read('*a')
+  local kotlin_src = io.open('lua/tetravim/plugins/lsp-kotlin.lua', 'r'):read('*a')
   assert(kotlin_src:match('extract_interface'), 'lsp-kotlin.lua missing extract_interface')
   assert(kotlin_src:match('inline'), 'lsp-kotlin.lua missing inline')
 end)
@@ -386,7 +386,7 @@ local ok, err = pcall(function()
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
   vim.api.nvim_win_set_cursor(0, { 3, 13 })
   
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.extract_interface()
 
   vim.wait(1000, function() return false end, 100)
@@ -455,7 +455,7 @@ local ok, err = pcall(function()
 
   local before = buf_content(java_file)
   
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.inline()
 
   vim.wait(1000, function() return false end, 100)
@@ -507,7 +507,7 @@ local ok, err = pcall(function()
 
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
   
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.inline()
 
   vim.wait(1000, function() return false end, 100)
@@ -582,7 +582,7 @@ local ok, err = pcall(function()
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
   vim.api.nvim_win_set_cursor(0, { 5, 8 })
   
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.inline()
 
   vim.wait(1000, function() return false end, 100)
@@ -619,7 +619,7 @@ local ok, err = pcall(function()
 
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
   
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.inline()
 
   vim.wait(1000, function() return false end, 100)
@@ -673,7 +673,7 @@ local ok, err = pcall(function()
 
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
   
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   
   extract.inline() -- First call
   

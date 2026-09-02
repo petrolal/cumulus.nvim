@@ -1,3 +1,3 @@
--- Cumulus Neovim Distribution Entry Point
-require("cumulus.core")
-require("cumulus.core.lazy")
+-- TetraVim Neovim Distribution Entry Point
+require("tetravim.core")
+require("tetravim.core.lazy")

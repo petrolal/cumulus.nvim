@@ -1,4 +1,4 @@
--- Cumulus HTML Buffer Conventions (IntelliJ Ultimate Parity)
+-- TetraVim HTML Buffer Conventions (IntelliJ Ultimate Parity)
 -- Sets buffer-local formatting and comment handling for HTML files
 
 -- Indentation: 2-space soft tabs (IntelliJ default)

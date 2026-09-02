@@ -1,14 +1,14 @@
-# cumulus.nvim
+# tetravim.nvim
 
 > Enterprise-ready Neovim distribution for modern JVM backend engineering (Java, Kotlin, Scala, Gradle) and Cloud Native development.
 
-Built entirely on the standard Neovim ecosystem (Lua, standard LSPs, Treesitter, DAP) to serve as a full, stable replacement for IntelliJ IDEA. It pairs seamlessly with [`cumulus.dotfiles`](https://github.com/petrolal/cumulus.dotfiles).
+Built entirely on the standard Neovim ecosystem (Lua, standard LSPs, Treesitter, DAP) to serve as a full, stable replacement for IntelliJ IDEA. It pairs seamlessly with [`tetravim.dotfiles`](https://github.com/petrolal/tetravim.dotfiles).
 
 ---
 
 ## Vision & Architecture
 
-**Cumulus** is designed to provide best-in-class JVM and Cloud intelligence directly within Neovim.
+**TetraVim** is designed to provide best-in-class JVM and Cloud intelligence directly within Neovim.
 
 Previously, this project relied on a custom background Scala engine. We are actively **migrating away** from that custom backend to embrace the standard Neovim plugin ecosystem. The goal is to provide parity with IntelliJ IDEA utilizing standard, stable, community-backed plugins.
 
@@ -26,7 +26,7 @@ Previously, this project relied on a custom background Scala engine. We are acti
 ### Quick Shell Bootstrap
 
 ```bash
-git clone https://github.com/petrolal/cumulus.nvim.git ~/.config/nvim
+git clone https://github.com/petrolal/tetravim.nvim.git ~/.config/nvim
 cd ~/.config/nvim
 ./bootstrap.sh
 ```

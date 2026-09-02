@@ -8,5 +8,5 @@
 -- the global vim.lsp.buf.rename(). The global mapping for non-JVM
 -- filetypes is untouched.
 vim.keymap.set("n", "<leader>cr", function()
-  require("cumulus.util.refactor").project_rename()
+  require("tetravim.util.refactor").project_rename()
 end, { buffer = 0, desc = "Project-Wide Rename (Kotlin)" })

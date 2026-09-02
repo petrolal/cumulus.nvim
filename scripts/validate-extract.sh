@@ -20,7 +20,7 @@
 
 set -e
 
-echo "=== Cumulus Intelligent Extraction (SPEC-2.2) Smoke Test ==="
+echo "=== TetraVim Intelligent Extraction (SPEC-2.2) Smoke Test ==="
 
 FIXTURE_DIR="$(mktemp -d)"
 trap 'rm -rf "$FIXTURE_DIR"' EXIT
@@ -41,7 +41,7 @@ JAVA
 echo "[1/7] Static: extract.lua / action-lock.lua module shape; ftplugin/java.lua and lsp-kotlin.lua wire up all 5 actions..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   assert(type(extract.extract_interface) == 'function', 'extract_interface missing')
   assert(type(extract.inline) == 'function', 'inline missing')
   assert(type(extract.extract_method) == 'function', 'extract_method missing')
@@ -49,7 +49,7 @@ local ok, err = pcall(function()
   assert(type(extract.extract_constant) == 'function', 'extract_constant missing')
   assert(type(extract.ACTION_TIMEOUT_MS) == 'number', 'ACTION_TIMEOUT_MS missing')
 
-  local action_lock = require('cumulus.util.action-lock')
+  local action_lock = require('tetravim.util.action-lock')
   assert(type(action_lock.is_busy) == 'function', 'action-lock.is_busy missing')
   assert(type(action_lock.acquire) == 'function', 'action-lock.acquire missing')
   assert(type(action_lock.release) == 'function', 'action-lock.release missing')
@@ -59,7 +59,7 @@ local ok, err = pcall(function()
     assert(java_src:match(name), 'ftplugin/java.lua missing ' .. name)
   end
 
-  local kotlin_src = io.open('lua/cumulus/plugins/lsp-kotlin.lua', 'r'):read('*a')
+  local kotlin_src = io.open('lua/tetravim/plugins/lsp-kotlin.lua', 'r'):read('*a')
   for _, name in ipairs({ 'extract_interface', 'inline', 'extract_method', 'extract_variable', 'extract_constant' }) do
     assert(kotlin_src:match(name), 'lsp-kotlin.lua missing ' .. name)
   end
@@ -114,10 +114,10 @@ local ok, err = pcall(function()
   vim.ui.select = function(_, _, on_choice) on_choice('Apply') end
 
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.extract_method()
 
-  local action_lock = require('cumulus.util.action-lock')
+  local action_lock = require('tetravim.util.action-lock')
   vim.wait(5000, function() return not action_lock.is_busy() end, 50)
 
   local saved_ei = vim.o.eventignore
@@ -174,10 +174,10 @@ local ok, err = pcall(function()
   vim.ui.select = function(_, _, on_choice) on_choice('Cancel') end
 
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.extract_method()
 
-  local action_lock = require('cumulus.util.action-lock')
+  local action_lock = require('tetravim.util.action-lock')
   vim.wait(5000, function() return not action_lock.is_busy() end, 50)
 
   local after = table.concat(vim.fn.readfile(java_file), '\n')
@@ -242,10 +242,10 @@ local ok, err = pcall(function()
   end
 
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.extract_method()
 
-  local action_lock = require('cumulus.util.action-lock')
+  local action_lock = require('tetravim.util.action-lock')
   vim.wait(5000, function() return not action_lock.is_busy() end, 50)
 
   assert(#select_calls == 2, 'expected disambiguation THEN confirm (2 vim.ui.select calls), got ' .. #select_calls)
@@ -308,10 +308,10 @@ local ok, err = pcall(function()
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
 
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.extract_method()
 
-  local action_lock = require('cumulus.util.action-lock')
+  local action_lock = require('tetravim.util.action-lock')
   vim.wait(5000, function() return not action_lock.is_busy() end, 50)
   vim.notify = orig_notify
 
@@ -356,10 +356,10 @@ local ok, err = pcall(function()
   vim.notify = function(msg, level) table.insert(notified, { msg = msg, level = level }) end
 
   vim.cmd('noautocmd edit ' .. vim.fn.fnameescape(java_file))
-  local extract = require('cumulus.util.extract')
+  local extract = require('tetravim.util.extract')
   extract.extract_method()
 
-  local action_lock = require('cumulus.util.action-lock')
+  local action_lock = require('tetravim.util.action-lock')
   vim.wait(5000, function() return not action_lock.is_busy() end, 50)
   vim.notify = orig_notify
 
@@ -376,7 +376,7 @@ local ok, err = pcall(function()
   -- Shared action-lock: refactor.lua and extract.lua reject a concurrent
   -- action through the SAME lock (action-lock.lua), not independent
   -- private M._busy flags.
-  local refactor = require('cumulus.util.refactor')
+  local refactor = require('tetravim.util.refactor')
   action_lock.acquire()
   local notified2 = {}
   vim.notify = function(msg, level) table.insert(notified2, { msg = msg, level = level }) end
@@ -430,14 +430,14 @@ local ok, err = pcall(function()
     -- params, so leave the request "pending" rather than modeling a response.
   end
 
-  local extract = require("cumulus.util.extract")
+  local extract = require("tetravim.util.extract")
   extract.extract_variable(true) -- is_visual = true
 
   vim.lsp.get_clients = orig_get_clients
   vim.lsp.buf_request_all = orig_buf_request_all
   -- Manually release the lock this call acquired (its request never got a
   -- response in this test, by design -- see above).
-  require("cumulus.util.action-lock").release()
+  require("tetravim.util.action-lock").release()
 
   assert(captured_range, "do_action never reached vim.lsp.buf_request_all")
 

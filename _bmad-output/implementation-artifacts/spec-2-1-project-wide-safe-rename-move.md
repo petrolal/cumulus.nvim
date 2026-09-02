@@ -4,7 +4,7 @@ type: 'feature'
 created: '2026-08-25'
 status: 'done'
 review_loop_iteration: 1
-context: ['/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/epic-2-context.md']
+context: ['/home/petrolal/tetravim.nvim/_bmad-output/implementation-artifacts/epic-2-context.md']
 baseline_commit: 'c394018bff55e904306bb58b61a2576673f2c994'
 ---
 
@@ -12,7 +12,7 @@ baseline_commit: 'c394018bff55e904306bb58b61a2576673f2c994'
 
 ## Intent
 
-**Problem:** Java/Kotlin rename today is a bare `vim.lsp.buf.rename()` (`lua/cumulus/core/keymaps.lua:36-38`) that applies immediately with no cross-file preview and no awareness of Spring XML/annotation bean references LSP can't see. Large refactors risk silent breakage.
+**Problem:** Java/Kotlin rename today is a bare `vim.lsp.buf.rename()` (`lua/tetravim/core/keymaps.lua:36-38`) that applies immediately with no cross-file preview and no awareness of Spring XML/annotation bean references LSP can't see. Large refactors risk silent breakage.
 
 **Approach:** On JDTLS/Kotlin LS attach, override the buffer-local `<leader>cr` to run a project-wide rename: request a `textDocument/rename` WorkspaceEdit without auto-applying, merge in Tree-sitter-detected Spring bean references, preview everything via the quickfix list, and apply only on explicit confirm.
 
@@ -21,8 +21,8 @@ baseline_commit: 'c394018bff55e904306bb58b61a2576673f2c994'
 **Always:**
 - Java and Kotlin only, via JDTLS and Kotlin LS respectively.
 - No edit is applied without an explicit confirm after the quickfix preview is shown.
-- All LSP requests and Tree-sitter scans run asynchronously (`vim.system`/`vim.schedule`, per `lua/cumulus/util/sync-runner.lua`); never block the editor.
-- Rename logic lives in new `lua/cumulus/util/refactor*.lua` modules — never adds surface to `lua/cumulus/util/engine.lua` or the Scala `cumulus-engine`.
+- All LSP requests and Tree-sitter scans run asynchronously (`vim.system`/`vim.schedule`, per `lua/tetravim/util/sync-runner.lua`); never block the editor.
+- Rename logic lives in new `lua/tetravim/util/refactor*.lua` modules — never adds surface to `lua/tetravim/util/engine.lua` or the Scala `tetravim-engine`.
 - Global `<leader>cr` behavior for non-JVM filetypes stays untouched; override is buffer-local only.
 
 **Ask First:** none — UI approach (quickfix, no custom float) and Spring-reference scope (stereotype annotations, `@Autowired`, XML `<bean>`) are fixed by this spec.
@@ -45,26 +45,26 @@ baseline_commit: 'c394018bff55e904306bb58b61a2576673f2c994'
 
 ## Code Map
 
-- `lua/cumulus/core/keymaps.lua:36-38` -- existing global `<leader>cr` (`vim.lsp.buf.rename()`) -- leave as the non-JVM fallback, do not edit
-- `lua/cumulus/core/keymaps.lua:68-78` -- existing `<leader>cR` single-file LSP rename -- out of scope, do not modify
-- `lua/cumulus/plugins/lsp-core.lua:36-46` -- shared `LspAttach` autocmd (JDTLS gets a custom notify at line 12) -- reference for the attach pattern; actual override lives per-server below
+- `lua/tetravim/core/keymaps.lua:36-38` -- existing global `<leader>cr` (`vim.lsp.buf.rename()`) -- leave as the non-JVM fallback, do not edit
+- `lua/tetravim/core/keymaps.lua:68-78` -- existing `<leader>cR` single-file LSP rename -- out of scope, do not modify
+- `lua/tetravim/plugins/lsp-core.lua:36-46` -- shared `LspAttach` autocmd (JDTLS gets a custom notify at line 12) -- reference for the attach pattern; actual override lives per-server below
 - `ftplugin/java.lua:44-59` -- JDTLS `on_attach` -- add buffer-local `<leader>cr` override here
-- `lua/cumulus/plugins/lsp-kotlin.lua:46` -- Kotlin LS `on_attach` (already disables `documentHighlightProvider` here) -- mirror the same override
-- `lua/cumulus/util/jvm.lua:436-486` -- existing JDTLS refactor group `<leader>jx*` (Extract Var/Const/Method) -- sibling feature; do not merge into it, keep rename on `<leader>cr`
-- `lua/cumulus/util/sync-runner.lua` (full file) -- async convention to follow: `vim.system` + `vim.schedule`, collapsing heartbeat notify
-- `lua/cumulus/plugins/core-treesitter.lua` -- Tree-sitter is highlighting-only today; new Spring-bean queries are net-new, no existing query code to extend
-- `lua/cumulus/util/engine.lua:625-634,1090-1135` -- legacy Scala-backed `parse_spring_beans`/bean picker -- reference only, do not call into or extend
+- `lua/tetravim/plugins/lsp-kotlin.lua:46` -- Kotlin LS `on_attach` (already disables `documentHighlightProvider` here) -- mirror the same override
+- `lua/tetravim/util/jvm.lua:436-486` -- existing JDTLS refactor group `<leader>jx*` (Extract Var/Const/Method) -- sibling feature; do not merge into it, keep rename on `<leader>cr`
+- `lua/tetravim/util/sync-runner.lua` (full file) -- async convention to follow: `vim.system` + `vim.schedule`, collapsing heartbeat notify
+- `lua/tetravim/plugins/core-treesitter.lua` -- Tree-sitter is highlighting-only today; new Spring-bean queries are net-new, no existing query code to extend
+- `lua/tetravim/util/engine.lua:625-634,1090-1135` -- legacy Scala-backed `parse_spring_beans`/bean picker -- reference only, do not call into or extend
 - `scripts/validate.sh:96-104` -- purged-stub assertions -- new module names must not collide with or resemble these
 - `AGENTS.md:10,42` -- policy: Java/Kotlin only, prefer native LSP/Tree-sitter over new `engine.lua` surface
 
 ## Tasks & Acceptance
 
 **Execution:**
-- [x] `lua/cumulus/util/refactor.lua` -- new module: `M.project_rename(new_name)` requests `textDocument/rename` without auto-applying, merges Tree-sitter-detected Spring references, populates the quickfix list, confirms via `vim.ui.select`, applies via `vim.lsp.util.apply_workspace_edit` on confirm -- central async rename flow
-- [x] `lua/cumulus/util/refactor-treesitter.lua` -- new module: Tree-sitter queries for `@Component`/`@Service`/`@Repository`/`@Controller`/`@RestController` stereotypes, `@Autowired` field references, and XML `<bean id=".." class="..">` matches for a given symbol name
+- [x] `lua/tetravim/util/refactor.lua` -- new module: `M.project_rename(new_name)` requests `textDocument/rename` without auto-applying, merges Tree-sitter-detected Spring references, populates the quickfix list, confirms via `vim.ui.select`, applies via `vim.lsp.util.apply_workspace_edit` on confirm -- central async rename flow
+- [x] `lua/tetravim/util/refactor-treesitter.lua` -- new module: Tree-sitter queries for `@Component`/`@Service`/`@Repository`/`@Controller`/`@RestController` stereotypes, `@Autowired` field references, and XML `<bean id=".." class="..">` matches for a given symbol name
 - [x] `ftplugin/java.lua` -- in `on_attach` (lines 44-59), buffer-local override: `<leader>cr` calls `refactor.project_rename` instead of default
-- [x] `lua/cumulus/plugins/lsp-kotlin.lua` -- in `on_attach`, mirror the same buffer-local `<leader>cr` override
-- [x] `lua/cumulus/tests/refactor_spec.lua` -- static shape tests for the new modules' public API (busted-style, matches existing `_spec.lua` pattern)
+- [x] `lua/tetravim/plugins/lsp-kotlin.lua` -- in `on_attach`, mirror the same buffer-local `<leader>cr` override
+- [x] `lua/tetravim/tests/refactor_spec.lua` -- static shape tests for the new modules' public API (busted-style, matches existing `_spec.lua` pattern)
 - [x] `scripts/validate-refactor.sh` -- headless behavioral smoke test against a small fixture project: rename with a Spring XML bean reference, confirm, assert all locations updated; `cquit` on assertion failure, mirroring `validate-dap-jvm.sh`
 
 **Acceptance Criteria:**
@@ -111,48 +111,48 @@ Use the quickfix list (`vim.fn.setqflist` + `:copen`) as the dry-run preview, no
 **Core rename flow**
 
 - Entry point: finds the JVM client, guards empty/no-op names, checks re-entrancy before anything else runs.
-  [`refactor.lua:248`](../../lua/cumulus/util/refactor.lua#L248)
+  [`refactor.lua:248`](../../lua/tetravim/util/refactor.lua#L248)
 
 - Requests the WorkspaceEdit without auto-applying; timeout guard so a silent server can't hang the flow.
-  [`refactor.lua:304`](../../lua/cumulus/util/refactor.lua#L304)
+  [`refactor.lua:304`](../../lua/tetravim/util/refactor.lua#L304)
 
 - Kicks off the package-scoped Spring scan once the LSP response is in hand.
-  [`refactor.lua:344`](../../lua/cumulus/util/refactor.lua#L344)
+  [`refactor.lua:344`](../../lua/tetravim/util/refactor.lua#L344)
 
 - Confirm gate, then pcall-guarded apply with partial-failure reporting instead of a blanket success claim.
-  [`refactor.lua:380`](../../lua/cumulus/util/refactor.lua#L380)
+  [`refactor.lua:380`](../../lua/tetravim/util/refactor.lua#L380)
 
 **Corruption fixes: duplicate occurrences & LSP/Spring overlap**
 
 - Root-cause fix: every whole-word occurrence on a line gets its own span, not just the first.
-  [`refactor-treesitter.lua:65`](../../lua/cumulus/util/refactor-treesitter.lua#L65)
+  [`refactor-treesitter.lua:65`](../../lua/tetravim/util/refactor-treesitter.lua#L65)
 
 - Dedupes raw hits to one per (file, line) before classifying, so duplicate occurrences can't double-classify.
-  [`refactor-treesitter.lua:491`](../../lua/cumulus/util/refactor-treesitter.lua#L491)
+  [`refactor-treesitter.lua:491`](../../lua/tetravim/util/refactor-treesitter.lua#L491)
 
 - Drops any Spring-scanned location that overlaps something the LSP edit already covers.
-  [`refactor.lua:108`](../../lua/cumulus/util/refactor.lua#L108)
+  [`refactor.lua:108`](../../lua/tetravim/util/refactor.lua#L108)
 
 - Applies the Spring splices; now failure-tracked per file instead of silently swallowing errors.
-  [`refactor.lua:176`](../../lua/cumulus/util/refactor.lua#L176)
+  [`refactor.lua:176`](../../lua/tetravim/util/refactor.lua#L176)
 
 **Package-scoping guard (cross-package name collisions)**
 
 - Extracts a file's declared package so same-named classes in other packages can be excluded.
-  [`refactor-treesitter.lua:84`](../../lua/cumulus/util/refactor-treesitter.lua#L84)
+  [`refactor-treesitter.lua:84`](../../lua/tetravim/util/refactor-treesitter.lua#L84)
 
 - XML bean classification also extracts the FQN package prefix off the `class` attribute.
-  [`refactor-treesitter.lua:105`](../../lua/cumulus/util/refactor-treesitter.lua#L105)
+  [`refactor-treesitter.lua:105`](../../lua/tetravim/util/refactor-treesitter.lua#L105)
 
 **XML comment filtering**
 
 - Lightweight multi-line `<!-- -->` state scan so a commented-out bean is never treated as live.
-  [`refactor-treesitter.lua:221`](../../lua/cumulus/util/refactor-treesitter.lua#L221)
+  [`refactor-treesitter.lua:221`](../../lua/tetravim/util/refactor-treesitter.lua#L221)
 
 **Tree-sitter precision filter (parse-once-per-file)**
 
 - Parses each file's tree once and reuses it across every hit, instead of re-parsing per occurrence.
-  [`refactor-treesitter.lua:264`](../../lua/cumulus/util/refactor-treesitter.lua#L264)
+  [`refactor-treesitter.lua:264`](../../lua/tetravim/util/refactor-treesitter.lua#L264)
 
 **Buffer-local keymap wiring**
 
@@ -160,58 +160,58 @@ Use the quickfix list (`vim.fn.setqflist` + `:copen`) as the dry-run preview, no
   [`java.lua:65`](../../ftplugin/java.lua#L65)
 
 - Mirrors the same override for Kotlin LS.
-  [`lsp-kotlin.lua:61`](../../lua/cumulus/plugins/lsp-kotlin.lua#L61)
+  [`lsp-kotlin.lua:61`](../../lua/tetravim/plugins/lsp-kotlin.lua#L61)
 
 **Tests & fixtures**
 
 - Unit test proving the duplicate-occurrence corruption bug is fixed (the reviewer's exact repro line).
-  [`refactor_spec.lua:267`](../../lua/cumulus/tests/refactor_spec.lua#L267)
+  [`refactor_spec.lua:267`](../../lua/tetravim/tests/refactor_spec.lua#L267)
 
 - Unit test for the LSP/Spring overlap filter.
-  [`refactor_spec.lua:110`](../../lua/cumulus/tests/refactor_spec.lua#L110)
+  [`refactor_spec.lua:110`](../../lua/tetravim/tests/refactor_spec.lua#L110)
 
 - Unit test proving a same-named class in a different package is left untouched.
-  [`refactor_spec.lua:316`](../../lua/cumulus/tests/refactor_spec.lua#L316)
+  [`refactor_spec.lua:316`](../../lua/tetravim/tests/refactor_spec.lua#L316)
 
 - Real (non-substring-match) keymap-installation test: invokes `on_attach`, asserts a genuine mapping via `vim.fn.maparg`.
-  [`refactor_spec.lua:383`](../../lua/cumulus/tests/refactor_spec.lua#L383)
+  [`refactor_spec.lua:383`](../../lua/tetravim/tests/refactor_spec.lua#L383)
 
 - End-to-end fixture covering duplicate occurrences, LSP/Spring overlap, a commented bean, and a cross-package tree.
   [`validate-refactor.sh:119`](../../scripts/validate-refactor.sh#L119)
 
 ### Review Findings
-- [x] [Review][Patch] `file_package` only scans first 20 lines [lua/cumulus/util/refactor-treesitter.lua:84]
-- [x] [Review][Patch] Broken verification of Java buffer-local keymap [lua/cumulus/tests/refactor_spec.lua:398]
-- [x] [Review][Patch] Editor Thread Blocked During Scan [lua/cumulus/util/refactor-treesitter.lua:1247]
-- [x] [Review][Patch] Case-Sensitive Shell Globs Miss Uppercase Extensions [lua/cumulus/util/refactor-treesitter.lua:1145]
-- [x] [Review][Patch] Re-entrancy Guard Gap During User Prompt [lua/cumulus/util/refactor.lua:1598]
+- [x] [Review][Patch] `file_package` only scans first 20 lines [lua/tetravim/util/refactor-treesitter.lua:84]
+- [x] [Review][Patch] Broken verification of Java buffer-local keymap [lua/tetravim/tests/refactor_spec.lua:398]
+- [x] [Review][Patch] Editor Thread Blocked During Scan [lua/tetravim/util/refactor-treesitter.lua:1247]
+- [x] [Review][Patch] Case-Sensitive Shell Globs Miss Uppercase Extensions [lua/tetravim/util/refactor-treesitter.lua:1145]
+- [x] [Review][Patch] Re-entrancy Guard Gap During User Prompt [lua/tetravim/util/refactor.lua:1598]
 
 #### Review Findings — bmad-code-review 2026-09-01 (loop iteration 1)
 
 All 8 patch findings below were applied 2026-09-01 (option 1 — apply every patch). `refactor_spec.lua` 32/32 pass; `scripts/validate-refactor.sh` 5/5 stages pass; `stylua --check` clean on all touched files.
 
-- [x] [Review][Patch] I/O Matrix row "No JVM LSP attached" not satisfied from the keymap [ftplugin/java.lua] — the buffer-local `<leader>cr` override was installed only *inside* `on_attach`, so a `.java`/`.kt` buffer with no client silently fell through to the global `vim.lsp.buf.rename()`. **Fixed:** `<leader>cr` is now bound unconditionally at the top of `ftplugin/java.lua` and in a new `ftplugin/kotlin.lua`, before/independent of LSP attach; `project_rename`'s existing no-client `notify_warn` now fires from the keymap. The `<leader>cr` blocks in `ftplugin/java.lua` `on_attach` and `lua/cumulus/plugins/lsp-kotlin.lua` `on_attach` were removed (the five `<leader>c*` extract maps stay attach-gated per SPEC-2.2). `validate-refactor.sh` stage 1 updated to assert the top-level binding + `ftplugin/kotlin.lua` existence.
-- [x] [Review][Patch] `apply_spring_edits` splices at stale coordinates without verifying the span [lua/cumulus/util/refactor.lua] — **Fixed:** `apply_spring_edits` takes an optional `old_name`; when given, each `[col,end_col)` span is re-read via `nvim_buf_get_text` and skipped (file marked failed) unless it holds exactly `old_name`. `_show_preview` now passes `old_name`. New `refactor_spec.lua` test drives a dirty-buffer mismatch and asserts the span is left untouched.
-- [x] [Review][Patch] `new_name` is not trimmed or validated [lua/cumulus/util/refactor.lua] — **Fixed:** new module-local `valid_identifier()`; both the `vim.ui.input` callback and the direct-arg path now `vim.trim` the name, reject non-`^[%a_][%w_]*$` with `notify_err`, and release the lock. Covered by 5 new no-arg `project_rename()` tests.
-- [x] [Review][Patch] Spring scan has no timeout [lua/cumulus/util/refactor-treesitter.lua] — **Fixed:** `SCAN_TIMEOUT_MS = 15000` passed as `timeout` to both the `rg` and `grep` `vim.system` calls; a timeout kill produces a non-0/1 exit that already routes to the grep fallback / `warn_scan_unavailable` + `finish({})`.
-- [x] [Review][Patch] Discarded LSP file-move / resource operations are silent [lua/cumulus/util/refactor.lua] — **Fixed:** `_on_rename_response` counts `create`/`rename`/`delete` entries in `documentChanges` and emits a `notify_warn` ("N file move/rename operation(s) … were skipped … rename the file(s) manually") before building the preview.
-- [x] [Review][Patch] Keymap-installation test correctness [lua/cumulus/tests/refactor_spec.lua] — the original blind-hunter finding (`assert.are.equal(1, mapping.buffer)` "hardcodes buffer #1") was a **false positive**: `maparg(...).buffer` is a 0/1 "is buffer-local" flag, not a bufnr, so `1` is the correct assertion. **Fixed differently:** the wiring describe block was rewritten for the new unconditional-ftplugin wiring — asserts `mapping.buffer == 1`, verifies the callback dispatches to `project_rename`, and confirms the mapping does not leak to an unrelated scratch buffer; the Kotlin case now sources `ftplugin/kotlin.lua`.
-- [x] [Review][Patch] Production no-arg `project_rename()` path is untested [lua/cumulus/tests/refactor_spec.lua] — **Fixed:** added a `project_rename() no-arg prompt path` describe with 5 cases (cancel/nil, whitespace-only, same-name, non-identifier, valid+trimmed) each asserting the shared `action_lock` is released (or held for `_do_rename` on the happy path), stubbing `vim.ui.input` + `vim.lsp.get_clients` + `refactor._do_rename`. (The `_show_preview` partial-failure branch remains covered only indirectly — folded into the deferred `refactor_spec.lua` hygiene item.)
-- [x] [Review][Patch] No scan progress / heartbeat notification [lua/cumulus/util/refactor-treesitter.lua] — **Fixed:** `scan_root_async` emits a collapsing `vim.notify` (stable `SCAN_NOTIFY_ID`, sync-runner convention) on start / per-chunk / completion when `#unique_files >= 40`.
+- [x] [Review][Patch] I/O Matrix row "No JVM LSP attached" not satisfied from the keymap [ftplugin/java.lua] — the buffer-local `<leader>cr` override was installed only *inside* `on_attach`, so a `.java`/`.kt` buffer with no client silently fell through to the global `vim.lsp.buf.rename()`. **Fixed:** `<leader>cr` is now bound unconditionally at the top of `ftplugin/java.lua` and in a new `ftplugin/kotlin.lua`, before/independent of LSP attach; `project_rename`'s existing no-client `notify_warn` now fires from the keymap. The `<leader>cr` blocks in `ftplugin/java.lua` `on_attach` and `lua/tetravim/plugins/lsp-kotlin.lua` `on_attach` were removed (the five `<leader>c*` extract maps stay attach-gated per SPEC-2.2). `validate-refactor.sh` stage 1 updated to assert the top-level binding + `ftplugin/kotlin.lua` existence.
+- [x] [Review][Patch] `apply_spring_edits` splices at stale coordinates without verifying the span [lua/tetravim/util/refactor.lua] — **Fixed:** `apply_spring_edits` takes an optional `old_name`; when given, each `[col,end_col)` span is re-read via `nvim_buf_get_text` and skipped (file marked failed) unless it holds exactly `old_name`. `_show_preview` now passes `old_name`. New `refactor_spec.lua` test drives a dirty-buffer mismatch and asserts the span is left untouched.
+- [x] [Review][Patch] `new_name` is not trimmed or validated [lua/tetravim/util/refactor.lua] — **Fixed:** new module-local `valid_identifier()`; both the `vim.ui.input` callback and the direct-arg path now `vim.trim` the name, reject non-`^[%a_][%w_]*$` with `notify_err`, and release the lock. Covered by 5 new no-arg `project_rename()` tests.
+- [x] [Review][Patch] Spring scan has no timeout [lua/tetravim/util/refactor-treesitter.lua] — **Fixed:** `SCAN_TIMEOUT_MS = 15000` passed as `timeout` to both the `rg` and `grep` `vim.system` calls; a timeout kill produces a non-0/1 exit that already routes to the grep fallback / `warn_scan_unavailable` + `finish({})`.
+- [x] [Review][Patch] Discarded LSP file-move / resource operations are silent [lua/tetravim/util/refactor.lua] — **Fixed:** `_on_rename_response` counts `create`/`rename`/`delete` entries in `documentChanges` and emits a `notify_warn` ("N file move/rename operation(s) … were skipped … rename the file(s) manually") before building the preview.
+- [x] [Review][Patch] Keymap-installation test correctness [lua/tetravim/tests/refactor_spec.lua] — the original blind-hunter finding (`assert.are.equal(1, mapping.buffer)` "hardcodes buffer #1") was a **false positive**: `maparg(...).buffer` is a 0/1 "is buffer-local" flag, not a bufnr, so `1` is the correct assertion. **Fixed differently:** the wiring describe block was rewritten for the new unconditional-ftplugin wiring — asserts `mapping.buffer == 1`, verifies the callback dispatches to `project_rename`, and confirms the mapping does not leak to an unrelated scratch buffer; the Kotlin case now sources `ftplugin/kotlin.lua`.
+- [x] [Review][Patch] Production no-arg `project_rename()` path is untested [lua/tetravim/tests/refactor_spec.lua] — **Fixed:** added a `project_rename() no-arg prompt path` describe with 5 cases (cancel/nil, whitespace-only, same-name, non-identifier, valid+trimmed) each asserting the shared `action_lock` is released (or held for `_do_rename` on the happy path), stubbing `vim.ui.input` + `vim.lsp.get_clients` + `refactor._do_rename`. (The `_show_preview` partial-failure branch remains covered only indirectly — folded into the deferred `refactor_spec.lua` hygiene item.)
+- [x] [Review][Patch] No scan progress / heartbeat notification [lua/tetravim/util/refactor-treesitter.lua] — **Fixed:** `scan_root_async` emits a collapsing `vim.notify` (stable `SCAN_NOTIFY_ID`, sync-runner convention) on start / per-chunk / completion when `#unique_files >= 40`.
 
-- [x] [Review][Defer] Collision detection depends entirely on the LSP returning `resp.err` [lua/cumulus/util/refactor.lua:362] — deferred, already disclosed in the frozen-era Spec Change Log; a `workspace/symbol` pre-check would harden matrix row 2 / AC3.
-- [x] [Review][Defer] Multi-line XML `<bean>` / `class=` on a separate line not matched [lua/cumulus/util/refactor-treesitter.lua:130] — deferred; single-line-only is an undocumented limitation of `classify_xml_line`.
-- [x] [Review][Defer] `.kts` files never scanned [lua/cumulus/util/refactor-treesitter.lua:408] — deferred; `LANG_BY_EXT` maps `kts→kotlin` but the rg/grep globs are `*.kt`/`*.java`/`*.xml` only.
-- [x] [Review][Defer] `grep` fallback uses GNU-only flags [lua/cumulus/util/refactor-treesitter.lua:447] — deferred; `-r`/`--include`/`--exclude-dir` fail on busybox grep, yielding zero Spring coverage (with a warn) when rg is absent.
-- [x] [Review][Defer] `action_lock` has no recovery path [lua/cumulus/util/action-lock.lua:1] — deferred; no `reset()`/user command/expiry, so one missed `release()` disables rename + extract for the session.
-- [x] [Review][Defer] Success count can over-report [lua/cumulus/util/refactor.lua:469] — deferred; `total_applied = #lsp_items + spring_applied` assumes every LSP edit landed, but `apply_workspace_edit` can partially fail without throwing.
-- [x] [Review][Defer] No `undojoin` across LSP + Spring edits to one file [lua/cumulus/util/refactor.lua:452] — deferred; one logical rename becomes several undo steps, so a single `u` half-reverts.
-- [x] [Review][Defer] Edited buffers left unsaved with no summary [lua/cumulus/util/refactor.lua:481] — deferred; consistent with builtin rename, but at multi-file scale "Renamed across N locations" is misleading — consider listing modified buffers / hinting `:wa`.
-- [x] [Review][Defer] `vim.o.eventignore = "all"` is global for the whole apply [lua/cumulus/util/refactor.lua:451] — deferred; suppresses every plugin's autocmds for all buffers during apply (restored correctly on all paths); a targeted guard would be safer.
+- [x] [Review][Defer] Collision detection depends entirely on the LSP returning `resp.err` [lua/tetravim/util/refactor.lua:362] — deferred, already disclosed in the frozen-era Spec Change Log; a `workspace/symbol` pre-check would harden matrix row 2 / AC3.
+- [x] [Review][Defer] Multi-line XML `<bean>` / `class=` on a separate line not matched [lua/tetravim/util/refactor-treesitter.lua:130] — deferred; single-line-only is an undocumented limitation of `classify_xml_line`.
+- [x] [Review][Defer] `.kts` files never scanned [lua/tetravim/util/refactor-treesitter.lua:408] — deferred; `LANG_BY_EXT` maps `kts→kotlin` but the rg/grep globs are `*.kt`/`*.java`/`*.xml` only.
+- [x] [Review][Defer] `grep` fallback uses GNU-only flags [lua/tetravim/util/refactor-treesitter.lua:447] — deferred; `-r`/`--include`/`--exclude-dir` fail on busybox grep, yielding zero Spring coverage (with a warn) when rg is absent.
+- [x] [Review][Defer] `action_lock` has no recovery path [lua/tetravim/util/action-lock.lua:1] — deferred; no `reset()`/user command/expiry, so one missed `release()` disables rename + extract for the session.
+- [x] [Review][Defer] Success count can over-report [lua/tetravim/util/refactor.lua:469] — deferred; `total_applied = #lsp_items + spring_applied` assumes every LSP edit landed, but `apply_workspace_edit` can partially fail without throwing.
+- [x] [Review][Defer] No `undojoin` across LSP + Spring edits to one file [lua/tetravim/util/refactor.lua:452] — deferred; one logical rename becomes several undo steps, so a single `u` half-reverts.
+- [x] [Review][Defer] Edited buffers left unsaved with no summary [lua/tetravim/util/refactor.lua:481] — deferred; consistent with builtin rename, but at multi-file scale "Renamed across N locations" is misleading — consider listing modified buffers / hinting `:wa`.
+- [x] [Review][Defer] `vim.o.eventignore = "all"` is global for the whole apply [lua/tetravim/util/refactor.lua:451] — deferred; suppresses every plugin's autocmds for all buffers during apply (restored correctly on all paths); a targeted guard would be safer.
 - [x] [Review][Defer] ~35 lines of keymap wiring duplicated [ftplugin/java.lua:65] — deferred; `ftplugin/java.lua` and `lsp-kotlin.lua` on_attach differ only by the `desc` language label; extract a shared helper.
 - [x] [Review][Defer] `validate-refactor.sh` not wired into any runner [scripts/validate-refactor.sh:1] — deferred, pre-existing; no Makefile/CI, `validate.sh` does not call it — same as every other `validate-*.sh`.
-- [x] [Review][Defer] `<cword>`-derived `old_name` vs `make_position_params` position [lua/cumulus/util/refactor.lua:265] — deferred; no `prepareRename`, so a mid-token / punctuation cursor can make the Spring scan search a different token than the LSP renames.
-- [x] [Review][Defer] `win` captured before async `vim.ui.input` may be stale [lua/cumulus/util/refactor.lua:257] — deferred; no `nvim_win_is_valid` guard before `make_position_params(win, …)` in `_do_rename`; a cursor/window move during the prompt shifts the rename position.
-- [x] [Review][Defer] `refactor_spec.lua` test hygiene [lua/cumulus/tests/refactor_spec.lua:562] — deferred; `loadfile("ftplugin/java.lua")` is cwd-relative, scratch buffers are not cleaned between `it()`, and a failed assertion before `release()` leaks the shared `action_lock`; add `after_each` lock reset + buffer cleanup and a multi-line XML-comment test for `is_inside_xml_comment`.
-- [x] [Review][Defer] `classify_xml_line` matches `superclass=` / `data-class=` [lua/cumulus/util/refactor-treesitter.lua:134] — deferred; `line:find("class%s*=")` is unanchored, so a `<bean>` line with `superclass="…FooService"` and no `class=` is treated as a bean-class reference. Fix: anchor with `%f[%a]class%s*=`.
-- [x] [Review][Defer] `<leader>H*` HTTP keymaps in `core/keymaps.lua` need their own review [lua/cumulus/core/keymaps.lua:64] — deferred; `cumulus_http_open_in_split` stacks listed helper buffers, `<leader>Hj` filters the focused buffer (not kulala's response buffer), `<leader>Hr` has no `pcall` around `kulala.run`, and `looks_like_json`'s NDJSON branch is untested. This code belongs to SPEC-3.2 and was only swept into this diff by the multi-spec fix commit `798b9a4` — route to a SPEC-3.2 review.
+- [x] [Review][Defer] `<cword>`-derived `old_name` vs `make_position_params` position [lua/tetravim/util/refactor.lua:265] — deferred; no `prepareRename`, so a mid-token / punctuation cursor can make the Spring scan search a different token than the LSP renames.
+- [x] [Review][Defer] `win` captured before async `vim.ui.input` may be stale [lua/tetravim/util/refactor.lua:257] — deferred; no `nvim_win_is_valid` guard before `make_position_params(win, …)` in `_do_rename`; a cursor/window move during the prompt shifts the rename position.
+- [x] [Review][Defer] `refactor_spec.lua` test hygiene [lua/tetravim/tests/refactor_spec.lua:562] — deferred; `loadfile("ftplugin/java.lua")` is cwd-relative, scratch buffers are not cleaned between `it()`, and a failed assertion before `release()` leaks the shared `action_lock`; add `after_each` lock reset + buffer cleanup and a multi-line XML-comment test for `is_inside_xml_comment`.
+- [x] [Review][Defer] `classify_xml_line` matches `superclass=` / `data-class=` [lua/tetravim/util/refactor-treesitter.lua:134] — deferred; `line:find("class%s*=")` is unanchored, so a `<bean>` line with `superclass="…FooService"` and no `class=` is treated as a bean-class reference. Fix: anchor with `%f[%a]class%s*=`.
+- [x] [Review][Defer] `<leader>H*` HTTP keymaps in `core/keymaps.lua` need their own review [lua/tetravim/core/keymaps.lua:64] — deferred; `tetravim_http_open_in_split` stacks listed helper buffers, `<leader>Hj` filters the focused buffer (not kulala's response buffer), `<leader>Hr` has no `pcall` around `kulala.run`, and `looks_like_json`'s NDJSON branch is untested. This code belongs to SPEC-3.2 and was only swept into this diff by the multi-spec fix commit `798b9a4` — route to a SPEC-3.2 review.
