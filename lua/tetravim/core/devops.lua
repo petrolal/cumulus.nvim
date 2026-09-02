@@ -210,7 +210,11 @@ function M.terraform_security()
     elseif vim.fn.executable("tfsec") == 1 then
       M.run_term("tfsec .", { cwd = root })
     else
-      vim.notify("Neither 'trivy' nor 'tfsec' is installed in PATH.", vim.log.levels.WARN, { title = "TetraVim DevOps" })
+      vim.notify(
+        "Neither 'trivy' nor 'tfsec' is installed in PATH.",
+        vim.log.levels.WARN,
+        { title = "TetraVim DevOps" }
+      )
     end
   end)
 end

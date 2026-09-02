@@ -2,8 +2,9 @@
 title: 'In-Editor Code Reviews (GitHub/GitLab)'
 type: 'feature'
 created: '2026-09-02'
-status: 'draft'
-review_loop_iteration: 0
+status: 'done'
+review_loop_iteration: 1
+baseline_commit: 'dc5e00683e7def11abec00b1b12e13f19b05d649'
 context: ['/home/petrolal/tetravim.nvim/_bmad-output/implementation-artifacts/epic-4-context.md']
 ---
 
@@ -59,12 +60,12 @@ context: ['/home/petrolal/tetravim.nvim/_bmad-output/implementation-artifacts/ep
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `lua/tetravim/util/forge.lua` -- create engine for async `gh`/`glab` commands and UI management -- must handle fetching PRs, diffing via diffview, checking out PRs, and posting comments.
-- [ ] `lua/tetravim/plugins/tools-review.lua` -- create lazy spec merging into `diffview.nvim` -- registers `<leader>gr*` keymaps and wires them to `forge.lua`.
-- [ ] `lua/tetravim/plugins/ui-whichkey.lua` -- add `<leader>gr` group -- ensures discoverability of review features.
-- [ ] `lua/tetravim/health.lua` -- append health section -- checks `gh` and `glab` executables.
-- [ ] `lua/tetravim/tests/forge_review_spec.lua` -- write static spec -- verifies plugin loading shape and which-key registration.
-- [ ] `scripts/validate-4-2.sh` -- write runtime smoke test -- verifies keymaps load, healthcheck detects binaries, and `gh`/`glab` commands are properly escaped.
+- [x] `lua/tetravim/util/forge.lua` -- create engine for async `gh`/`glab` commands and UI management -- must handle fetching PRs, diffing via diffview, checking out PRs, and posting comments. Must not modify `EPICS_AND_STORIES.md` or `devops.lua`.
+- [x] `lua/tetravim/plugins/tools-review.lua` -- create lazy spec merging into `diffview.nvim` -- registers `<leader>gr*` keymaps and wires them to `forge.lua`.
+- [x] `lua/tetravim/plugins/ui-whichkey.lua` -- add `<leader>gr` group -- ensures discoverability of review features.
+- [x] `lua/tetravim/health.lua` -- append health section -- checks `gh` and `glab` executables.
+- [x] `lua/tetravim/tests/forge_review_spec.lua` -- write static spec -- verifies plugin loading shape and which-key registration.
+- [x] `scripts/validate-4-2.sh` -- write runtime smoke test -- verifies keymaps load, healthcheck detects binaries, and `gh`/`glab` commands are properly escaped.
 
 **Acceptance Criteria:**
 - Given a git repo, when the user triggers the PR list keymap, then a picker shows open PRs and selecting one opens a diffview and a comment thread split.
@@ -73,22 +74,67 @@ context: ['/home/petrolal/tetravim.nvim/_bmad-output/implementation-artifacts/ep
 - Given a PR checkout request, when the user selects a PR, then the corresponding branch is checked out locally without blocking the editor.
 
 ## Spec Change Log
+- **Finding:** `add_comment` is context-blind (relies on detached HEAD) and only supports single-line input. Validation gap in tests. Scope creep in planning docs.
+  **Amended:** Tasks & Acceptance, Design Notes, Verification.
+  **Avoids:** Broken `add_comment` functionality during remote reviews, missing multi-line comments, and undetected regression gaps.
+  **KEEP:** `tools-review.lua` lazy merging structure, `scripts/validate-4-2.sh` basic structure, UI split implementation for thread loading.
 
 ## Design Notes
 
-- **CLI detection:** `util/forge.lua` should determine the forge by checking `git remote -v` (e.g., `github.com` vs `gitlab.com` or custom domains) or fallback to checking `gh auth status` vs `glab auth status`.
+- **CLI detection:** `util/forge.lua` should determine the forge dynamically without hardcoding `origin`.
 - **Keymaps:** 
   - `<leader>grp` - List and Review PRs
   - `<leader>grc` - Checkout PR branch
-  - `<leader>grC` - Add comment (active within diffview)
-- **Async Execution:** Always pipe output from `vim.system({ "gh", ... })` directly into the UI state, never freezing Neovim.
+  - `<leader>grC` - Add comment
+- **Async Execution:** Always pipe output from `vim.system({ "gh", ... })` directly into the UI state. Disable ANSI colors via `NO_COLOR=1` env or parse JSON.
+- **Review State:** `forge.lua` MUST store the active PR number in a local variable when `<leader>grp` is run, so that `add_comment` knows which PR to comment on without relying on `git branch --show-current`.
+- **Multi-line Comments:** `add_comment` MUST use a temporary scratch buffer or similar multi-line input method for comments instead of `vim.ui.input`.
+- **Code Reuse:** Extract the PR fetching and `snacks.picker.select` logic into a shared `select_pr` helper to keep the code DRY.
 
 ## Verification
 
 **Commands:**
 - `stylua --check lua/ ftplugin/ init.lua` -- expected: pass clean.
-- `bash scripts/validate-4-2.sh` -- expected: exits 0, proving smoke test passes.
-- `nvim --headless -u init.lua -c "PlenaryBustedDirectory lua/tetravim/tests/" -c "qa"` -- expected: `forge_review_spec.lua` passes.
+- `bash scripts/validate-4-2.sh` -- expected: exits 0, proving smoke test passes. **Must** include a `trap` for cleanup of mock scripts. **Must** mock and assert `vim.system` correctly captures `list_and_review_prs` and `checkout_pr` operations, not just comments.
+- `nvim --headless -u init.lua -c "PlenaryBustedDirectory lua/tetravim/tests/" -c "qa"` -- expected: `forge_review_spec.lua` passes. **Must** verify that the `<leader>gr` group is actually added to the `ui-whichkey.lua` spec (via parsing or `require("tetravim.plugins.ui-whichkey")`).
 
 **Manual checks:**
 - `:checkhealth tetravim` displays the "Code Reviews (GitHub/GitLab)" section evaluating `gh` and `glab` presence.
+
+## Suggested Review Order
+
+**Forge engine — the core PR integration**
+
+- Repo-scoped session state and CLI detection via `git remote -v`
+  [`forge.lua:5`](../../lua/tetravim/util/forge.lua#L5)
+
+- Shared `select_pr` helper: fetches PRs, presents picker, stores active session
+  [`forge.lua:43`](../../lua/tetravim/util/forge.lua#L43)
+
+- Review flow: fetches both base and head branches, opens `DiffviewOpen` dynamically, loads comment threads with `NO_COLOR=1`
+  [`forge.lua:117`](../../lua/tetravim/util/forge.lua#L117)
+
+- Checkout flow: delegates to `gh pr checkout` / `glab mr checkout`
+  [`forge.lua:165`](../../lua/tetravim/util/forge.lua#L165)
+
+- Comment flow: `acwrite` scratch buffer with `BufWriteCmd` autocmd, buffer preserved on API failure
+  [`forge.lua:187`](../../lua/tetravim/util/forge.lua#L187)
+
+**Plugin wiring and discoverability**
+
+- Lazy spec extending `diffview.nvim` with `<leader>gr*` keymaps
+  [`tools-review.lua:1`](../../lua/tetravim/plugins/tools-review.lua#L1)
+
+- Which-Key group registration for `<leader>gr`
+  [`ui-whichkey.lua:33`](../../lua/tetravim/plugins/ui-whichkey.lua#L33)
+
+- Healthcheck section verifying `gh` and `glab` presence
+  [`health.lua:305`](../../lua/tetravim/health.lua#L305)
+
+**Tests and validation**
+
+- Static busted spec: plugin shape + which-key group assertion
+  [`forge_review_spec.lua:1`](../../lua/tetravim/tests/forge_review_spec.lua#L1)
+
+- Runtime smoke test: mocked `vim.system` assertions for list/checkout/comment + healthcheck
+  [`validate-4-2.sh:1`](../../scripts/validate-4-2.sh#L1)

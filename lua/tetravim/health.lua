@@ -302,6 +302,18 @@ function M.check()
     vim.health.warn("plenary.nvim: not resolvable -- diffview's hard dependency; run :Lazy sync")
   end
 
+  vim.health.start("TetraVim Code Reviews (GitHub/GitLab) (Story 4.2)")
+  if vim.fn.executable("gh") == 1 then
+    vim.health.ok("gh: installed and executable (GitHub PR review support available)")
+  else
+    vim.health.info("gh: NOT found on $PATH (GitHub PR review support unavailable). Suggestion: install gh")
+  end
+  if vim.fn.executable("glab") == 1 then
+    vim.health.ok("glab: installed and executable (GitLab PR review support available)")
+  else
+    vim.health.info("glab: NOT found on $PATH (GitLab PR review support unavailable). Suggestion: install glab")
+  end
+
   vim.health.start("TetraVim Colour Scheme")
 
   local theme_ok, tetris = pcall(require, "tetravim.theme.tetris")

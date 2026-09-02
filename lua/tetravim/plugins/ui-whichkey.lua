@@ -30,6 +30,7 @@ return {
         -- / <leader>gX conflict-pick groups are registered buffer-locally for
         -- diffview buffers only -- see lua/tetravim/plugins/tools-diffview.lua.
         { "<leader>gc", group = "conflict/compare", icon = " " },
+        { "<leader>gr", group = "git review", icon = "󰊢 " },
         { "<leader>o", group = "devops/infra", icon = "󱁢 " },
         { "<leader>d", group = "debug/dap", icon = "󰃤 " },
         { "<leader>D", group = "database", icon = "󰆼 " },
