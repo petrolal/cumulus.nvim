@@ -137,10 +137,8 @@ return {
         group = group,
         pattern = "CumulusThemeChanged",
         callback = function()
-          local theme_module = require("cumulus.theme")
-          local current_theme = theme_module.get_current_theme()
-          theme_colors.refresh_cache(current_theme)
-          
+          -- theme_colors.cache is already updated by set_theme before firing this event.
+          -- Do not call get_current_theme() here because set_theme might not have saved it to state yet.
           local ok_lualine, lualine = pcall(require, "lualine")
           if ok_lualine then
             lualine.setup(get_lualine_opts())

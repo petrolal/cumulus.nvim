@@ -186,6 +186,10 @@ function M.set_theme(theme_name)
 
   vim.notify("Cloud theme set to: " .. clean_theme, vim.log.levels.INFO)
 
+  -- Persist the theme so get_current_theme() can read it on next startup
+  local internal_state_file = vim.fn.stdpath("state") .. "/cumulus_theme"
+  vim.fn.writefile({ theme_name }, internal_state_file)
+
   -- Refresh theme color cache for lualine/bufferline (Story 5.1)
   local theme_colors = require("cumulus.util.theme_colors")
   theme_colors.refresh_cache(theme_name)
