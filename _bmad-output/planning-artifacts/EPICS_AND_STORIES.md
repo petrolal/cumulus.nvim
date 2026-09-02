@@ -144,3 +144,14 @@ This plan breaks down the migration into actionable Epics:
 - [ ] 100% Headless install support via `bootstrap.sh`.
 - [ ] Healthcheck outputs machine-readable JSON for compliance validation.
 - [ ] Optional telemetry/logs export for troubleshooting IDE issues in isolated corporate environments.
+
+## Story 5.3: Global Visual Identity & Dotfile Sync
+**As a** developer  
+**I want to** have a consistent visual identity that shares the `cumulus.dotfile` theme  
+**So that** my entire development environment, from terminal to editor, feels unified  
+
+**Acceptance Criteria:**
+- [ ] Extract existing color palettes to align with `cumulus.dotfile`.
+- [ ] Create a shared theme bridge or sync mechanism to consume external color configurations.
+- [ ] Ensure all UI primitives (lualine, telescope, etc.) respect the dotfile theme.
+

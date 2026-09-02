@@ -41,7 +41,9 @@ function M.jq_filter(json_text, filter_expr, callback)
     return
   end
 
-  vim.system({ "jq", filter_expr }, { text = true, stdin = json_text, timeout = JQ_TIMEOUT_MS }, function(out)
+  -- `--` terminates jq's option parsing so a filter expression that begins
+  -- with "-" (e.g. `-C .`) is treated as the filter, not an unknown flag.
+  vim.system({ "jq", "--", filter_expr }, { text = true, stdin = json_text, timeout = JQ_TIMEOUT_MS }, function(out)
     vim.schedule(function()
       -- vim.system() reports a timeout-triggered kill via code=124/signal=15
       -- (the classic `timeout(1)` convention) -- jq itself never legitimately
@@ -62,6 +64,32 @@ function M.jq_filter(json_text, filter_expr, callback)
       end
     end)
   end)
+end
+
+--- Whether `text` looks like JSON that jq could usefully filter: either a
+--- single value vim.json.decode accepts outright (it requires exactly one
+--- top-level value), OR JSON Lines / a concatenated stream of JSON values --
+--- every non-blank line individually decodes as its own JSON value -- a
+--- legitimate jq input shape vim.json.decode rejects on the whole buffer.
+--- Requires at least one non-blank line to avoid a vacuous "true" on
+--- whitespace-only input.
+---@param text string
+---@return boolean
+function M.looks_like_json(text)
+  if pcall(vim.json.decode, text) then
+    return true
+  end
+  local checked_any_line = false
+  for _, line in ipairs(vim.split(text, "\n", { plain = true })) do
+    local trimmed = vim.trim(line)
+    if trimmed ~= "" then
+      checked_any_line = true
+      if not pcall(vim.json.decode, trimmed) then
+        return false
+      end
+    end
+  end
+  return checked_any_line
 end
 
 return M

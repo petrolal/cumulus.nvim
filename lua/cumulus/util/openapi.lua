@@ -48,6 +48,11 @@ local function build_request_block(method, path, base_url, operation)
     end
   end
 
+  -- A CR/LF inside operationId/summary would break the single-line
+  -- "### <name>" header and inject stray lines into the block -- collapse
+  -- every newline to a space so the header stays on one line.
+  name = name:gsub("[\r\n]", " ")
+
   local lines = { "### " .. name }
 
   -- An OpenAPI path template's `{param}` segments (e.g. "/users/{id}") are
@@ -62,6 +67,27 @@ local function build_request_block(method, path, base_url, operation)
     if not seen_params[param] then
       seen_params[param] = true
       table.insert(lines, "# TODO: replace {" .. param .. "} with a real value")
+    end
+  end
+
+  -- Flag every required query/header parameter so the generated block does
+  -- not silently omit an input the endpoint demands. Deduped on (in, name)
+  -- so a spec repeating a parameter only produces one TODO line.
+  if type(operation) == "table" and type(operation.parameters) == "table" then
+    local seen_required = {}
+    for _, param in ipairs(operation.parameters) do
+      if
+        type(param) == "table"
+        and param.required == true
+        and type(param.name) == "string"
+        and (param["in"] == "query" or param["in"] == "header")
+      then
+        local key = param["in"] .. "\0" .. param.name
+        if not seen_required[key] then
+          seen_required[key] = true
+          table.insert(lines, "# TODO: set required " .. param["in"] .. " parameter '" .. param.name .. "'")
+        end
+      end
     end
   end
 
@@ -98,7 +124,10 @@ function M.generate_http_from_spec(spec_path)
   -- Expand "~/openapi.json"-style paths the user is naturally inclined to
   -- type into the vim.ui.input prompt -- vim.fn.filereadable() below does
   -- NOT expand "~" itself, so an otherwise-valid path would fail unresolved.
-  spec_path = vim.fn.expand(spec_path)
+  -- Use vim.fs.normalize rather than vim.fn.expand: expand() treats "%" and
+  -- "#" as the current/alternate-file wildcards and mangles any spec path
+  -- that legitimately contains those characters.
+  spec_path = vim.fs.normalize(spec_path)
 
   if spec_path:lower():match("%.ya?ml$") then
     ui.notify_warn("OpenAPI spec is YAML (" .. spec_path .. "): JSON only is supported (v1 scope)")
@@ -116,7 +145,13 @@ function M.generate_http_from_spec(spec_path)
     return nil
   end
 
-  local ok_decode, spec = pcall(vim.json.decode, table.concat(lines_or_err, "\n"))
+  -- Strip a leading UTF-8 BOM (\239\187\191) if present -- vim.json.decode
+  -- treats it as an unexpected character and fails an otherwise-valid spec
+  -- that was saved BOM-first by some Windows editors.
+  local raw = table.concat(lines_or_err, "\n")
+  raw = raw:gsub("^\239\187\191", "")
+
+  local ok_decode, spec = pcall(vim.json.decode, raw)
   if not ok_decode or type(spec) ~= "table" then
     ui.notify_warn("Failed to parse OpenAPI spec as JSON: " .. spec_path)
     return nil
@@ -139,14 +174,33 @@ function M.generate_http_from_spec(spec_path)
     -- through to the "{{baseUrl}}" placeholder above instead of producing a
     -- hostless request line).
     base_url = spec.servers[1].url:gsub("/+$", "")
+
+    if base_url == "" then
+      -- A bare "/" (or "///") server URL strips to "" -- fall back to the
+      -- placeholder rather than emitting a hostless "GET /users" request line.
+      base_url = "{{baseUrl}}"
+      ui.notify_warn(
+        "OpenAPI server URL is '/' (no host); using the {{baseUrl}} placeholder -- generated requests need a host prefix"
+      )
+    elseif base_url ~= "{{baseUrl}}" and not base_url:match("^%a[%w+.-]*://") then
+      ui.notify_warn("OpenAPI server URL is relative (" .. base_url .. "); generated requests need a host prefix")
+    end
+
+    -- OpenAPI permits multiple `servers` entries; only the first is used for
+    -- generation -- name it so the reader knows which one was picked.
+    if #spec.servers > 1 then
+      ui.notify_info("OpenAPI spec lists " .. #spec.servers .. " servers; using the first: " .. base_url)
+    end
   end
 
   -- OpenAPI server URLs may contain `{variable}` templates (per the
   -- `servers[].variables` object) -- substituting those is out of v1 scope,
   -- so warn rather than silently emitting request lines with a literal,
   -- unresolved "{...}" in the host/path, which would otherwise look like a
-  -- generation bug rather than a known scope limit.
-  if base_url:match("{[^{}]+}") then
+  -- generation bug rather than a known scope limit. The "{{baseUrl}}"
+  -- placeholder is our own deliberate fallback (no/relative/bare-slash
+  -- server URL), not an unresolved OpenAPI server variable -- exclude it.
+  if base_url ~= "{{baseUrl}}" and base_url:match("{[^{}]+}") then
     ui.notify_warn(
       "OpenAPI server URL contains unresolved template variable(s) ("
         .. base_url
@@ -158,12 +212,26 @@ function M.generate_http_from_spec(spec_path)
   -- reviewable output rather than whatever order vim.json.decode's table
   -- happens to iterate in.
   local path_keys = {}
+  local non_slash_path_keys = {}
   for path_key, path_item in pairs(spec.paths) do
     if type(path_item) == "table" then
-      table.insert(path_keys, path_key)
+      -- A valid OpenAPI path key is a template starting with "/". A key
+      -- without a leading slash (e.g. "users") would generate a hostless,
+      -- malformed request line -- skip it and warn, but let its siblings
+      -- generate normally.
+      if type(path_key) == "string" and path_key:match("^/") then
+        table.insert(path_keys, path_key)
+      else
+        table.insert(non_slash_path_keys, tostring(path_key))
+      end
     end
   end
   table.sort(path_keys)
+
+  if #non_slash_path_keys > 0 then
+    table.sort(non_slash_path_keys)
+    ui.notify_warn("Skipped OpenAPI path key(s) without a leading '/': " .. table.concat(non_slash_path_keys, ", "))
+  end
 
   local blocks = {}
   local ref_skipped_paths = {}

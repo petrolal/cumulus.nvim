@@ -13,6 +13,10 @@
 return {
   {
     "mistweaverco/kulala.nvim",
+    -- kulala.nvim shells out to `curl` as its actual request backend (it
+    -- builds a curl invocation from each .http block), so `curl` must be on
+    -- $PATH for <leader>Hr to work -- see the :checkhealth entry in
+    -- lua/cumulus/health.lua.
     -- Lazy-load on .http buffers only -- never on the wider set kulala's
     -- own README suggests (http/rest/javascript/lua), since this story's
     -- scope is the .http workflow, not kulala's JS/TS scripting surface.

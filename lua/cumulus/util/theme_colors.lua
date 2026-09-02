@@ -34,43 +34,42 @@ M.cache = vim.deepcopy(M.DEFAULT_COLORS)
 ---@param provider string Cloud provider: "aws", "azure", "gcp", "oci"
 ---@return nil
 function M.init_theme_colors(provider)
-  -- Nil guard: check engine module is available
-  local engine = require("cumulus.util.engine")
-  if not engine or not engine.is_available() then
-    M.cache = vim.deepcopy(M.DEFAULT_COLORS)
-    return
+  local highlights = _G._cumulus_current_highlights or {}
+
+  if vim.tbl_isempty(highlights) then
+    -- Try reading directly from palette if not loaded
+    local palette_file = vim.fn.expand("~/.config/cumulus/theme/palette.json")
+    if vim.fn.filereadable(palette_file) == 1 then
+      local content = vim.fn.readfile(palette_file)
+      local ok, parsed = pcall(vim.fn.json_decode, content)
+      if ok and parsed and type(parsed) == "table" then
+        highlights = parsed.highlights or parsed
+      end
+    end
   end
 
-  -- Safe call to manage_theme("set") which returns highlights in response
-  local ok, result = pcall(engine.manage_theme, "set", { theme = provider })
-  if not ok or not result then
-    M.cache = vim.deepcopy(M.DEFAULT_COLORS)
-    return
-  end
-
-  -- Type validation: ensure result.highlights is a table before indexing
-  if not result.highlights or type(result.highlights) ~= "table" then
+  if vim.tbl_isempty(highlights) then
     M.cache = vim.deepcopy(M.DEFAULT_COLORS)
     return
   end
 
   -- Extract colors from highlights with safe fallback logic
-  M.cache.bg = (result.highlights.Normal and result.highlights.Normal.bg) or M.DEFAULT_COLORS.bg
-  M.cache.fg = (result.highlights.Normal and result.highlights.Normal.fg) or M.DEFAULT_COLORS.fg
-  M.cache.fg_dim = (result.highlights.Comment and result.highlights.Comment.fg) or M.DEFAULT_COLORS.fg_dim
-  M.cache.bg_cursorline = (result.highlights.CursorLine and result.highlights.CursorLine.bg)
+  M.cache.bg = (highlights.Normal and highlights.Normal.bg) or M.DEFAULT_COLORS.bg
+  M.cache.fg = (highlights.Normal and highlights.Normal.fg) or M.DEFAULT_COLORS.fg
+  M.cache.fg_dim = (highlights.Comment and highlights.Comment.fg) or M.DEFAULT_COLORS.fg_dim
+  M.cache.bg_cursorline = (highlights.CursorLine and highlights.CursorLine.bg)
     or M.DEFAULT_COLORS.bg_cursorline
-  M.cache.statusline_bg = (result.highlights.StatusLine and result.highlights.StatusLine.bg)
+  M.cache.statusline_bg = (highlights.StatusLine and highlights.StatusLine.bg)
     or M.DEFAULT_COLORS.statusline_bg
 
   -- Extract provider-specific primary color from CursorLineNr (each provider has distinct color)
-  local cursor_line_nr_fg = result.highlights.CursorLineNr and result.highlights.CursorLineNr.fg
+  local cursor_line_nr_fg = highlights.CursorLineNr and highlights.CursorLineNr.fg
   M.cache.primary_color = cursor_line_nr_fg or M.DEFAULT_COLORS.primary_color
 
   -- Extract secondary, purple, error with safe access
-  M.cache.secondary = (result.highlights.Type and result.highlights.Type.fg) or M.DEFAULT_COLORS.secondary
-  M.cache.purple = (result.highlights.Keyword and result.highlights.Keyword.fg) or M.DEFAULT_COLORS.purple
-  M.cache.error = (result.highlights.Error and result.highlights.Error.fg) or M.DEFAULT_COLORS.error
+  M.cache.secondary = (highlights.Type and highlights.Type.fg) or M.DEFAULT_COLORS.secondary
+  M.cache.purple = (highlights.Keyword and highlights.Keyword.fg) or M.DEFAULT_COLORS.purple
+  M.cache.error = (highlights.Error and highlights.Error.fg) or M.DEFAULT_COLORS.error
 end
 
 --- Refresh theme cache when theme is changed. Detects provider from theme name.

@@ -225,6 +225,11 @@ function M.check()
       desc = "jq JSON processor (required for the <leader>Hj response-filtering keymap)",
       install = "Install via apt install jq / brew install jq / pacman -S jq",
     },
+    {
+      name = "curl",
+      desc = "curl (kulala.nvim's request backend -- required for <leader>Hr to execute .http requests)",
+      install = "Install via apt install curl / brew install curl",
+    },
   }
 
   for _, tool in ipairs(http_tools) do

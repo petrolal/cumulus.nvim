@@ -116,10 +116,6 @@
   summary: `classify_xml_line`'s `line:find("class%s*=%s*[\"'])` is unanchored, so a `<bean>` line carrying `superclass="com.x.FooService"` (or `data-class=`) but no `class=` is misclassified as a bean-class reference. Anchor with `%f[%a]class%s*=`.
   evidence: bmad-code-review edge-case-hunter layer, 2026-09-01. `refactor-treesitter.lua:134`.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
-  summary: The `<leader>H*` HTTP keymap block in `core/keymaps.lua` needs its own review under SPEC-3.2 — `cumulus_http_open_in_split` opens stacked *listed* helper buffers with no `buftype=nofile`/window reuse, `<leader>Hj` filters the focused buffer instead of kulala's response buffer, `<leader>Hr` has no `pcall` around `kulala.run` (raw stack trace on a malformed `.http` buffer), and `looks_like_json`'s NDJSON/concatenated-stream branch has no test coverage. This code was only swept into the SPEC-2.1 diff by the multi-spec fix commit `798b9a4`.
-  evidence: bmad-code-review blind-hunter + edge-case-hunter + verification-gap layers, 2026-09-01. `lua/cumulus/core/keymaps.lua:64`–`:214`.
-
 ## Deferred from: code review of spec-2-2-intelligent-extraction (…-2 finalization) (2026-09-01)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces-2.md`
@@ -171,3 +167,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1-embedded-database-explorer.md`
   summary: No manual re-discovery escape hatch or observability — no `:CumulusDbRediscover` command, no `BufWritePost application.{yml,properties}` refresh when the user edits config mid-session, and the `:checkhealth` section (health.lua ~line 202) reports only vim-dadbod-completion resolvability + the `sql` Tree-sitter parser, nothing about how many connections discovery produced for the current project or why it produced zero. A user hand-authored `vim.g.dbs` is also clobbered unconditionally on every `init()` / global `DirChanged` (folded into the code-review decision item on `vim.g.dbs` semantics — a "only overwrite our own discovered list" guard would need a sentinel).
   evidence: bmad-code-review blind-hunter + edge-case-hunter layers, 2026-09-01. `lua/cumulus/plugins/tools-dadbod.lua` / `lua/cumulus/health.lua`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-review-remediation.md`
+  summary: SPEC-3.2 verification hardening (Goal B, split from the review-remediation spec on token budget). Add `lua/cumulus/tests/openapi_spec.lua` and `lua/cumulus/tests/http_spec.lua` pure-logic unit tests (fixture-driven `generate_http_from_spec` shape/edge coverage — relative & `"/"` server URLs, `.yaml`/missing paths, non-`/` path keys, newline `operationId`, BOM, required-param TODO lines, `{id}` TODO dedup — plus a `http.looks_like_json` truth table for single-value vs NDJSON vs prose vs whitespace). Add the missing functional rows to `scripts/validate-http.sh` (relative-URL warn, jq timeout ERROR + callback-skip, NDJSON no false warning, `<leader>Hj` on a `.http` buffer error path, exact generated-template shape incl. `# TODO: replace {id}` and its dedup) and bump its `[n/N]` counter. Wire `bash scripts/validate-http.sh` into `scripts/validate.sh` as a numbered step.
+  evidence: bmad-review verification-gap lens (G1–G7), 2026-09-01. Split from `spec-3-2-review-remediation.md` at step-02: the code-hardening guards (Goal A) ship independently and are covered at baseline by `validate-http.sh`'s existing 14 steps; the new unit specs + validate rows + `validate.sh` wiring are test-only and independently shippable. Coupling risk accepted: Goal A lands verified only at baseline until this follows.

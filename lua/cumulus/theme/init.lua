@@ -62,48 +62,62 @@ local function load_provider_highlights(provider)
     vim.fn.writefile({ os.date("%H:%M:%S") .. " " .. msg }, logfile, "a")
   end
 
-  local engine = require("cumulus.util.engine")
-  engine.assert_available("theme")
+  log("load_provider_highlights: Loading native dotfile theme for '" .. provider .. "'")
 
-  -- Set theme via engine and get highlights in response
-  log("load_provider_highlights: Calling engine.manage_theme('set', '" .. provider .. "')")
-  local result = engine.manage_theme("set", { theme = provider })
+  local palette_file = vim.fn.expand("~/.config/cumulus/theme/palette.json")
+  local highlights = {}
 
-  if not result then
-    log("load_provider_highlights: Engine returned nil for set")
-    vim.notify("Failed to set theme: engine error", vim.log.levels.ERROR)
-    return false
+  if vim.fn.filereadable(palette_file) == 1 then
+    local content = vim.fn.readfile(palette_file)
+    local ok, parsed = pcall(vim.fn.json_decode, content)
+    if ok and parsed and type(parsed) == "table" then
+      log("load_provider_highlights: Successfully parsed palette.json")
+      -- If the JSON has a nested 'highlights' key, use it. Otherwise assume the root is the highlight map.
+      highlights = parsed.highlights or parsed
+    else
+      log("load_provider_highlights: Failed to parse palette.json, using fallback")
+      vim.notify("Invalid JSON in theme palette.json, using fallback.", vim.log.levels.WARN)
+    end
+  else
+    log("load_provider_highlights: palette.json not found, using fallback")
   end
 
-  -- Verify set succeeded and highlights are present
-  if not result.highlights or vim.tbl_isempty(result.highlights) then
-    log("load_provider_highlights: Theme set but highlights unavailable")
-    vim.notify("Theme set but highlight definitions missing from engine", vim.log.levels.ERROR)
-    return false
+  if vim.tbl_isempty(highlights) then
+    -- Fallback theme based on provider
+    highlights = {
+      Normal = { fg = "#c0caf5", bg = "#1a1b26" },
+      String = { fg = "#9ece6a" },
+      Keyword = { fg = "#bb9af7" },
+      Comment = { fg = "#565f89", italic = true },
+      CursorLine = { bg = "#292e42" },
+      StatusLine = { bg = "#16161e", fg = "#a9b1d6" },
+      Type = { fg = "#0db9d7" },
+      Error = { fg = "#db4b4b" }
+    }
+    
+    -- Specific accent color based on provider
+    if provider == "aws" then
+      highlights.CursorLineNr = { fg = "#FF9900", bold = true }
+    elseif provider == "azure" then
+      highlights.CursorLineNr = { fg = "#0078D4", bold = true }
+    elseif provider == "gcp" then
+      highlights.CursorLineNr = { fg = "#4285F4", bold = true }
+    elseif provider == "oci" then
+      highlights.CursorLineNr = { fg = "#C74634", bold = true }
+    else
+      highlights.CursorLineNr = { fg = "#FF9900", bold = true }
+    end
   end
 
-  log("load_provider_highlights: Got highlights from engine, applying...")
-  apply_highlights(result.highlights)
+  log("load_provider_highlights: Applying highlights...")
+  apply_highlights(highlights)
+  
+  -- Store globally so theme_colors can access it without an engine call
+  _G._cumulus_current_highlights = highlights
   return true
 end
 
 function M.get_current_theme()
-  local engine = require("cumulus.util.engine")
-  if engine.is_available() then
-    local res = engine.manage_theme("get")
-    if res and res.theme then
-      -- Also cache highlights if available from engine
-      if res.highlights and not vim.tbl_isempty(res.highlights) then
-        apply_highlights(res.highlights)
-      end
-      local t = res.theme
-      if not t:match("%-theme$") then
-        t = t .. "-theme"
-      end
-      return t
-    end
-  end
-
   local internal_state_file = vim.fn.stdpath("state") .. "/cumulus_theme"
   if vim.fn.filereadable(internal_state_file) == 1 then
     local lines = vim.fn.readfile(internal_state_file)

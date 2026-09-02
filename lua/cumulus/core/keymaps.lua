@@ -146,15 +146,38 @@ map("n", "<leader>Da", "<cmd>DBUIAddConnection<cr>", { desc = "Add DB Connection
 -- output always renders in a persistent split, never a floating window,
 -- per this epic's established UX pattern.
 local function cumulus_http_open_in_split(text, filetype, name_hint)
-  -- Vertical, matching tools-http.lua's kulala.nvim `split_direction = "right"`
-  -- so generated-template/jq-filtered output opens in the same orientation
-  -- as kulala's own response split.
-  vim.cmd("botright vsplit")
-  local bufnr = vim.api.nvim_create_buf(true, false)
+  -- Reuse a result window from a previous invocation -- its buffer name
+  -- starts with "<name_hint>-" -- instead of stacking a fresh split on every
+  -- call.
+  local target_win
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    local ok_name, bufname = pcall(vim.api.nvim_buf_get_name, buf)
+    if ok_name and vim.fs.basename(bufname):match("^" .. vim.pesc(name_hint) .. "%-") then
+      target_win = win
+      break
+    end
+  end
+
+  if target_win and vim.api.nvim_win_is_valid(target_win) then
+    vim.api.nvim_set_current_win(target_win)
+  else
+    -- Vertical, matching tools-http.lua's kulala.nvim `split_direction = "right"`
+    -- so generated-template/jq-filtered output opens in the same orientation
+    -- as kulala's own response split.
+    vim.cmd("botright vsplit")
+  end
+
+  -- Unlisted scratch buffer: buftype=nofile + bufhidden=wipe + noswapfile so
+  -- a stray `:w` can never dump this helper output into the repo and the
+  -- buffer is discarded when its window goes away.
+  local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_win_set_buf(0, bufnr)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(text, "\n", { plain = true }))
-  vim.bo[bufnr].filetype = filetype
+  vim.bo[bufnr].buftype = "nofile"
+  vim.bo[bufnr].bufhidden = "wipe"
   vim.bo[bufnr].swapfile = false
+  vim.bo[bufnr].filetype = filetype
   vim.bo[bufnr].modified = false
   pcall(vim.api.nvim_buf_set_name, bufnr, name_hint .. "-" .. tostring(bufnr))
 end
@@ -171,7 +194,12 @@ map("n", "<leader>Hr", function()
     require("cumulus.util.ui").notify_err("kulala.nvim is not available -- open a .http file first")
     return
   end
-  kulala.run()
+  -- Guard kulala.run() so a malformed .http buffer surfaces a clean
+  -- notification instead of a raw Lua stack trace.
+  local run_ok, run_err = pcall(kulala.run)
+  if not run_ok then
+    require("cumulus.util.ui").notify_err("Failed to run HTTP request: " .. tostring(run_err))
+  end
 end, { desc = "Run HTTP Request" })
 
 map("n", "<leader>Ho", function()
@@ -188,47 +216,35 @@ map("n", "<leader>Ho", function()
   end)
 end, { desc = "Generate .http from OpenAPI Spec" })
 
---- Whether `text` looks like JSON that jq could usefully filter: either a
---- single value vim.json.decode accepts outright (it requires exactly one
---- top-level value), OR JSON Lines / a concatenated stream of JSON values --
---- every non-blank line individually decodes as its own JSON value -- a
---- legitimate jq input shape vim.json.decode rejects on the whole buffer.
---- Requires at least one non-blank line to avoid a vacuous "true" on
---- whitespace-only input.
----@param text string
----@return boolean
-local function looks_like_json(text)
-  if pcall(vim.json.decode, text) then
-    return true
-  end
-  local checked_any_line = false
-  for _, line in ipairs(vim.split(text, "\n", { plain = true })) do
-    local trimmed = vim.trim(line)
-    if trimmed ~= "" then
-      checked_any_line = true
-      if not pcall(vim.json.decode, trimmed) then
-        return false
-      end
-    end
-  end
-  return checked_any_line
-end
-
 map("n", "<leader>Hj", function()
-  local json_text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-  if json_text == "" then
-    require("cumulus.util.ui").notify_warn("Current buffer is empty -- nothing to filter")
+  local ui = require("cumulus.util.ui")
+  local ft = vim.bo.filetype
+
+  -- A .http source buffer is not a response -- jq has nothing useful to do
+  -- with it. Send the user to the response window (or a JSON buffer) rather
+  -- than shelling out to jq on request syntax.
+  if ft == "http" then
+    ui.notify_err(
+      "<leader>Hj filters a JSON response, not a .http source -- move to the response window or a JSON buffer first"
+    )
     return
   end
+
+  local json_text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  if json_text == "" then
+    ui.notify_warn("Current buffer is empty -- nothing to filter")
+    return
+  end
+
   -- Soft heads-up only -- jq can still usefully filter JSON Lines / a
   -- concatenated stream of JSON values that vim.json.decode (which expects
-  -- exactly one top-level value) rejects, so a decode failure here warns
-  -- but does NOT abort the filter.
-  if not looks_like_json(json_text) then
-    require("cumulus.util.ui").notify_warn(
-      "Current buffer does not look like valid JSON -- jq may fail or produce unexpected output"
-    )
+  -- exactly one top-level value) rejects, so a decode failure here warns but
+  -- does NOT abort the filter. kulala's own response window
+  -- (filetype=kulala_ui) renders a known-good body, so skip the check there.
+  if ft ~= "kulala_ui" and not require("cumulus.util.http").looks_like_json(json_text) then
+    ui.notify_warn("Current buffer does not look like valid JSON -- jq may fail or produce unexpected output")
   end
+
   vim.ui.input({ prompt = "jq filter (e.g. .data): " }, function(filter_expr)
     if not filter_expr or filter_expr == "" then
       return
@@ -237,7 +253,7 @@ map("n", "<leader>Hj", function()
       cumulus_http_open_in_split(result_text, "json", "jq-filtered")
     end)
   end)
-end, { desc = "jq-Filter Last Response" })
+end, { desc = "jq-Filter JSON Response/Buffer" })
 
 -- Autoformat toggle (Story 34.2): <leader>uf toggles for the current
 -- buffer only, <leader>uF toggles the global default
