@@ -128402,3 +128402,131 @@
 11:28:56 Checking theme: name=gcp-theme, provider=gcp
 11:28:56 Checking theme: name=oci-theme, provider=oci
 11:28:56 ERROR: Theme not loaded
+17:03:02 === load_saved_theme() called ===
+17:03:02 Current theme: FLAVOR=aws-theme
+17:03:02 Clean theme: FLAVOR=aws
+17:03:02 Checking theme: name=aws-theme, provider=aws
+17:03:02 Checking theme: name=azure-theme, provider=azure
+17:03:02 Checking theme: name=gcp-theme, provider=gcp
+17:03:02 Checking theme: name=oci-theme, provider=oci
+17:03:02 ERROR: Theme not loaded
+17:03:02 === load_saved_theme() called ===
+17:03:02 Current theme: FLAVOR=aws-theme
+17:03:02 Clean theme: FLAVOR=aws
+17:03:02 Checking theme: name=aws-theme, provider=aws
+17:03:02 Checking theme: name=azure-theme, provider=azure
+17:03:02 Checking theme: name=gcp-theme, provider=gcp
+17:03:02 Checking theme: name=oci-theme, provider=oci
+17:03:02 ERROR: Theme not loaded
+17:03:02 === load_saved_theme() called ===
+17:03:02 Current theme: FLAVOR=aws-theme
+17:03:02 Clean theme: FLAVOR=aws
+17:03:02 Checking theme: name=aws-theme, provider=aws
+17:03:02 Checking theme: name=azure-theme, provider=azure
+17:03:02 Checking theme: name=gcp-theme, provider=gcp
+17:03:02 Checking theme: name=oci-theme, provider=oci
+17:03:02 ERROR: Theme not loaded
+17:03:02 === load_saved_theme() called ===
+17:03:02 Current theme: FLAVOR=aws-theme
+17:03:02 Clean theme: FLAVOR=aws
+17:03:02 Checking theme: name=aws-theme, provider=aws
+17:03:02 Checking theme: name=azure-theme, provider=azure
+17:03:02 Checking theme: name=gcp-theme, provider=gcp
+17:03:02 Checking theme: name=oci-theme, provider=oci
+17:03:02 ERROR: Theme not loaded
+17:03:02 === load_saved_theme() called ===
+17:03:02 Current theme: FLAVOR=aws-theme
+17:03:02 Clean theme: FLAVOR=aws
+17:03:02 Checking theme: name=aws-theme, provider=aws
+17:03:02 Checking theme: name=azure-theme, provider=azure
+17:03:02 Checking theme: name=gcp-theme, provider=gcp
+17:03:02 Checking theme: name=oci-theme, provider=oci
+17:03:02 ERROR: Theme not loaded
+17:03:03 === load_saved_theme() called ===
+17:03:03 Current theme: FLAVOR=aws-theme
+17:03:03 Clean theme: FLAVOR=aws
+17:03:03 Checking theme: name=aws-theme, provider=aws
+17:03:03 Checking theme: name=azure-theme, provider=azure
+17:03:03 Checking theme: name=gcp-theme, provider=gcp
+17:03:03 Checking theme: name=oci-theme, provider=oci
+17:03:03 ERROR: Theme not loaded
+17:03:40 === load_saved_theme() called ===
+17:03:40 Current theme: FLAVOR=aws-theme
+17:03:40 Clean theme: FLAVOR=aws
+17:03:40 Checking theme: name=aws-theme, provider=aws
+17:03:40 Checking theme: name=azure-theme, provider=azure
+17:03:40 Checking theme: name=gcp-theme, provider=gcp
+17:03:40 Checking theme: name=oci-theme, provider=oci
+17:03:40 ERROR: Theme not loaded
+17:04:16 === load_saved_theme() called ===
+17:04:16 Current theme: FLAVOR=aws-theme
+17:04:16 Clean theme: FLAVOR=aws
+17:04:16 Checking theme: name=aws-theme, provider=aws
+17:04:16 Checking theme: name=azure-theme, provider=azure
+17:04:16 Checking theme: name=gcp-theme, provider=gcp
+17:04:16 Checking theme: name=oci-theme, provider=oci
+17:04:16 ERROR: Theme not loaded
+17:04:32 === load_saved_theme() called ===
+17:04:32 Current theme: FLAVOR=aws-theme
+17:04:32 Clean theme: FLAVOR=aws
+17:04:32 Checking theme: name=aws-theme, provider=aws
+17:04:32 Checking theme: name=azure-theme, provider=azure
+17:04:32 Checking theme: name=gcp-theme, provider=gcp
+17:04:32 Checking theme: name=oci-theme, provider=oci
+17:04:32 ERROR: Theme not loaded
+17:04:33 === load_saved_theme() called ===
+17:04:33 Current theme: FLAVOR=aws-theme
+17:04:33 Clean theme: FLAVOR=aws
+17:04:33 Checking theme: name=aws-theme, provider=aws
+17:04:33 Checking theme: name=azure-theme, provider=azure
+17:04:33 Checking theme: name=gcp-theme, provider=gcp
+17:04:33 Checking theme: name=oci-theme, provider=oci
+17:04:33 ERROR: Theme not loaded
+17:04:33 === load_saved_theme() called ===
+17:04:33 Current theme: FLAVOR=aws-theme
+17:04:33 Clean theme: FLAVOR=aws
+17:04:33 Checking theme: name=aws-theme, provider=aws
+17:04:33 Checking theme: name=azure-theme, provider=azure
+17:04:33 Checking theme: name=gcp-theme, provider=gcp
+17:04:33 Checking theme: name=oci-theme, provider=oci
+17:04:33 ERROR: Theme not loaded
+17:04:33 === load_saved_theme() called ===
+17:04:33 Current theme: FLAVOR=aws-theme
+17:04:33 Clean theme: FLAVOR=aws
+17:04:33 Checking theme: name=aws-theme, provider=aws
+17:04:33 Checking theme: name=azure-theme, provider=azure
+17:04:33 Checking theme: name=gcp-theme, provider=gcp
+17:04:33 Checking theme: name=oci-theme, provider=oci
+17:04:33 ERROR: Theme not loaded
+17:04:33 === load_saved_theme() called ===
+17:04:33 Current theme: FLAVOR=aws-theme
+17:04:33 Clean theme: FLAVOR=aws
+17:04:33 Checking theme: name=aws-theme, provider=aws
+17:04:33 Checking theme: name=azure-theme, provider=azure
+17:04:33 Checking theme: name=gcp-theme, provider=gcp
+17:04:33 Checking theme: name=oci-theme, provider=oci
+17:04:33 ERROR: Theme not loaded
+17:04:33 === load_saved_theme() called ===
+17:04:33 Current theme: FLAVOR=aws-theme
+17:04:33 Clean theme: FLAVOR=aws
+17:04:33 Checking theme: name=aws-theme, provider=aws
+17:04:33 Checking theme: name=azure-theme, provider=azure
+17:04:33 Checking theme: name=gcp-theme, provider=gcp
+17:04:33 Checking theme: name=oci-theme, provider=oci
+17:04:33 ERROR: Theme not loaded
+17:04:37 === load_saved_theme() called ===
+17:04:37 Current theme: FLAVOR=aws-theme
+17:04:37 Clean theme: FLAVOR=aws
+17:04:37 Checking theme: name=aws-theme, provider=aws
+17:04:37 Checking theme: name=azure-theme, provider=azure
+17:04:37 Checking theme: name=gcp-theme, provider=gcp
+17:04:37 Checking theme: name=oci-theme, provider=oci
+17:04:37 ERROR: Theme not loaded
+17:05:57 === load_saved_theme() called ===
+17:05:57 Current theme: FLAVOR=aws-theme
+17:05:57 Clean theme: FLAVOR=aws
+17:05:57 Checking theme: name=aws-theme, provider=aws
+17:05:57 Checking theme: name=azure-theme, provider=azure
+17:05:57 Checking theme: name=gcp-theme, provider=gcp
+17:05:57 Checking theme: name=oci-theme, provider=oci
+17:05:57 ERROR: Theme not loaded
