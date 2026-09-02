@@ -58,6 +58,15 @@ local function notify_info(msg)
   vim.notify(msg, vim.log.levels.INFO, { title = "Cumulus Refactor" })
 end
 
+--- A rename target must be a bare Java/Kotlin identifier -- no whitespace,
+--- dots, or a leading digit -- or apply_spring_edits would splice the raw
+--- string straight into `class <name>` across every location.
+---@param name string
+---@return boolean
+local function valid_identifier(name)
+  return name:match("^[%a_][%w_]*$") ~= nil
+end
+
 --- Find the JDTLS/Kotlin LS client attached to `bufnr`, if any.
 ---@param bufnr integer
 ---@return vim.lsp.Client|nil
@@ -173,9 +182,15 @@ end
 --- same path.
 ---@param spring_items table[]
 ---@param new_name string
+---@param old_name string|nil when given, every [col,end_col) span is re-read
+---  from the loaded buffer and skipped (its file marked failed) if it no
+---  longer holds exactly `old_name` -- guards against splicing into a file
+---  whose on-disk content (read at scan time) has since diverged from the
+---  live buffer: an already-open file with unsaved edits, or one the user
+---  edited in the :copen preview before pressing Apply.
 ---@return integer applied how many of #spring_items were actually applied
----@return string[] failed_files files where at least one edit failed (load or splice)
-function M.apply_spring_edits(spring_items, new_name)
+---@return string[] failed_files files where at least one edit failed (load, splice, or a stale span)
+function M.apply_spring_edits(spring_items, new_name, old_name)
   local by_file = {}
   for _, item in ipairs(spring_items) do
     by_file[item.file] = by_file[item.file] or {}
@@ -211,15 +226,27 @@ function M.apply_spring_edits(spring_items, new_name)
     if ok and loaded then
       local file_failed = false
       for _, item in ipairs(items) do
-        local set_ok = pcall(
-          vim.api.nvim_buf_set_text,
-          bufnr,
-          item.lnum - 1,
-          item.col - 1,
-          item.lnum - 1,
-          item.end_col - 1,
-          { new_name }
-        )
+        -- Verify the span still holds `old_name` before overwriting it: the
+        -- coordinates were captured from disk at scan time, so a file that
+        -- is open with unsaved edits (or was edited in the preview) may have
+        -- shifted content underneath them -- splicing blind would corrupt it.
+        local span_ok = true
+        if old_name ~= nil then
+          local got_ok, cur =
+            pcall(vim.api.nvim_buf_get_text, bufnr, item.lnum - 1, item.col - 1, item.lnum - 1, item.end_col - 1, {})
+          span_ok = got_ok and cur[1] == old_name
+        end
+
+        local set_ok = span_ok
+          and pcall(
+            vim.api.nvim_buf_set_text,
+            bufnr,
+            item.lnum - 1,
+            item.col - 1,
+            item.lnum - 1,
+            item.end_col - 1,
+            { new_name }
+          )
         if set_ok then
           applied = applied + 1
         else
@@ -277,12 +304,22 @@ function M.project_rename(new_name)
       prompt = "Project-wide rename '" .. old_name .. "' to: ",
       default = old_name,
     }, function(input)
-      if not input or input == "" then
+      if not input then
+        action_lock.release()
+        return
+      end
+      input = vim.trim(input)
+      if input == "" then
         action_lock.release()
         return
       end
       if input == old_name then
         notify_info("New name is the same as the current name -- nothing to do")
+        action_lock.release()
+        return
+      end
+      if not valid_identifier(input) then
+        notify_err("Project rename: '" .. input .. "' is not a valid identifier -- no changes applied")
         action_lock.release()
         return
       end
@@ -296,11 +333,16 @@ function M.project_rename(new_name)
     return
   end
 
+  new_name = vim.trim(new_name)
   if new_name == "" then
     return
   end
   if new_name == old_name then
     notify_info("New name is the same as the current name -- nothing to do")
+    return
+  end
+  if not valid_identifier(new_name) then
+    notify_err("Project rename: '" .. new_name .. "' is not a valid identifier -- no changes applied")
     return
   end
 
@@ -371,6 +413,28 @@ function M._on_rename_response(bufnr, jvm_client, old_name, new_name, responses)
     notify_warn("Project rename: no changes returned for '" .. old_name .. "'")
     action_lock.release()
     return
+  end
+
+  -- workspace_edit_to_locations intentionally drops create/rename/delete
+  -- resource operations (file-move handling is out of scope for this spec),
+  -- but the user must be told rather than left with e.g. FooService.java
+  -- silently holding `class BarService` after the rename.
+  if workspace_edit.documentChanges then
+    local resource_ops = 0
+    for _, change in ipairs(workspace_edit.documentChanges) do
+      if change.kind == "create" or change.kind == "rename" or change.kind == "delete" then
+        resource_ops = resource_ops + 1
+      end
+    end
+    if resource_ops > 0 then
+      notify_warn(
+        string.format(
+          "Project rename: %d file move/rename operation(s) from '%s' were skipped (file-move handling is out of scope) -- rename the file(s) manually.",
+          resource_ops,
+          jvm_client.name
+        )
+      )
+    end
   end
 
   local locations = M.workspace_edit_to_locations(workspace_edit)
@@ -463,7 +527,7 @@ function M._show_preview(workspace_edit, jvm_client, old_name, new_name, lsp_ite
 
     local spring_applied, spring_failed_files = 0, {}
     if #spring_items > 0 then
-      spring_applied, spring_failed_files = M.apply_spring_edits(spring_items, new_name)
+      spring_applied, spring_failed_files = M.apply_spring_edits(spring_items, new_name, old_name)
     end
 
     local total_applied = #lsp_items + spring_applied

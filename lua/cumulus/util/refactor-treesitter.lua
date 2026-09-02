@@ -352,6 +352,17 @@ local LANG_BY_EXT = {
   kts = "kotlin",
 }
 
+-- Upper bound on the `rg`/`grep` candidate search. refactor.lua's
+-- RENAME_TIMEOUT_MS only guards the textDocument/rename request; without
+-- this a stuck scanner would hold the shared action-lock with no preview
+-- and no feedback until Neovim restarts. A non-0/1 exit (which a timeout
+-- kill produces) already routes to the grep fallback / warn_scan_unavailable.
+local SCAN_TIMEOUT_MS = 15000
+
+-- Stable vim.notify id so the "scanning..." toast collapses in place rather
+-- than stacking, mirroring sync-runner.lua's heartbeat-notify convention.
+local SCAN_NOTIFY_ID = "cumulus_refactor_spring_scan"
+
 local SCAN_UNAVAILABLE_MSG =
   "Spring-reference scan unavailable (neither 'rg' nor 'grep' could be run) -- XML/@Autowired/stereotype coverage may be incomplete for this rename"
 
@@ -419,7 +430,7 @@ function M.raw_hits_async(root, symbol, callback)
     symbol,
     root,
   }
-  local rg_ok, rg_handle_or_err = pcall(vim.system, rg_cmd, { text = true }, function(result)
+  local rg_ok, rg_handle_or_err = pcall(vim.system, rg_cmd, { text = true, timeout = SCAN_TIMEOUT_MS }, function(result)
     if result.code == 0 or result.code == 1 then
       -- exit 1 == "no matches", not an error -- still a valid empty scan.
       finish(parse_rg(result.stdout or ""))
@@ -464,7 +475,7 @@ function M._grep_fallback(root, symbol, parse_grep, finish)
       symbol,
       root,
     }
-    local ok, handle_or_err = pcall(vim.system, grep_cmd, { text = true }, function(result)
+    local ok, handle_or_err = pcall(vim.system, grep_cmd, { text = true, timeout = SCAN_TIMEOUT_MS }, function(result)
       if result.code == 0 or result.code == 1 then
         finish(parse_grep(result.stdout or ""))
       else
@@ -534,6 +545,20 @@ function M.scan_root_async(root, symbol, old_package, callback)
 
     local items = {}
     local failed_files = {}
+
+    -- Heartbeat toast for a scan large enough to be perceptible: the
+    -- per-chunk readfile + Tree-sitter parse is synchronous work between
+    -- vim.schedule ticks, so on a big monorepo this can take a beat.
+    -- Collapses in place via SCAN_NOTIFY_ID (sync-runner.lua's convention).
+    local HEARTBEAT_THRESHOLD = 40
+    local show_heartbeat = #unique_files >= HEARTBEAT_THRESHOLD
+    if show_heartbeat then
+      vim.notify(
+        string.format("Scanning %d file(s) for Spring references to '%s'...", #unique_files, symbol),
+        vim.log.levels.INFO,
+        { id = SCAN_NOTIFY_ID, title = "Cumulus Refactor" }
+      )
+    end
 
     local file_idx = 1
     local function process_chunk()
@@ -612,8 +637,27 @@ function M.scan_root_async(root, symbol, old_package, callback)
 
       file_idx = chunk_end + 1
       if file_idx <= #unique_files then
+        if show_heartbeat then
+          vim.notify(
+            string.format(
+              "Scanning for Spring references to '%s'... (%d/%d files)",
+              symbol,
+              math.min(file_idx - 1, #unique_files),
+              #unique_files
+            ),
+            vim.log.levels.INFO,
+            { id = SCAN_NOTIFY_ID, title = "Cumulus Refactor" }
+          )
+        end
         vim.schedule(process_chunk)
       else
+        if show_heartbeat then
+          vim.notify(
+            string.format("Spring-reference scan complete (%d file(s), %d match(es))", #unique_files, #items),
+            vim.log.levels.INFO,
+            { id = SCAN_NOTIFY_ID, title = "Cumulus Refactor" }
+          )
+        end
         if #failed_files > 0 then
           vim.notify(
             "Spring-reference scan could not read "

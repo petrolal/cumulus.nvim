@@ -71,7 +71,12 @@ local function find_files(root_dir, filename, depth, results, truncated)
 
   for name, kind in iter do
     if kind == "file" and name == filename then
-      table.insert(results, root_dir .. "/" .. name)
+      local full = root_dir .. "/" .. name
+      -- Test-scoped Spring config (typically an in-memory H2 DB) is not a
+      -- real datasource to browse -- keep it out of vim.g.dbs.
+      if not (full:find("/src/test/", 1, true) or full:find("/test/resources/", 1, true)) then
+        table.insert(results, full)
+      end
     elseif kind == "directory" and not IGNORED_DIRS[name] and not name:match("^%.") then
       find_files(root_dir .. "/" .. name, filename, depth + 1, results, truncated)
     end
@@ -144,6 +149,14 @@ local function parse_yaml_lines(lines)
     if line:match("%S") and not line:match("^%s*#") then
       local indent_str, key, val = line:match("^(%s*)([%w_%-]+):%s*(.-)%s*$")
       if key then
+        -- Strip a YAML trailing inline comment (whitespace + '#') from an
+        -- unquoted scalar BEFORE deciding whether a value is present, so
+        -- `password: secret # note` yields `secret`, not `secret # note`,
+        -- and `password:   # todo` reads as null (nested/absent), not "".
+        if val ~= "" and not (val:match('^"') or val:match("^'")) then
+          val = (val:gsub("%s+#.*$", ""))
+          val = val:match("^%s*(.-)%s*$")
+        end
         local indent = #indent_str
         while #stack > 0 and stack[#stack].indent >= indent do
           table.remove(stack)
@@ -224,6 +237,9 @@ end
 ---@param root_dir string
 ---@return table<string, string>
 local function load_dotenv(root_dir)
+  if type(root_dir) ~= "string" or root_dir == "" then
+    return {}
+  end
   local path = root_dir .. "/.env"
   if vim.fn.filereadable(path) ~= 1 then
     return {}
@@ -318,6 +334,10 @@ local function resolve_placeholders(value, dotenv)
     else
       local inner = value:sub(s + 2, j - 2)
       local var_name, default = inner:match("^([^:]+):?(.*)$")
+      -- `${VAR}` and `${VAR:}` both parse to default == "" -- only the
+      -- presence of a ':' distinguishes "no default" from "empty default".
+      -- Spring resolves `${VAR:}` to an empty string.
+      local has_default = inner:find(":", 1, true) ~= nil
       if var_name == nil or var_name == "" then
         -- A malformed placeholder with no name at all (`${}`, `${:default}`)
         -- -- indexing vim.uv.os_getenv()/dotenv with a nil/empty key would
@@ -338,7 +358,7 @@ local function resolve_placeholders(value, dotenv)
           table.insert(out, env_val)
         elseif dotenv_val ~= nil then
           table.insert(out, dotenv_val)
-        elseif default ~= "" then
+        elseif has_default then
           table.insert(out, default)
         else
           table.insert(unresolved, var_name)
@@ -478,6 +498,9 @@ end
 ---@return { name: string, url: string }[]
 function M.discover_datasources(root_dir)
   local dbs = {}
+  if type(root_dir) ~= "string" or root_dir == "" then
+    return dbs
+  end
   local dotenv = load_dotenv(root_dir)
   -- Shared across every find_files() call below so exactly one truncation
   -- warning is emitted per discover_datasources() call, however many of the
@@ -486,10 +509,16 @@ function M.discover_datasources(root_dir)
 
   local prop_files = find_files(root_dir, "application.properties", nil, nil, truncated)
   for _, path in ipairs(prop_files) do
-    local raw = parse_properties_lines(vim.fn.readfile(path))
-    local entry = build_entry(entry_name(root_dir, path, #prop_files), raw, path, dotenv)
-    if entry then
-      table.insert(dbs, entry)
+    -- Guard each read individually (permissions, delete-after-find race,
+    -- binary/NUL content) so one unreadable file skips itself rather than
+    -- throwing E484/E485 and aborting the whole scan.
+    local rok, lines = pcall(vim.fn.readfile, path)
+    if rok and type(lines) == "table" then
+      local raw = parse_properties_lines(lines)
+      local entry = build_entry(entry_name(root_dir, path, #prop_files), raw, path, dotenv)
+      if entry then
+        table.insert(dbs, entry)
+      end
     end
   end
 
@@ -509,10 +538,13 @@ function M.discover_datasources(root_dir)
   -- `truncated` table as its `start` index argument.
   vim.list_extend(yml_files, (find_files(root_dir, "application.yaml", nil, nil, truncated)))
   for _, path in ipairs(yml_files) do
-    local raw = parse_yaml_lines(vim.fn.readfile(path))
-    local entry = build_entry(entry_name(root_dir, path, #yml_files), raw, path, dotenv)
-    if entry then
-      table.insert(dbs, entry)
+    local rok, lines = pcall(vim.fn.readfile, path)
+    if rok and type(lines) == "table" then
+      local raw = parse_yaml_lines(lines)
+      local entry = build_entry(entry_name(root_dir, path, #yml_files), raw, path, dotenv)
+      if entry then
+        table.insert(dbs, entry)
+      end
     end
   end
 

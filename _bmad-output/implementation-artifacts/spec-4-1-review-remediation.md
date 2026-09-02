@@ -2,8 +2,8 @@
 title: 'SPEC-4.1 Review Remediation: Git Guard & Conflict-Keymap Hardening'
 type: 'bugfix'
 created: '2026-09-01'
-status: 'in-review'
-review_loop_iteration: 0
+status: 'done'
+review_loop_iteration: 1
 baseline_commit: '87951caafd152d60d416afe0655dfe1ce083bd5f'
 context: ['/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/epic-4-context.md', '/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/spec-4-1-advanced-git-conflict-resolution.md']
 ---
@@ -19,7 +19,7 @@ context: ['/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/epi
 ## Boundaries & Constraints
 
 **Always:**
-- The shared guard (`in_worktree` / `guard`, run by every `<leader>gc*` press) is pure-Lua: `vim.fs.root(start, ".git")`, matching both a `.git` dir and a `.git` gitfile — no subprocess, no `:wait()`. `history_target_ok` (the `<leader>gch` / `gcH`-only precheck) and `:checkhealth` may each make one short, timeout-bounded `git` call, since history and health are deliberate git operations, not a per-keystroke guard.
+- The shared guard (`in_worktree` / `guard`, run by every `<leader>gc*` press) is pure-Lua: `vim.fs.root(start, ".git")`, matching both a `.git` dir and a `.git` gitfile — no subprocess, no `:wait()`. `history_target_ok` (the `<leader>gch` / `gcH`-only precheck) may make **at most two** short, timeout-bounded `git` calls and `:checkhealth` one, since history and health are deliberate git operations, not a per-keystroke guard. (Renegotiated 2026-09-01 — see Spec Change Log: no single `git` call distinguishes unborn-HEAD from an untracked file while keeping both distinct warnings the I/O matrix mandates.)
 - The repo root is resolved from the current buffer's path, falling back to Neovim's cwd for unnamed buffers, via a new shared `cumulus.util.git.repo_root(bufnr)`. Diffview entry points operate on that repo, not the process cwd.
 - Every `notify_err` / `notify_warn` states the real condition — missing `git`, not a work tree, no commits yet, untracked file, unwritten buffer — never a blanket "Not a git repository".
 - All SPEC-4.1 frozen boundaries still hold: every resolution path under `<leader>gx*` / `<leader>gX*` (view **and** file panel), never a raw diffview stacktrace, views in real splits, `<leader>g`-only keymaps, `gitsigns` keeps blame, `merge_tool.layout` stays `"diff4_mixed"`.
@@ -82,6 +82,8 @@ context: ['/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/epi
 
 - **2026-09-01 — implementation (step-03).** Making `M.in_worktree()` pure-Lua moved the `git`-binary dependency out of `in_worktree` and into `M.guard()`. This broke `scripts/validate-4-1.sh` stage `[4/7]`, whose assertion `git.in_worktree() == false` (under a monkey-patched-absent `git`, cwd inside a real repo) pinned the old coupling. Per the user's "amend spec, leave script to follow-up" decision: the frozen **Never** (do not touch `validate-4-1.sh`) stands; the non-frozen Verification note now records stage 4 as expected-fail; and the deferred `validate-4-1.sh` hardening entry in `deferred-work.md` was expanded to name the stage-4 assertion fix (`in_worktree() == false` → `guard() == false`). No production-code change resulted — `guard()` and `health.lua` already report the missing binary correctly. KEEP: `in_worktree` staying pure-Lua is the whole point of the NFR fix; do not re-add a `git` call to it to appease the stale assertion.
 
+- **2026-09-01 — review (step-04), loop iteration 1.** The multi-lens review found a contradiction *inside* the frozen boundary: **Always** capped `history_target_ok` at "one short, timeout-bounded `git` call", but the frozen I/O matrix mandates two distinct git-derived warnings — unborn HEAD → "repository has no commits yet" *and* untracked file → "file is not tracked by git". No single `git` invocation distinguishes unborn-HEAD, untracked, and tracked-with-history while producing both exact messages, so the step-03 implementation runs two sequential bounded `vim.system():wait()` calls (`rev-parse --verify HEAD`, then `ls-files --error-unmatch`, 2000 ms each). Triggering finding: blind-hunter + edge-case-hunter "≤4 s stall if `git` hangs on `<leader>gch`; exceeds the one-call cap". **Resolution (human, intent_gap):** renegotiate the frozen **Always** boundary to "at most two" bounded `git` calls for `history_target_ok`; ratify the existing two-call implementation unchanged. **Known-bad state avoided:** collapsing to one `git rev-list --max-count=1 HEAD -- <path>` call, which cannot tell an untracked file from a staged-but-never-committed one and would have merged or dropped one of the two frozen warnings. **KEEP:** the two-call `history_target_ok` (unborn-HEAD via `M.has_commits`, then the `ls-files --error-unmatch` untracked probe) with its three distinct `notify_warn` messages; `M.has_commits(root)` stays a public `cumulus.util.git` symbol for Story 4.2. No production-code change resulted from this iteration.
+
 ## Design Notes
 
 Repo-root resolver (shared with Story 4.2), buffer-first:
@@ -111,3 +113,73 @@ Runtime verification of the new paths lands with the deferred `scripts/validate-
 **Manual checks:**
 - `:checkhealth cumulus` with diffview uninstalled vs installed-not-loaded vs loaded shows three distinct messages; plenary absence is called out.
 - In a buffer under a repo different from `:pwd`, `<leader>gco` opens diffview on the buffer's repo.
+
+## Suggested Review Order
+
+**Pure-Lua work-tree guard (epic-4 "no editor freeze" NFR)**
+
+- Start here -- the buffer-first `vim.fs.root` walk every other entry point builds on; no subprocess.
+  [`git.lua:33`](../../lua/cumulus/util/git.lua#L33)
+
+- `in_worktree` is now just `repo_root() ~= nil` -- the `git rev-parse` `:wait()` is gone.
+  [`git.lua:43`](../../lua/cumulus/util/git.lua#L43)
+
+- `guard()` names its actual condition -- missing `git` vs. not under a work tree -- never a blanket message.
+  [`git.lua:75`](../../lua/cumulus/util/git.lua#L75)
+
+- `has_commits` is the one bounded subprocess left, reachable only from the deliberate history precheck.
+  [`git.lua:54`](../../lua/cumulus/util/git.lua#L54)
+
+**Buffer-scoped diffview entry points (multi-project correctness)**
+
+- `scope_flag()` turns the buffer's repo root into a `-C<root>` token so `:Diffview*` ignores the process cwd.
+  [`tools-diffview.lua:32`](../../lua/cumulus/plugins/tools-diffview.lua#L32)
+
+- `<leader>gco` opens the merge tool / working-tree diff against the buffer's repo.
+  [`tools-diffview.lua:118`](../../lua/cumulus/plugins/tools-diffview.lua#L118)
+
+- `<leader>gch` / `<leader>gcH` pass an absolute, `fnameescape`d path plus the scope flag.
+  [`tools-diffview.lua:135`](../../lua/cumulus/plugins/tools-diffview.lua#L135)
+
+**History precheck hardening**
+
+- `history_target_ok` rejects unwritten / `&modified` / unborn-HEAD / untracked targets with distinct warnings (the two bounded `git` calls the renegotiated boundary now permits).
+  [`tools-diffview.lua:43`](../../lua/cumulus/plugins/tools-diffview.lua#L43)
+
+- `if_view_open` pcall-wraps `get_current_view()` so `<leader>gcq` / `<leader>gcf` are a silent no-op, never a stacktrace.
+  [`tools-diffview.lua:87`](../../lua/cumulus/plugins/tools-diffview.lua#L87)
+
+**Conflict-keymap rework + destructive-action confirm**
+
+- `confirm_then` gates every whole-file pick and the delete-region pick behind a yes/no prompt.
+  [`tools-diffview.lua:176`](../../lua/cumulus/plugins/tools-diffview.lua#L176)
+
+- `conflict_binds` retires diffview's default `cO/cT/cB/cA/dX` picks and rebinds `<leader>gx*` / `<leader>gX*`; shared by both keymap tables.
+  [`tools-diffview.lua:195`](../../lua/cumulus/plugins/tools-diffview.lua#L195)
+
+- `file_panel = conflict_binds(false)` -- the panel can now only resolve whole files through the confirmed `<leader>gX*`.
+  [`tools-diffview.lua:276`](../../lua/cumulus/plugins/tools-diffview.lua#L276)
+
+**which-key group scoping**
+
+- `register_groups` registers `<leader>gx` / `<leader>gX` buffer-locally on diffview buffers only.
+  [`tools-diffview.lua:288`](../../lua/cumulus/plugins/tools-diffview.lua#L288)
+
+- The global `<leader>gx` group is removed; global `<leader>gc` stays (its `gco/gcq/gch/gcH/gcf` children are global).
+  [`ui-whichkey.lua:32`](../../lua/cumulus/plugins/ui-whichkey.lua#L32)
+
+**:checkhealth diffview states**
+
+- Splits not-installed (`error`) / installed-not-loaded (`warn`) / loaded (`ok`) via `lazy.core.config`, plus a plenary probe.
+  [`health.lua:279`](../../lua/cumulus/health.lua#L279)
+
+**Tests (peripheral)**
+
+- New assertions for the `repo_root` / `has_commits` symbols.
+  [`git_conflict_spec.lua:73`](../../lua/cumulus/tests/git_conflict_spec.lua#L73)
+
+- Source-shape assertions for the `file_panel` block, `vim.fn.confirm`, and `<leader>gX`.
+  [`git_conflict_spec.lua:82`](../../lua/cumulus/tests/git_conflict_spec.lua#L82)
+
+- Asserts the global `<leader>gx` group is gone; layout literal loosened to `diff[34]_mixed`.
+  [`git_conflict_spec.lua:92`](../../lua/cumulus/tests/git_conflict_spec.lua#L92)

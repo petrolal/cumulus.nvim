@@ -122,10 +122,23 @@ local ok, err = pcall(function()
   assert(type(ts.classify_jvm_line) == 'function', 'classify_jvm_line missing')
 
   -- Buffer-local wiring: verify the keymap plumbing source, not a live attach.
+  -- SPEC-2.1 review (2026-09-01): leader-cr is now installed unconditionally
+  -- for every java/kotlin buffer in ftplugin/java.lua + ftplugin/kotlin.lua
+  -- (not gated on LSP on_attach), so the no-JVM-LSP I/O matrix row still
+  -- produces project_rename own visible notify from the keymap itself.
   local java_src = io.open('ftplugin/java.lua', 'r'):read('*a')
   assert(java_src:match('cumulus%.util%.refactor'), 'ftplugin/java.lua must wire up refactor.project_rename')
-  local kotlin_src = io.open('lua/cumulus/plugins/lsp-kotlin.lua', 'r'):read('*a')
-  assert(kotlin_src:match('cumulus%.util%.refactor'), 'lsp-kotlin.lua must wire up refactor.project_rename')
+  local cr_set = java_src:find('keymap.set', 1, true)
+  local oa_pos = java_src:find('on_attach', 1, true)
+  assert(java_src:find('<leader>cr', 1, true), 'ftplugin/java.lua must bind <leader>cr')
+  assert(cr_set and (not oa_pos or cr_set < oa_pos), 'ftplugin/java.lua must bind <leader>cr at top level, before on_attach')
+  local kotlin_ft = io.open('ftplugin/kotlin.lua', 'r')
+  assert(kotlin_ft, 'ftplugin/kotlin.lua must exist and bind <leader>cr for every kotlin buffer')
+  local kotlin_src = kotlin_ft:read('*a')
+  assert(
+    kotlin_src:match('cumulus%.util%.refactor') and kotlin_src:match('<leader>cr'),
+    'ftplugin/kotlin.lua must wire up refactor.project_rename on <leader>cr'
+  )
 end)
 if not ok then
   io.stderr:write('FAIL: ' .. tostring(err) .. '\n')

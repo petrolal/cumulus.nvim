@@ -27,9 +27,8 @@ local function proceed_with_action(bufnr, jvm_client, action_name, target_action
     M._show_preview(target_action.edit, jvm_client, action_name)
   elseif target_action.command then
     -- It has a command but no edit. We need to resolve it or it's not supported for dry-run.
-    local resolve_provider = jvm_client.server_capabilities.codeActionProvider
-      and type(jvm_client.server_capabilities.codeActionProvider) == "table"
-      and jvm_client.server_capabilities.codeActionProvider.resolveProvider
+    local caps = jvm_client.server_capabilities or {}
+    local resolve_provider = type(caps.codeActionProvider) == "table" and caps.codeActionProvider.resolveProvider
 
     if resolve_provider then
       local resolve_responded = false
@@ -52,7 +51,9 @@ local function proceed_with_action(bufnr, jvm_client, action_name, target_action
           if res and res.result and res.result.edit then
             M._show_preview(res.result.edit, jvm_client, action_name)
           else
-            local err_msg = res and res.error and res.error.message or "no edit returned"
+            -- vim.lsp.buf_request_all per-client results carry `.err`, not `.error`.
+            local rerr = res and (res.err or res.error)
+            local err_msg = rerr and rerr.message or "no edit returned"
             notify_err(action_name .. ": server returned a command without an edit, and resolve failed: " .. err_msg)
             action_lock.release()
           end
@@ -135,15 +136,48 @@ local function handle_action_response(bufnr, jvm_client, action_name, responses,
   end
 end
 
+--- Describe a WorkspaceEdit's create/rename/delete resource operations as
+--- quickfix-shaped rows. refactor.workspace_edit_to_locations drops these
+--- (SPEC-2.1 keeps file-move out of scope), but Extract Interface's whole
+--- point is a NEW interface file -- the dry-run preview must show it, and
+--- an edit that is ONLY a CreateFile must not read as "no changes returned".
+local function resource_op_rows(workspace_edit)
+  local rows = {}
+  local dc = workspace_edit and workspace_edit.documentChanges
+  if type(dc) ~= "table" then
+    return rows
+  end
+  local function fname(uri)
+    local ok, f = pcall(vim.uri_to_fname, uri)
+    return ok and f or uri
+  end
+  for _, change in ipairs(dc) do
+    if change.kind == "create" then
+      rows[#rows + 1] = { filename = fname(change.uri), lnum = 1, col = 1, text = "[new file] " .. fname(change.uri) }
+    elseif change.kind == "rename" then
+      rows[#rows + 1] = {
+        filename = fname(change.newUri),
+        lnum = 1,
+        col = 1,
+        text = "[rename] " .. fname(change.oldUri) .. " -> " .. fname(change.newUri),
+      }
+    elseif change.kind == "delete" then
+      rows[#rows + 1] = { filename = fname(change.uri), lnum = 1, col = 1, text = "[delete] " .. fname(change.uri) }
+    end
+  end
+  return rows
+end
+
 function M._show_preview(workspace_edit, jvm_client, action_name)
-  local locations = refactor.workspace_edit_to_locations(workspace_edit)
-  if #locations == 0 then
+  local locations = refactor.workspace_edit_to_locations(workspace_edit) or {}
+  local qf_items = vim.lsp.util.locations_to_items(locations, jvm_client.offset_encoding)
+  vim.list_extend(qf_items, resource_op_rows(workspace_edit))
+
+  if #qf_items == 0 then
     notify_warn(action_name .. ": no changes returned")
     action_lock.release()
     return
   end
-
-  local qf_items = vim.lsp.util.locations_to_items(locations, jvm_client.offset_encoding)
 
   vim.fn.setqflist({}, " ", {
     title = string.format("%s (%d location%s)", action_name, #qf_items, #qf_items == 1 and "" or "s"),
@@ -196,75 +230,102 @@ local function do_action(action_name, kind_prefix, title_substring, is_visual)
 
   action_lock.acquire()
 
-  local params = vim.lsp.util.make_range_params(win, jvm_client.offset_encoding)
+  -- Everything from here to the buf_request_all registration runs
+  -- synchronously; a throw in make_range_params / the visual-mark block /
+  -- character_offset / vim.diagnostic.get would otherwise strand the shared
+  -- action-lock (disabling every extract AND project-rename for the
+  -- session). pcall it and release on any failure.
+  local setup_ok, setup_err = pcall(function()
+    local params = vim.lsp.util.make_range_params(win, jvm_client.offset_encoding)
 
-  -- If in visual mode, make_range_params only uses cursor position, so we
-  -- override it with '< and '>. The marks are BYTE columns; splicing them
-  -- straight into an LSP `character` field is wrong for any line containing
-  -- multi-byte UTF-8 text before the selection (the LSP position would land
-  -- on the wrong character, or an invalid one mid-codepoint) -- convert via
-  -- vim.lsp.util.character_offset, per the client's own offset_encoding.
-  if is_visual then
-    -- Force Neovim to exit visual mode so that '< and '> marks are updated to the current selection
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'x', false)
-    local start_pos = vim.api.nvim_buf_get_mark(bufnr, "<")
-    local end_pos = vim.api.nvim_buf_get_mark(bufnr, ">")
-    if start_pos[1] > 0 and end_pos[1] > 0 then
-      local start_row, start_byte_col = start_pos[1] - 1, start_pos[2]
-      local end_row, end_byte_col = end_pos[1] - 1, end_pos[2]
+    -- If in visual mode, make_range_params only uses cursor position, so we
+    -- override it with '< and '>. The marks are BYTE columns; splicing them
+    -- straight into an LSP `character` field is wrong for any line containing
+    -- multi-byte UTF-8 text before the selection (the LSP position would land
+    -- on the wrong character, or an invalid one mid-codepoint) -- convert via
+    -- vim.lsp.util.character_offset, per the client's own offset_encoding.
+    if is_visual then
+      -- Force Neovim to exit visual mode so that '< and '> marks are updated to the current selection
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
+      local start_pos = vim.api.nvim_buf_get_mark(bufnr, "<")
+      local end_pos = vim.api.nvim_buf_get_mark(bufnr, ">")
+      if start_pos[1] > 0 and end_pos[1] > 0 then
+        local start_row, start_byte_col = start_pos[1] - 1, start_pos[2]
+        local end_row, end_byte_col = end_pos[1] - 1, end_pos[2]
 
-      local start_char = start_byte_col > 0
-          and vim.lsp.util.character_offset(bufnr, start_row, start_byte_col, jvm_client.offset_encoding)
-        or 0
-      local end_char = end_byte_col > 0
-          and vim.lsp.util.character_offset(bufnr, end_row, end_byte_col, jvm_client.offset_encoding)
-        or 0
-      -- The visual '> mark is inclusive of its last byte; LSP ranges are
-      -- end-exclusive, so nudge by one character to include it -- matching
-      -- vim.lsp.util.make_given_range_params's own convention for the same
-      -- "'selection' ~= 'exclusive'" case.
-      if vim.o.selection ~= "exclusive" then
-        end_char = end_char + 1
+        -- A linewise (V) selection sets the '> column to MAXCOL
+        -- (2147483647); clamp both marks to their line's real byte length
+        -- so character_offset never gets an out-of-range column.
+        local function clamp(row, col)
+          local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
+          return math.max(0, math.min(col, #line))
+        end
+        start_byte_col = clamp(start_row, start_byte_col)
+        end_byte_col = clamp(end_row, end_byte_col)
+
+        local start_char = start_byte_col > 0
+            and vim.lsp.util.character_offset(bufnr, start_row, start_byte_col, jvm_client.offset_encoding)
+          or 0
+        local end_char = end_byte_col > 0
+            and vim.lsp.util.character_offset(bufnr, end_row, end_byte_col, jvm_client.offset_encoding)
+          or 0
+        -- The visual '> mark is inclusive of its last byte; LSP ranges are
+        -- end-exclusive, so nudge by one character to include it -- matching
+        -- vim.lsp.util.make_given_range_params's own convention for the same
+        -- "'selection' ~= 'exclusive'" case.
+        if vim.o.selection ~= "exclusive" then
+          end_char = end_char + 1
+        end
+
+        params.range = {
+          start = { line = start_row, character = start_char },
+          ["end"] = { line = end_row, character = end_char },
+        }
       end
-
-      params.range = {
-        start = { line = start_row, character = start_char },
-        ["end"] = { line = end_row, character = end_char },
-      }
     end
-  end
 
-  params.context = {
-    diagnostics = vim.diagnostic.get(bufnr, { lnum = params.range.start.line }),
-    only = { kind_prefix },
-  }
+    params.context = {
+      diagnostics = vim.diagnostic.get(bufnr, { lnum = params.range.start.line }),
+      only = { kind_prefix },
+    }
 
-  local responded = false
-  vim.defer_fn(function()
-    if responded then
-      return
-    end
-    responded = true
-    action_lock.release()
-    notify_err(
-      action_name
-        .. " timed out waiting for '"
-        .. jvm_client.name
-        .. "' to respond ("
-        .. (M.ACTION_TIMEOUT_MS / 1000)
-        .. "s) -- no changes applied"
-    )
-  end, M.ACTION_TIMEOUT_MS)
+    local responded = false
+    vim.defer_fn(function()
+      if responded then
+        return
+      end
+      responded = true
+      action_lock.release()
+      notify_err(
+        action_name
+          .. " timed out waiting for '"
+          .. jvm_client.name
+          .. "' to respond ("
+          .. (M.ACTION_TIMEOUT_MS / 1000)
+          .. "s) -- no changes applied"
+      )
+    end, M.ACTION_TIMEOUT_MS)
 
-  vim.lsp.buf_request_all(bufnr, "textDocument/codeAction", params, function(responses)
-    if responded then
-      return
-    end
-    responded = true
-    vim.schedule(function()
-      handle_action_response(bufnr, jvm_client, action_name, responses, kind_prefix, title_substring)
+    vim.lsp.buf_request_all(bufnr, "textDocument/codeAction", params, function(responses)
+      if responded then
+        return
+      end
+      responded = true
+      vim.schedule(function()
+        local hok, herr =
+          pcall(handle_action_response, bufnr, jvm_client, action_name, responses, kind_prefix, title_substring)
+        if not hok then
+          action_lock.release()
+          notify_err(action_name .. ": " .. tostring(herr))
+        end
+      end)
     end)
   end)
+
+  if not setup_ok then
+    action_lock.release()
+    notify_err(action_name .. ": failed to start (" .. tostring(setup_err) .. ")")
+  end
 end
 
 function M.extract_interface(is_visual)

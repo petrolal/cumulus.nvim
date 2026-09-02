@@ -19,7 +19,13 @@ local function register_dadbod_completion(bufnr)
   end
 
   local ok, cmp = pcall(require, "cmp")
-  if not ok or type(cmp) ~= "table" or type(cmp.get_config) ~= "function" then
+  if
+    not ok
+    or type(cmp) ~= "table"
+    or type(cmp.get_config) ~= "function"
+    or type(cmp.setup) ~= "table"
+    or type(cmp.setup.buffer) ~= "function"
+  then
     return
   end
 
@@ -46,10 +52,13 @@ local function register_dadbod_completion(bufnr)
     table.insert(sources, 1, { name = DADBOD_SOURCE_NAME })
   end
 
-  local applied_ok = vim.api.nvim_buf_call(bufnr, function()
+  -- pcall nvim_buf_call itself: the buffer can be wiped between the
+  -- nvim_buf_is_valid check above and here, and the error would otherwise
+  -- escape the FileType autocmd callback.
+  local call_ok, applied_ok = pcall(vim.api.nvim_buf_call, bufnr, function()
     return pcall(cmp.setup.buffer, { sources = sources })
   end)
-  if applied_ok then
+  if call_ok and applied_ok then
     vim.b[bufnr].cumulus_dadbod_completion_registered = true
   end
 end
@@ -60,17 +69,19 @@ end
 --- run, before lazy.nvim loads the plugin) and the `DirChanged` autocmd
 --- registered in `config()` (re-run on every project switch).
 ---
---- Always assigns on a successful scan, even when `dbs` is empty -- a
---- project with zero datasources must CLEAR any list left over from a
---- previously-`:cd`'d project, not silently keep pointing at it. Only a
---- discovery ERROR (the `not ok` branch) leaves `vim.g.dbs` untouched.
+--- On a successful scan: a non-empty result is assigned to `vim.g.dbs`; an
+--- EMPTY result clears it back to `nil` (the frozen I/O-matrix "left unset"
+--- state) -- which also clears any list left over from a previously-`:cd`'d
+--- project, so switching into a datasource-less project doesn't keep
+--- pointing at the old one. Only a discovery ERROR (the `not ok` branch)
+--- leaves `vim.g.dbs` untouched.
 local function discover_and_assign_datasources()
   local ok, dbs = pcall(function()
     return require("cumulus.util.db").discover_datasources(vim.fn.getcwd())
   end)
   if ok then
     if type(dbs) == "table" then
-      vim.g.dbs = dbs
+      vim.g.dbs = #dbs > 0 and dbs or nil
     end
   else
     ui.notify_warn("Spring datasource auto-discovery failed: " .. tostring(dbs))

@@ -337,7 +337,9 @@ describe("Refactor (SPEC-2.1)", function()
             { file = file, lnum = 3, col = occ.col, end_col = occ.end_col, kind = kind, text = lines[3] }
         end
 
-        local applied, failed = refactor.apply_spring_edits(items, "BarServiceRenamedLonger")
+        -- Pass old_name too: exercises the stale-span guard on its happy
+        -- path (both spans still hold "FooService", so both apply).
+        local applied, failed = refactor.apply_spring_edits(items, "BarServiceRenamedLonger", "FooService")
         assert.are.equal(2, applied)
         assert.are.equal(0, #failed)
 
@@ -541,73 +543,191 @@ describe("Refactor (SPEC-2.1)", function()
   end)
 
   describe("Buffer-local <leader>cr override wiring", function()
-    it("ftplugin/java.lua should bind <leader>cr to refactor.project_rename inside on_attach", function()
-      local old_require = _G.require
-      local captured_on_attach = nil
-      _G.require = function(mod)
-        if mod == "jdtls" then
-          return {
-            start_or_attach = function(config)
-              captured_on_attach = config.on_attach
-            end,
-          }
-        end
-        return old_require(mod)
-      end
+    -- SPEC-2.1 review (2026-09-01): the override moved OUT of each server's
+    -- on_attach and into ftplugin/java.lua + ftplugin/kotlin.lua at top
+    -- level, so it is installed for EVERY java/kotlin buffer regardless of
+    -- whether a JDTLS/Kotlin client attached -- the I/O matrix "No JVM LSP
+    -- attached" row needs project_rename's own notify to fire from the
+    -- keymap, which can't happen if the keymap only exists once a client is
+    -- present.
+    local function assert_real_cr_mapping(bufnr)
+      -- maparg(...).buffer is a 0/1 "is this buffer-local" flag, not a bufnr.
+      local mapping = vim.fn.maparg("<leader>cr", "n", false, true)
+      assert.is_table(mapping)
+      assert.are.equal(1, mapping.buffer, "<leader>cr must be a BUFFER-LOCAL mapping")
+      assert.is_function(mapping.callback)
 
-      vim.cmd("enew")
-      local bufnr = vim.api.nvim_get_current_buf()
-      vim.bo[bufnr].filetype = "java"
+      -- And it must be local to THIS buffer only: a fresh scratch buffer
+      -- sees no buffer-local <leader>cr.
+      local other = vim.api.nvim_create_buf(true, true)
+      vim.api.nvim_buf_call(other, function()
+        local m = vim.fn.maparg("<leader>cr", "n", false, true)
+        assert.is_true(m.buffer ~= 1, "the override must not leak to unrelated buffers")
+      end)
+      vim.api.nvim_buf_delete(other, { force = true })
 
-      local f = loadfile("ftplugin/java.lua")
-      if f then
-        f()
+      local refactor = require("cumulus.util.refactor")
+      local called = false
+      local orig = refactor.project_rename
+      refactor.project_rename = function()
+        called = true
       end
-      _G.require = old_require
-
-      if captured_on_attach then
-        captured_on_attach({ name = "jdtls" }, bufnr)
-        local mapping = vim.fn.maparg("<leader>cr", "n", false, true)
-        assert.is_table(mapping)
-        assert.are.equal(bufnr, mapping.buffer)
-        assert.is_function(mapping.callback)
-      else
-        pending("Could not capture on_attach")
-      end
-    end)
+      local ok = pcall(mapping.callback)
+      refactor.project_rename = orig
+      assert.is_true(ok and called, "the buffer-local <leader>cr mapping must call refactor.project_rename")
+    end
 
     it(
-      "lsp-kotlin.lua's on_attach should install a REAL buffer-local <leader>cr mapping that dispatches into refactor.project_rename",
+      "ftplugin/java.lua installs a real buffer-local <leader>cr for every java buffer (no on_attach needed)",
       function()
-        local lsp_kotlin = require("cumulus.plugins.lsp-kotlin")
-        local on_attach = lsp_kotlin[2].opts.servers.kotlin_language_server.on_attach
-        assert.is_function(on_attach)
+        local old_require = _G.require
+        _G.require = function(mod)
+          if mod == "jdtls" then
+            -- Neuter the launcher so sourcing the ftplugin doesn't try to
+            -- start a real jdtls process; the <leader>cr map is bound before
+            -- this require anyway.
+            return { start_or_attach = function() end, setup = { find_root = function() end } }
+          end
+          return old_require(mod)
+        end
 
         vim.cmd("enew")
         local bufnr = vim.api.nvim_get_current_buf()
-        local stub_client = {
-          server_capabilities = {},
-          config = { root_dir = vim.fn.getcwd() },
-        }
-        on_attach(stub_client, bufnr)
+        vim.bo[bufnr].filetype = "java"
 
-        local mapping = vim.fn.maparg("<leader>cr", "n", false, true)
-        assert.is_table(mapping)
-        assert.are.equal(1, mapping.buffer)
-        assert.is_function(mapping.callback)
+        local f = loadfile("ftplugin/java.lua")
+        assert.is_function(f)
+        pcall(f)
+        _G.require = old_require
 
-        local refactor = require("cumulus.util.refactor")
-        local called = false
-        local orig_project_rename = refactor.project_rename
-        refactor.project_rename = function(...)
-          called = true
-        end
-
-        mapping.callback()
-
-        refactor.project_rename = orig_project_rename
-        assert.is_true(called, "the buffer-local <leader>cr mapping must call refactor.project_rename")
+        assert_real_cr_mapping(bufnr)
       end
     )
+
+    it("ftplugin/kotlin.lua installs a real buffer-local <leader>cr for every kotlin buffer", function()
+      vim.cmd("enew")
+      local bufnr = vim.api.nvim_get_current_buf()
+      vim.bo[bufnr].filetype = "kotlin"
+
+      local f = loadfile("ftplugin/kotlin.lua")
+      assert.is_function(f)
+      f()
+
+      assert_real_cr_mapping(bufnr)
+    end)
+  end)
+
+  describe("project_rename() no-arg prompt path (the shape both keymaps ship)", function()
+    -- Every other test passes an explicit new_name, so the entire
+    -- `new_name == nil` block -- including its three action_lock.release()
+    -- sites -- was previously uncovered. A leak there silently disables all
+    -- rename + extract for the session.
+    local function with_stubbed_prompt(input_value, body)
+      local refactor = require("cumulus.util.refactor")
+      local action_lock = require("cumulus.util.action-lock")
+      action_lock.release() -- start clean regardless of prior test state
+
+      local orig_get_clients = vim.lsp.get_clients
+      local orig_ui_input = vim.ui.input
+      local orig_expand = vim.fn.expand
+      local orig_do_rename = refactor._do_rename
+      local do_rename_called = false
+
+      vim.lsp.get_clients = function(_)
+        return { { name = "jdtls", id = 1, offset_encoding = "utf-16", config = {} } }
+      end
+      vim.fn.expand = function(what, ...)
+        if what == "<cword>" then
+          return "FooService"
+        end
+        return orig_expand(what, ...)
+      end
+      vim.ui.input = function(_, on_confirm)
+        on_confirm(input_value)
+      end
+      refactor._do_rename = function()
+        do_rename_called = true
+      end
+
+      vim.cmd("enew")
+      local ok, err = pcall(refactor.project_rename) -- NO argument
+
+      vim.lsp.get_clients = orig_get_clients
+      vim.ui.input = orig_ui_input
+      vim.fn.expand = orig_expand
+      refactor._do_rename = orig_do_rename
+
+      body(ok, err, do_rename_called, action_lock)
+      action_lock.release()
+    end
+
+    it("releases the lock when the prompt is cancelled (nil)", function()
+      with_stubbed_prompt(nil, function(ok, _, do_rename_called, action_lock)
+        assert.is_true(ok)
+        assert.is_false(do_rename_called)
+        assert.is_false(action_lock.is_busy(), "cancelling the rename prompt must not strand the shared lock")
+      end)
+    end)
+
+    it("releases the lock when the prompt returns only whitespace", function()
+      with_stubbed_prompt("   ", function(ok, _, do_rename_called, action_lock)
+        assert.is_true(ok)
+        assert.is_false(do_rename_called)
+        assert.is_false(action_lock.is_busy())
+      end)
+    end)
+
+    it("releases the lock when the new name equals the old name", function()
+      with_stubbed_prompt("FooService", function(ok, _, do_rename_called, action_lock)
+        assert.is_true(ok)
+        assert.is_false(do_rename_called)
+        assert.is_false(action_lock.is_busy())
+      end)
+    end)
+
+    it("releases the lock and rejects a non-identifier new name", function()
+      with_stubbed_prompt("Foo Service!", function(ok, _, do_rename_called, action_lock)
+        assert.is_true(ok)
+        assert.is_false(do_rename_called)
+        assert.is_false(action_lock.is_busy())
+      end)
+    end)
+
+    it("proceeds to _do_rename (lock held for it) on a valid, trimmed new name", function()
+      with_stubbed_prompt("  BarService  ", function(ok, _, do_rename_called)
+        assert.is_true(ok)
+        assert.is_true(do_rename_called, "a valid new name must hand off to _do_rename")
+      end)
+    end)
+  end)
+
+  describe("apply_spring_edits stale-span guard (SPEC-2.1 review 2026-09-01)", function()
+    it("skips a span (and fails its file) when the live buffer text no longer matches old_name", function()
+      local refactor = require("cumulus.util.refactor")
+      local file = vim.fn.tempname() .. ".java"
+      vim.fn.writefile({ "class Consumer {", "  private FooService a;", "}" }, file)
+
+      -- Open the file and edit line 2 so the recorded [col,end_col) span no
+      -- longer holds "FooService" -- simulating an already-open dirty buffer
+      -- or an edit made in the :copen preview before Apply.
+      local bufnr = vim.fn.bufadd(file)
+      vim.fn.bufload(bufnr)
+      vim.api.nvim_buf_set_lines(bufnr, 1, 2, false, { "  private XXXXXXXXXX a;" })
+
+      -- Span recorded against the ON-DISK content: cols 11..21 = "FooService".
+      local items = { { file = file, lnum = 2, col = 11, end_col = 21, kind = "autowired", text = "" } }
+      local applied, failed = refactor.apply_spring_edits(items, "BarService", "FooService")
+
+      assert.are.equal(0, applied)
+      assert.are.equal(1, #failed)
+      assert.are.equal(
+        "  private XXXXXXXXXX a;",
+        vim.api.nvim_buf_get_lines(bufnr, 1, 2, false)[1],
+        "a stale span must be left untouched, never blind-spliced"
+      )
+
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      os.remove(file)
+    end)
   end)
 end)

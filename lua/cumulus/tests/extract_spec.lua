@@ -112,7 +112,8 @@ describe("Extract (SPEC-2.2)", function()
         local function assert_mapping_calls(lhs, mode, key, expect_visual_arg)
           local mapping = vim.fn.maparg(lhs, mode, false, true)
           assert.is_not_nil(mapping.buffer, "Mapping " .. lhs .. " not found in mode " .. mode)
-          assert.are.equal(bufnr, mapping.buffer)
+          -- maparg(...).buffer is a 0/1 "is buffer-local" flag, not a bufnr.
+          assert.are.equal(1, mapping.buffer)
           assert.is_function(mapping.callback)
           calls[key] = nil
           mapping.callback()
@@ -123,6 +124,7 @@ describe("Extract (SPEC-2.2)", function()
         end
 
         assert_mapping_calls("<leader>ce", "n", "extract_interface")
+        assert_mapping_calls("<leader>ce", "v", "extract_interface", true)
         assert_mapping_calls("<leader>ci", "n", "inline")
         assert_mapping_calls("<leader>ci", "v", "inline", true)
         assert_mapping_calls("<leader>cm", "n", "extract_method")
@@ -140,35 +142,74 @@ describe("Extract (SPEC-2.2)", function()
       end
     )
 
-    it("lsp-kotlin.lua's on_attach should install REAL buffer-local mappings", function()
-      local lsp_kotlin = require("cumulus.plugins.lsp-kotlin")
-      local on_attach = lsp_kotlin[2].opts.servers.kotlin_language_server.on_attach
-      assert.is_function(on_attach)
+    it(
+      "lsp-kotlin.lua's on_attach should install REAL buffer-local mappings that dispatch into cumulus.util.extract",
+      function()
+        local lsp_kotlin = require("cumulus.plugins.lsp-kotlin")
+        local on_attach = lsp_kotlin[2].opts.servers.kotlin_language_server.on_attach
+        assert.is_function(on_attach)
 
-      vim.cmd("enew")
-      local bufnr = vim.api.nvim_get_current_buf()
-      local stub_client = {
-        server_capabilities = {},
-        config = { root_dir = vim.fn.getcwd() },
-      }
-      on_attach(stub_client, bufnr)
+        vim.cmd("enew")
+        local bufnr = vim.api.nvim_get_current_buf()
+        local stub_client = {
+          server_capabilities = {},
+          config = { root_dir = vim.fn.getcwd() },
+        }
+        on_attach(stub_client, bufnr)
 
-      local function assert_mapping(lhs, mode)
-        local mapping = vim.fn.maparg(lhs, mode, false, true)
-        assert.is_not_nil(mapping.buffer, "Mapping " .. lhs .. " not found in mode " .. mode)
-        assert.are.equal(1, mapping.buffer)
-        assert.is_function(mapping.callback)
+        -- Same dispatch/visual-arg coverage the Java test runs -- a mis-wired
+        -- Kotlin mapping (wrong action, or normal-mode behavior on a visual
+        -- selection) must not slip through as "some buffer-local mapping exists".
+        local extract = require("cumulus.util.extract")
+        local calls = {}
+        local orig = {}
+        for _, name in ipairs({
+          "extract_interface",
+          "inline",
+          "extract_method",
+          "extract_variable",
+          "extract_constant",
+        }) do
+          orig[name] = extract[name]
+          extract[name] = function(...)
+            calls[name] = { ... }
+          end
+        end
+
+        local function assert_mapping_calls(lhs, mode, key, expect_visual_arg)
+          local mapping = vim.fn.maparg(lhs, mode, false, true)
+          assert.is_not_nil(mapping.buffer, "Mapping " .. lhs .. " not found in mode " .. mode)
+          assert.are.equal(1, mapping.buffer)
+          assert.is_function(mapping.callback)
+          calls[key] = nil
+          mapping.callback()
+          assert.is_not_nil(calls[key], lhs .. " (" .. mode .. ") did not call cumulus.util.extract." .. key)
+          if expect_visual_arg then
+            assert.is_true(calls[key][1], lhs .. " (" .. mode .. ") must pass is_visual=true")
+          end
+        end
+
+        local ok, err = pcall(function()
+          assert_mapping_calls("<leader>ce", "n", "extract_interface")
+          assert_mapping_calls("<leader>ce", "v", "extract_interface", true)
+          assert_mapping_calls("<leader>ci", "n", "inline")
+          assert_mapping_calls("<leader>ci", "v", "inline", true)
+          assert_mapping_calls("<leader>cm", "n", "extract_method")
+          assert_mapping_calls("<leader>cm", "v", "extract_method", true)
+          assert_mapping_calls("<leader>cv", "n", "extract_variable")
+          assert_mapping_calls("<leader>cv", "v", "extract_variable", true)
+          assert_mapping_calls("<leader>cc", "n", "extract_constant")
+          assert_mapping_calls("<leader>cc", "v", "extract_constant", true)
+        end)
+
+        for name, fn in pairs(orig) do
+          extract[name] = fn
+        end
+        require("cumulus.util.action-lock").release()
+        if not ok then
+          error(err, 0)
+        end
       end
-
-      assert_mapping("<leader>ce", "n")
-      assert_mapping("<leader>ci", "n")
-      assert_mapping("<leader>ci", "v")
-      assert_mapping("<leader>cm", "n")
-      assert_mapping("<leader>cm", "v")
-      assert_mapping("<leader>cv", "n")
-      assert_mapping("<leader>cv", "v")
-      assert_mapping("<leader>cc", "n")
-      assert_mapping("<leader>cc", "v")
-    end)
+    )
   end)
 end)

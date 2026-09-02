@@ -125562,3 +125562,2311 @@
 13:20:13 load_provider_highlights: Theme set but highlights unavailable
 13:20:13 ERROR: Failed to load highlights for azure
 13:20:13 ERROR: Theme not loaded
+20:38:57 === load_saved_theme() called ===
+20:38:57 Current theme: azure-theme
+20:38:57 Clean theme: azure
+20:38:57 Checking theme: name=aws-theme, provider=aws
+20:38:57 Checking theme: name=azure-theme, provider=azure
+20:38:57 MATCH! Loading provider: azure
+20:38:57 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:38:57 load_provider_highlights: Theme set but highlights unavailable
+20:38:57 ERROR: Failed to load highlights for azure
+20:38:57 ERROR: Theme not loaded
+20:39:09 === load_saved_theme() called ===
+20:39:09 Current theme: azure-theme
+20:39:09 Clean theme: azure
+20:39:09 Checking theme: name=aws-theme, provider=aws
+20:39:09 Checking theme: name=azure-theme, provider=azure
+20:39:09 MATCH! Loading provider: azure
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+20:39:09 === load_saved_theme() called ===
+20:39:09 === load_saved_theme() called ===
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 === load_saved_theme() called ===
+20:39:09 === load_saved_theme() called ===
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 ERROR: Failed to load highlights for azure
+20:39:09 Current theme: aws-theme
+20:39:09 Current theme: aws-theme
+20:39:09 ERROR: Theme not loaded
+20:39:09 Clean theme: aws
+20:39:09 Current theme: aws-theme
+20:39:09 Current theme: aws-theme
+20:39:09 Clean theme: aws
+20:39:09 Checking theme: name=aws-theme, provider=aws
+20:39:09 === load_saved_theme() called ===
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:09 Clean theme: aws
+20:39:09 Clean theme: aws
+20:39:09 Checking theme: name=aws-theme, provider=aws
+20:39:09 MATCH! Loading provider: aws
+20:39:09 Checking theme: name=aws-theme, provider=aws
+20:39:09 Checking theme: name=aws-theme, provider=aws
+20:39:09 MATCH! Loading provider: aws
+20:39:09 Current theme: aws-theme
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+20:39:09 MATCH! Loading provider: aws
+20:39:09 Clean theme: aws
+20:39:09 MATCH! Loading provider: aws
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+20:39:09 === load_saved_theme() called ===
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'gcp')
+20:39:09 Checking theme: name=aws-theme, provider=aws
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+20:39:09 MATCH! Loading provider: aws
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 Current theme: aws-theme
+20:39:09 ERROR: Failed to load highlights for aws
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 ERROR: Failed to load highlights for aws
+20:39:09 Clean theme: aws
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 ERROR: Theme not loaded
+20:39:09 ERROR: Theme not loaded
+20:39:09 Checking theme: name=aws-theme, provider=aws
+20:39:09 ERROR: Failed to load highlights for aws
+20:39:09 ERROR: Failed to load highlights for aws
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'oci')
+20:39:09 ERROR: Failed to load highlights for aws
+20:39:09 ERROR: Theme not loaded
+20:39:09 ERROR: Theme not loaded
+20:39:09 MATCH! Loading provider: aws
+20:39:09 ERROR: Theme not loaded
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'aws')
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 ERROR: Failed to load highlights for aws
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 ERROR: Theme not loaded
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 === load_saved_theme() called ===
+20:39:09 Current theme: azure-theme
+20:39:09 Clean theme: azure
+20:39:09 Checking theme: name=aws-theme, provider=aws
+20:39:09 Checking theme: name=azure-theme, provider=azure
+20:39:09 MATCH! Loading provider: azure
+20:39:09 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:09 load_provider_highlights: Theme set but highlights unavailable
+20:39:09 ERROR: Failed to load highlights for azure
+20:39:09 ERROR: Theme not loaded
+20:39:13 === load_saved_theme() called ===
+20:39:13 Current theme: azure-theme
+20:39:13 Clean theme: azure
+20:39:13 === load_saved_theme() called ===
+20:39:13 Checking theme: name=aws-theme, provider=aws
+20:39:13 Checking theme: name=azure-theme, provider=azure
+20:39:13 Current theme: azure-theme
+20:39:13 MATCH! Loading provider: azure
+20:39:13 Clean theme: azure
+20:39:14 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:14 Checking theme: name=aws-theme, provider=aws
+20:39:14 Checking theme: name=azure-theme, provider=azure
+20:39:14 load_provider_highlights: Theme set but highlights unavailable
+20:39:14 MATCH! Loading provider: azure
+20:39:14 ERROR: Failed to load highlights for azure
+20:39:14 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:14 ERROR: Theme not loaded
+20:39:14 load_provider_highlights: Theme set but highlights unavailable
+20:39:14 ERROR: Failed to load highlights for azure
+20:39:14 ERROR: Theme not loaded
+20:39:17 === load_saved_theme() called ===
+20:39:17 Current theme: azure-theme
+20:39:17 Clean theme: azure
+20:39:17 Checking theme: name=aws-theme, provider=aws
+20:39:17 Checking theme: name=azure-theme, provider=azure
+20:39:17 MATCH! Loading provider: azure
+20:39:17 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:17 load_provider_highlights: Theme set but highlights unavailable
+20:39:17 ERROR: Failed to load highlights for azure
+20:39:17 ERROR: Theme not loaded
+20:39:21 === load_saved_theme() called ===
+20:39:21 Current theme: azure-theme
+20:39:21 Clean theme: azure
+20:39:21 Checking theme: name=aws-theme, provider=aws
+20:39:21 Checking theme: name=azure-theme, provider=azure
+20:39:21 MATCH! Loading provider: azure
+20:39:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:21 load_provider_highlights: Theme set but highlights unavailable
+20:39:21 ERROR: Failed to load highlights for azure
+20:39:21 ERROR: Theme not loaded
+20:39:26 === load_saved_theme() called ===
+20:39:26 Current theme: azure-theme
+20:39:26 Clean theme: azure
+20:39:26 Checking theme: name=aws-theme, provider=aws
+20:39:26 Checking theme: name=azure-theme, provider=azure
+20:39:26 MATCH! Loading provider: azure
+20:39:26 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:26 load_provider_highlights: Theme set but highlights unavailable
+20:39:26 ERROR: Failed to load highlights for azure
+20:39:26 ERROR: Theme not loaded
+20:39:26 === load_saved_theme() called ===
+20:39:26 Current theme: azure-theme
+20:39:26 Clean theme: azure
+20:39:26 Checking theme: name=aws-theme, provider=aws
+20:39:26 Checking theme: name=azure-theme, provider=azure
+20:39:26 MATCH! Loading provider: azure
+20:39:26 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:26 load_provider_highlights: Theme set but highlights unavailable
+20:39:26 ERROR: Failed to load highlights for azure
+20:39:26 ERROR: Theme not loaded
+20:39:26 === load_saved_theme() called ===
+20:39:26 Current theme: azure-theme
+20:39:26 Clean theme: azure
+20:39:26 Checking theme: name=aws-theme, provider=aws
+20:39:26 Checking theme: name=azure-theme, provider=azure
+20:39:26 MATCH! Loading provider: azure
+20:39:26 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:26 load_provider_highlights: Theme set but highlights unavailable
+20:39:26 ERROR: Failed to load highlights for azure
+20:39:26 ERROR: Theme not loaded
+20:39:26 === load_saved_theme() called ===
+20:39:26 Current theme: azure-theme
+20:39:26 Clean theme: azure
+20:39:26 Checking theme: name=aws-theme, provider=aws
+20:39:26 Checking theme: name=azure-theme, provider=azure
+20:39:26 MATCH! Loading provider: azure
+20:39:26 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:26 load_provider_highlights: Theme set but highlights unavailable
+20:39:26 ERROR: Failed to load highlights for azure
+20:39:26 ERROR: Theme not loaded
+20:39:26 === load_saved_theme() called ===
+20:39:26 Current theme: azure-theme
+20:39:26 Clean theme: azure
+20:39:26 Checking theme: name=aws-theme, provider=aws
+20:39:26 Checking theme: name=azure-theme, provider=azure
+20:39:26 MATCH! Loading provider: azure
+20:39:26 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:39:26 load_provider_highlights: Theme set but highlights unavailable
+20:39:26 ERROR: Failed to load highlights for azure
+20:39:26 ERROR: Theme not loaded
+20:43:11 === load_saved_theme() called ===
+20:43:11 Current theme: azure-theme
+20:43:11 Clean theme: azure
+20:43:11 Checking theme: name=aws-theme, provider=aws
+20:43:11 Checking theme: name=azure-theme, provider=azure
+20:43:11 MATCH! Loading provider: azure
+20:43:11 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:43:11 load_provider_highlights: Theme set but highlights unavailable
+20:43:11 ERROR: Failed to load highlights for azure
+20:43:11 ERROR: Theme not loaded
+20:53:29 === load_saved_theme() called ===
+20:53:29 Current theme: azure-theme
+20:53:29 Clean theme: azure
+20:53:29 Checking theme: name=aws-theme, provider=aws
+20:53:29 Checking theme: name=azure-theme, provider=azure
+20:53:29 MATCH! Loading provider: azure
+20:53:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:53:29 load_provider_highlights: Theme set but highlights unavailable
+20:53:29 ERROR: Failed to load highlights for azure
+20:53:29 ERROR: Theme not loaded
+20:54:13 === load_saved_theme() called ===
+20:54:13 Current theme: azure-theme
+20:54:13 Clean theme: azure
+20:54:13 Checking theme: name=aws-theme, provider=aws
+20:54:13 Checking theme: name=azure-theme, provider=azure
+20:54:13 MATCH! Loading provider: azure
+20:54:13 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:54:13 load_provider_highlights: Theme set but highlights unavailable
+20:54:13 ERROR: Failed to load highlights for azure
+20:54:13 ERROR: Theme not loaded
+20:59:39 === load_saved_theme() called ===
+20:59:39 Current theme: azure-theme
+20:59:39 Clean theme: azure
+20:59:39 Checking theme: name=aws-theme, provider=aws
+20:59:39 Checking theme: name=azure-theme, provider=azure
+20:59:39 MATCH! Loading provider: azure
+20:59:39 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+20:59:39 load_provider_highlights: Theme set but highlights unavailable
+20:59:39 ERROR: Failed to load highlights for azure
+20:59:39 ERROR: Theme not loaded
+21:00:02 === load_saved_theme() called ===
+21:00:02 Current theme: azure-theme
+21:00:02 Clean theme: azure
+21:00:02 Checking theme: name=aws-theme, provider=aws
+21:00:02 Checking theme: name=azure-theme, provider=azure
+21:00:02 MATCH! Loading provider: azure
+21:00:02 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:00:02 load_provider_highlights: Theme set but highlights unavailable
+21:00:02 ERROR: Failed to load highlights for azure
+21:00:02 ERROR: Theme not loaded
+21:28:11 === load_saved_theme() called ===
+21:28:11 Current theme: azure-theme
+21:28:11 Clean theme: azure
+21:28:11 Checking theme: name=aws-theme, provider=aws
+21:28:11 Checking theme: name=azure-theme, provider=azure
+21:28:11 === load_saved_theme() called ===
+21:28:11 MATCH! Loading provider: azure
+21:28:11 Current theme: azure-theme
+21:28:11 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:28:11 Clean theme: azure
+21:28:11 Checking theme: name=aws-theme, provider=aws
+21:28:11 load_provider_highlights: Theme set but highlights unavailable
+21:28:11 Checking theme: name=azure-theme, provider=azure
+21:28:11 ERROR: Failed to load highlights for azure
+21:28:11 MATCH! Loading provider: azure
+21:28:11 ERROR: Theme not loaded
+21:28:11 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:28:11 load_provider_highlights: Theme set but highlights unavailable
+21:28:11 ERROR: Failed to load highlights for azure
+21:28:11 ERROR: Theme not loaded
+21:28:49 === load_saved_theme() called ===
+21:28:50 === load_saved_theme() called ===
+21:28:50 Current theme: azure-theme
+21:28:50 Current theme: azure-theme
+21:28:50 Clean theme: azure
+21:28:50 Clean theme: azure
+21:28:50 Checking theme: name=aws-theme, provider=aws
+21:28:50 Checking theme: name=aws-theme, provider=aws
+21:28:50 Checking theme: name=azure-theme, provider=azure
+21:28:50 Checking theme: name=azure-theme, provider=azure
+21:28:50 MATCH! Loading provider: azure
+21:28:50 MATCH! Loading provider: azure
+21:28:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:28:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:28:50 load_provider_highlights: Theme set but highlights unavailable
+21:28:50 load_provider_highlights: Theme set but highlights unavailable
+21:28:50 ERROR: Failed to load highlights for azure
+21:28:50 ERROR: Failed to load highlights for azure
+21:28:50 ERROR: Theme not loaded
+21:28:50 ERROR: Theme not loaded
+21:28:59 === load_saved_theme() called ===
+21:28:59 Current theme: azure-theme
+21:28:59 Clean theme: azure
+21:28:59 Checking theme: name=aws-theme, provider=aws
+21:28:59 Checking theme: name=azure-theme, provider=azure
+21:28:59 MATCH! Loading provider: azure
+21:28:59 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:28:59 load_provider_highlights: Theme set but highlights unavailable
+21:28:59 ERROR: Failed to load highlights for azure
+21:28:59 ERROR: Theme not loaded
+21:29:18 === load_saved_theme() called ===
+21:29:18 Current theme: azure-theme
+21:29:18 Clean theme: azure
+21:29:18 Checking theme: name=aws-theme, provider=aws
+21:29:18 Checking theme: name=azure-theme, provider=azure
+21:29:18 MATCH! Loading provider: azure
+21:29:18 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:29:18 load_provider_highlights: Theme set but highlights unavailable
+21:29:18 ERROR: Failed to load highlights for azure
+21:29:18 ERROR: Theme not loaded
+21:29:18 === load_saved_theme() called ===
+21:29:18 Current theme: azure-theme
+21:29:18 Clean theme: azure
+21:29:18 Checking theme: name=aws-theme, provider=aws
+21:29:18 Checking theme: name=azure-theme, provider=azure
+21:29:18 MATCH! Loading provider: azure
+21:29:18 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:29:18 load_provider_highlights: Theme set but highlights unavailable
+21:29:18 ERROR: Failed to load highlights for azure
+21:29:18 ERROR: Theme not loaded
+21:29:18 === load_saved_theme() called ===
+21:29:18 Current theme: azure-theme
+21:29:18 Clean theme: azure
+21:29:18 Checking theme: name=aws-theme, provider=aws
+21:29:18 Checking theme: name=azure-theme, provider=azure
+21:29:18 MATCH! Loading provider: azure
+21:29:18 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:29:18 load_provider_highlights: Theme set but highlights unavailable
+21:29:18 ERROR: Failed to load highlights for azure
+21:29:18 ERROR: Theme not loaded
+21:29:20 === load_saved_theme() called ===
+21:29:20 Current theme: azure-theme
+21:29:20 Clean theme: azure
+21:29:20 Checking theme: name=aws-theme, provider=aws
+21:29:20 Checking theme: name=azure-theme, provider=azure
+21:29:20 MATCH! Loading provider: azure
+21:29:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:29:20 load_provider_highlights: Theme set but highlights unavailable
+21:29:20 ERROR: Failed to load highlights for azure
+21:29:20 ERROR: Theme not loaded
+21:29:22 === load_saved_theme() called ===
+21:29:22 Current theme: azure-theme
+21:29:22 Clean theme: azure
+21:29:22 Checking theme: name=aws-theme, provider=aws
+21:29:22 Checking theme: name=azure-theme, provider=azure
+21:29:22 MATCH! Loading provider: azure
+21:29:22 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:29:22 load_provider_highlights: Theme set but highlights unavailable
+21:29:22 ERROR: Failed to load highlights for azure
+21:29:22 ERROR: Theme not loaded
+21:30:00 === load_saved_theme() called ===
+21:30:00 Current theme: azure-theme
+21:30:00 Clean theme: azure
+21:30:00 Checking theme: name=aws-theme, provider=aws
+21:30:00 Checking theme: name=azure-theme, provider=azure
+21:30:00 MATCH! Loading provider: azure
+21:30:00 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:30:00 load_provider_highlights: Theme set but highlights unavailable
+21:30:00 ERROR: Failed to load highlights for azure
+21:30:00 ERROR: Theme not loaded
+21:30:46 === load_saved_theme() called ===
+21:30:46 Current theme: azure-theme
+21:30:46 Clean theme: azure
+21:30:46 Checking theme: name=aws-theme, provider=aws
+21:30:46 Checking theme: name=azure-theme, provider=azure
+21:30:46 MATCH! Loading provider: azure
+21:30:46 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:30:46 load_provider_highlights: Theme set but highlights unavailable
+21:30:46 ERROR: Failed to load highlights for azure
+21:30:46 ERROR: Theme not loaded
+21:30:46 === load_saved_theme() called ===
+21:30:46 Current theme: azure-theme
+21:30:46 Clean theme: azure
+21:30:46 Checking theme: name=aws-theme, provider=aws
+21:30:46 Checking theme: name=azure-theme, provider=azure
+21:30:46 MATCH! Loading provider: azure
+21:30:46 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:30:46 load_provider_highlights: Theme set but highlights unavailable
+21:30:46 ERROR: Failed to load highlights for azure
+21:30:46 ERROR: Theme not loaded
+21:30:46 === load_saved_theme() called ===
+21:30:46 Current theme: azure-theme
+21:30:46 Clean theme: azure
+21:30:46 Checking theme: name=aws-theme, provider=aws
+21:30:46 Checking theme: name=azure-theme, provider=azure
+21:30:46 MATCH! Loading provider: azure
+21:30:46 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:30:46 load_provider_highlights: Theme set but highlights unavailable
+21:30:46 ERROR: Failed to load highlights for azure
+21:30:46 ERROR: Theme not loaded
+21:30:48 === load_saved_theme() called ===
+21:30:48 Current theme: azure-theme
+21:30:48 Clean theme: azure
+21:30:48 Checking theme: name=aws-theme, provider=aws
+21:30:48 Checking theme: name=azure-theme, provider=azure
+21:30:48 MATCH! Loading provider: azure
+21:30:48 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:30:48 load_provider_highlights: Theme set but highlights unavailable
+21:30:48 ERROR: Failed to load highlights for azure
+21:30:48 ERROR: Theme not loaded
+21:30:50 === load_saved_theme() called ===
+21:30:50 Current theme: azure-theme
+21:30:50 Clean theme: azure
+21:30:50 Checking theme: name=aws-theme, provider=aws
+21:30:50 Checking theme: name=azure-theme, provider=azure
+21:30:50 MATCH! Loading provider: azure
+21:30:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:30:50 load_provider_highlights: Theme set but highlights unavailable
+21:30:50 ERROR: Failed to load highlights for azure
+21:30:50 ERROR: Theme not loaded
+21:37:56 === load_saved_theme() called ===
+21:37:56 Current theme: azure-theme
+21:37:56 Clean theme: azure
+21:37:56 Checking theme: name=aws-theme, provider=aws
+21:37:56 Checking theme: name=azure-theme, provider=azure
+21:37:56 MATCH! Loading provider: azure
+21:37:56 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:37:56 load_provider_highlights: Theme set but highlights unavailable
+21:37:56 ERROR: Failed to load highlights for azure
+21:37:56 ERROR: Theme not loaded
+21:37:56 === load_saved_theme() called ===
+21:37:56 Current theme: azure-theme
+21:37:56 Clean theme: azure
+21:37:56 Checking theme: name=aws-theme, provider=aws
+21:37:56 Checking theme: name=azure-theme, provider=azure
+21:37:56 MATCH! Loading provider: azure
+21:37:56 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:37:56 load_provider_highlights: Theme set but highlights unavailable
+21:37:56 ERROR: Failed to load highlights for azure
+21:37:56 ERROR: Theme not loaded
+21:37:56 === load_saved_theme() called ===
+21:37:56 Current theme: azure-theme
+21:37:56 Clean theme: azure
+21:37:56 Checking theme: name=aws-theme, provider=aws
+21:37:56 Checking theme: name=azure-theme, provider=azure
+21:37:56 MATCH! Loading provider: azure
+21:37:56 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:37:56 load_provider_highlights: Theme set but highlights unavailable
+21:37:56 ERROR: Failed to load highlights for azure
+21:37:56 ERROR: Theme not loaded
+21:37:56 === load_saved_theme() called ===
+21:37:56 Current theme: azure-theme
+21:37:56 Clean theme: azure
+21:37:56 Checking theme: name=aws-theme, provider=aws
+21:37:56 Checking theme: name=azure-theme, provider=azure
+21:37:56 MATCH! Loading provider: azure
+21:37:56 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:37:56 load_provider_highlights: Theme set but highlights unavailable
+21:37:56 ERROR: Failed to load highlights for azure
+21:37:56 ERROR: Theme not loaded
+21:37:56 === load_saved_theme() called ===
+21:37:56 Current theme: azure-theme
+21:37:56 Clean theme: azure
+21:37:56 Checking theme: name=aws-theme, provider=aws
+21:37:56 Checking theme: name=azure-theme, provider=azure
+21:37:56 MATCH! Loading provider: azure
+21:37:56 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:37:56 load_provider_highlights: Theme set but highlights unavailable
+21:37:56 ERROR: Failed to load highlights for azure
+21:37:56 ERROR: Theme not loaded
+21:37:56 === load_saved_theme() called ===
+21:37:56 Current theme: azure-theme
+21:37:56 Clean theme: azure
+21:37:56 Checking theme: name=aws-theme, provider=aws
+21:37:56 Checking theme: name=azure-theme, provider=azure
+21:37:56 MATCH! Loading provider: azure
+21:37:56 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:37:56 load_provider_highlights: Theme set but highlights unavailable
+21:37:56 ERROR: Failed to load highlights for azure
+21:37:56 ERROR: Theme not loaded
+21:37:56 === load_saved_theme() called ===
+21:37:56 Current theme: azure-theme
+21:37:56 Clean theme: azure
+21:37:56 Checking theme: name=aws-theme, provider=aws
+21:37:56 Checking theme: name=azure-theme, provider=azure
+21:37:56 MATCH! Loading provider: azure
+21:37:56 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:37:56 load_provider_highlights: Theme set but highlights unavailable
+21:37:56 ERROR: Failed to load highlights for azure
+21:37:56 ERROR: Theme not loaded
+21:42:54 === load_saved_theme() called ===
+21:42:54 Current theme: azure-theme
+21:42:54 Clean theme: azure
+21:42:54 Checking theme: name=aws-theme, provider=aws
+21:42:54 Checking theme: name=azure-theme, provider=azure
+21:42:54 MATCH! Loading provider: azure
+21:42:54 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:42:54 === load_saved_theme() called ===
+21:42:54 load_provider_highlights: Theme set but highlights unavailable
+21:42:54 Current theme: azure-theme
+21:42:54 ERROR: Failed to load highlights for azure
+21:42:54 Clean theme: azure
+21:42:54 ERROR: Theme not loaded
+21:42:54 Checking theme: name=aws-theme, provider=aws
+21:42:54 Checking theme: name=azure-theme, provider=azure
+21:42:54 MATCH! Loading provider: azure
+21:42:54 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:42:54 load_provider_highlights: Theme set but highlights unavailable
+21:42:54 ERROR: Failed to load highlights for azure
+21:42:54 ERROR: Theme not loaded
+21:43:00 === load_saved_theme() called ===
+21:43:00 Current theme: azure-theme
+21:43:00 Clean theme: azure
+21:43:00 Checking theme: name=aws-theme, provider=aws
+21:43:00 Checking theme: name=azure-theme, provider=azure
+21:43:00 MATCH! Loading provider: azure
+21:43:00 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:00 load_provider_highlights: Theme set but highlights unavailable
+21:43:00 ERROR: Failed to load highlights for azure
+21:43:00 ERROR: Theme not loaded
+21:43:00 === load_saved_theme() called ===
+21:43:00 Current theme: azure-theme
+21:43:00 Clean theme: azure
+21:43:00 Checking theme: name=aws-theme, provider=aws
+21:43:00 Checking theme: name=azure-theme, provider=azure
+21:43:00 MATCH! Loading provider: azure
+21:43:00 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:00 load_provider_highlights: Theme set but highlights unavailable
+21:43:00 ERROR: Failed to load highlights for azure
+21:43:00 ERROR: Theme not loaded
+21:43:00 === load_saved_theme() called ===
+21:43:00 Current theme: azure-theme
+21:43:00 Clean theme: azure
+21:43:00 Checking theme: name=aws-theme, provider=aws
+21:43:00 Checking theme: name=azure-theme, provider=azure
+21:43:00 MATCH! Loading provider: azure
+21:43:00 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:00 load_provider_highlights: Theme set but highlights unavailable
+21:43:00 ERROR: Failed to load highlights for azure
+21:43:00 ERROR: Theme not loaded
+21:43:00 === load_saved_theme() called ===
+21:43:00 Current theme: azure-theme
+21:43:00 Clean theme: azure
+21:43:00 Checking theme: name=aws-theme, provider=aws
+21:43:00 Checking theme: name=azure-theme, provider=azure
+21:43:00 MATCH! Loading provider: azure
+21:43:00 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:00 load_provider_highlights: Theme set but highlights unavailable
+21:43:00 ERROR: Failed to load highlights for azure
+21:43:00 ERROR: Theme not loaded
+21:43:00 === load_saved_theme() called ===
+21:43:00 Current theme: azure-theme
+21:43:00 Clean theme: azure
+21:43:00 Checking theme: name=aws-theme, provider=aws
+21:43:00 Checking theme: name=azure-theme, provider=azure
+21:43:00 MATCH! Loading provider: azure
+21:43:00 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:00 load_provider_highlights: Theme set but highlights unavailable
+21:43:00 ERROR: Failed to load highlights for azure
+21:43:00 ERROR: Theme not loaded
+21:43:01 === load_saved_theme() called ===
+21:43:01 Current theme: azure-theme
+21:43:01 Clean theme: azure
+21:43:01 Checking theme: name=aws-theme, provider=aws
+21:43:01 Checking theme: name=azure-theme, provider=azure
+21:43:01 MATCH! Loading provider: azure
+21:43:01 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:01 load_provider_highlights: Theme set but highlights unavailable
+21:43:01 ERROR: Failed to load highlights for azure
+21:43:01 ERROR: Theme not loaded
+21:43:01 === load_saved_theme() called ===
+21:43:01 Current theme: azure-theme
+21:43:01 Clean theme: azure
+21:43:01 Checking theme: name=aws-theme, provider=aws
+21:43:01 Checking theme: name=azure-theme, provider=azure
+21:43:01 MATCH! Loading provider: azure
+21:43:01 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:01 load_provider_highlights: Theme set but highlights unavailable
+21:43:01 ERROR: Failed to load highlights for azure
+21:43:01 ERROR: Theme not loaded
+21:43:01 === load_saved_theme() called ===
+21:43:01 Current theme: azure-theme
+21:43:01 Clean theme: azure
+21:43:01 Checking theme: name=aws-theme, provider=aws
+21:43:01 Checking theme: name=azure-theme, provider=azure
+21:43:01 MATCH! Loading provider: azure
+21:43:01 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:01 load_provider_highlights: Theme set but highlights unavailable
+21:43:01 ERROR: Failed to load highlights for azure
+21:43:01 ERROR: Theme not loaded
+21:43:01 === load_saved_theme() called ===
+21:43:01 Current theme: azure-theme
+21:43:01 Clean theme: azure
+21:43:01 Checking theme: name=aws-theme, provider=aws
+21:43:01 Checking theme: name=azure-theme, provider=azure
+21:43:01 MATCH! Loading provider: azure
+21:43:01 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:01 load_provider_highlights: Theme set but highlights unavailable
+21:43:01 ERROR: Failed to load highlights for azure
+21:43:01 ERROR: Theme not loaded
+21:43:01 === load_saved_theme() called ===
+21:43:01 Current theme: azure-theme
+21:43:01 Clean theme: azure
+21:43:01 Checking theme: name=aws-theme, provider=aws
+21:43:01 Checking theme: name=azure-theme, provider=azure
+21:43:01 MATCH! Loading provider: azure
+21:43:01 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:01 load_provider_highlights: Theme set but highlights unavailable
+21:43:01 ERROR: Failed to load highlights for azure
+21:43:01 ERROR: Theme not loaded
+21:43:03 === load_saved_theme() called ===
+21:43:03 Current theme: azure-theme
+21:43:03 Clean theme: azure
+21:43:03 Checking theme: name=aws-theme, provider=aws
+21:43:03 Checking theme: name=azure-theme, provider=azure
+21:43:03 MATCH! Loading provider: azure
+21:43:03 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:03 load_provider_highlights: Theme set but highlights unavailable
+21:43:03 ERROR: Failed to load highlights for azure
+21:43:03 ERROR: Theme not loaded
+21:43:05 === load_saved_theme() called ===
+21:43:05 Current theme: azure-theme
+21:43:05 Clean theme: azure
+21:43:05 Checking theme: name=aws-theme, provider=aws
+21:43:05 Checking theme: name=azure-theme, provider=azure
+21:43:05 MATCH! Loading provider: azure
+21:43:05 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:05 load_provider_highlights: Theme set but highlights unavailable
+21:43:05 ERROR: Failed to load highlights for azure
+21:43:05 ERROR: Theme not loaded
+21:43:09 === load_saved_theme() called ===
+21:43:09 === load_saved_theme() called ===
+21:43:09 Current theme: azure-theme
+21:43:09 Current theme: azure-theme
+21:43:09 Clean theme: azure
+21:43:09 Clean theme: azure
+21:43:09 Checking theme: name=aws-theme, provider=aws
+21:43:09 Checking theme: name=aws-theme, provider=aws
+21:43:09 Checking theme: name=azure-theme, provider=azure
+21:43:09 Checking theme: name=azure-theme, provider=azure
+21:43:09 MATCH! Loading provider: azure
+21:43:09 MATCH! Loading provider: azure
+21:43:09 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:09 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:43:09 load_provider_highlights: Theme set but highlights unavailable
+21:43:09 load_provider_highlights: Theme set but highlights unavailable
+21:43:09 ERROR: Failed to load highlights for azure
+21:43:09 ERROR: Failed to load highlights for azure
+21:43:09 ERROR: Theme not loaded
+21:43:09 ERROR: Theme not loaded
+21:52:50 === load_saved_theme() called ===
+21:52:50 Current theme: azure-theme
+21:52:50 Clean theme: azure
+21:52:50 Checking theme: name=aws-theme, provider=aws
+21:52:50 Checking theme: name=azure-theme, provider=azure
+21:52:50 MATCH! Loading provider: azure
+21:52:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:50 load_provider_highlights: Theme set but highlights unavailable
+21:52:50 ERROR: Failed to load highlights for azure
+21:52:50 ERROR: Theme not loaded
+21:52:50 === load_saved_theme() called ===
+21:52:50 Current theme: azure-theme
+21:52:50 Clean theme: azure
+21:52:50 Checking theme: name=aws-theme, provider=aws
+21:52:50 Checking theme: name=azure-theme, provider=azure
+21:52:50 MATCH! Loading provider: azure
+21:52:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:50 load_provider_highlights: Theme set but highlights unavailable
+21:52:50 ERROR: Failed to load highlights for azure
+21:52:50 ERROR: Theme not loaded
+21:52:50 === load_saved_theme() called ===
+21:52:50 Current theme: azure-theme
+21:52:50 Clean theme: azure
+21:52:50 Checking theme: name=aws-theme, provider=aws
+21:52:50 Checking theme: name=azure-theme, provider=azure
+21:52:50 MATCH! Loading provider: azure
+21:52:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:50 load_provider_highlights: Theme set but highlights unavailable
+21:52:50 ERROR: Failed to load highlights for azure
+21:52:50 ERROR: Theme not loaded
+21:52:50 === load_saved_theme() called ===
+21:52:50 Current theme: azure-theme
+21:52:50 Clean theme: azure
+21:52:50 Checking theme: name=aws-theme, provider=aws
+21:52:50 Checking theme: name=azure-theme, provider=azure
+21:52:50 MATCH! Loading provider: azure
+21:52:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:50 load_provider_highlights: Theme set but highlights unavailable
+21:52:50 ERROR: Failed to load highlights for azure
+21:52:50 ERROR: Theme not loaded
+21:52:50 === load_saved_theme() called ===
+21:52:50 Current theme: azure-theme
+21:52:50 Clean theme: azure
+21:52:50 Checking theme: name=aws-theme, provider=aws
+21:52:50 Checking theme: name=azure-theme, provider=azure
+21:52:50 MATCH! Loading provider: azure
+21:52:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:50 load_provider_highlights: Theme set but highlights unavailable
+21:52:50 ERROR: Failed to load highlights for azure
+21:52:50 ERROR: Theme not loaded
+21:52:50 === load_saved_theme() called ===
+21:52:50 Current theme: azure-theme
+21:52:50 Clean theme: azure
+21:52:50 Checking theme: name=aws-theme, provider=aws
+21:52:50 Checking theme: name=azure-theme, provider=azure
+21:52:50 MATCH! Loading provider: azure
+21:52:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:50 load_provider_highlights: Theme set but highlights unavailable
+21:52:50 ERROR: Failed to load highlights for azure
+21:52:50 ERROR: Theme not loaded
+21:52:50 === load_saved_theme() called ===
+21:52:50 Current theme: azure-theme
+21:52:50 Clean theme: azure
+21:52:50 Checking theme: name=aws-theme, provider=aws
+21:52:50 Checking theme: name=azure-theme, provider=azure
+21:52:50 MATCH! Loading provider: azure
+21:52:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:50 load_provider_highlights: Theme set but highlights unavailable
+21:52:50 ERROR: Failed to load highlights for azure
+21:52:50 ERROR: Theme not loaded
+21:52:50 === load_saved_theme() called ===
+21:52:50 Current theme: azure-theme
+21:52:50 Clean theme: azure
+21:52:50 Checking theme: name=aws-theme, provider=aws
+21:52:50 Checking theme: name=azure-theme, provider=azure
+21:52:50 MATCH! Loading provider: azure
+21:52:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:50 load_provider_highlights: Theme set but highlights unavailable
+21:52:50 ERROR: Failed to load highlights for azure
+21:52:50 ERROR: Theme not loaded
+21:52:50 === load_saved_theme() called ===
+21:52:50 Current theme: azure-theme
+21:52:50 Clean theme: azure
+21:52:50 Checking theme: name=aws-theme, provider=aws
+21:52:50 Checking theme: name=azure-theme, provider=azure
+21:52:50 MATCH! Loading provider: azure
+21:52:50 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:50 load_provider_highlights: Theme set but highlights unavailable
+21:52:50 ERROR: Failed to load highlights for azure
+21:52:50 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:51 MATCH! Loading provider: azure
+21:52:51 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:51 load_provider_highlights: Theme set but highlights unavailable
+21:52:51 ERROR: Failed to load highlights for azure
+21:52:51 ERROR: Theme not loaded
+21:52:51 === load_saved_theme() called ===
+21:52:51 Current theme: azure-theme
+21:52:51 Clean theme: azure
+21:52:51 Checking theme: name=aws-theme, provider=aws
+21:52:51 Checking theme: name=azure-theme, provider=azure
+21:52:52 MATCH! Loading provider: azure
+21:52:52 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:52 load_provider_highlights: Theme set but highlights unavailable
+21:52:52 ERROR: Failed to load highlights for azure
+21:52:52 ERROR: Theme not loaded
+21:52:52 === load_saved_theme() called ===
+21:52:52 Current theme: azure-theme
+21:52:52 Clean theme: azure
+21:52:52 Checking theme: name=aws-theme, provider=aws
+21:52:52 Checking theme: name=azure-theme, provider=azure
+21:52:52 MATCH! Loading provider: azure
+21:52:52 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:52 load_provider_highlights: Theme set but highlights unavailable
+21:52:52 ERROR: Failed to load highlights for azure
+21:52:52 ERROR: Theme not loaded
+21:52:52 === load_saved_theme() called ===
+21:52:52 Current theme: azure-theme
+21:52:52 Clean theme: azure
+21:52:52 Checking theme: name=aws-theme, provider=aws
+21:52:52 Checking theme: name=azure-theme, provider=azure
+21:52:52 MATCH! Loading provider: azure
+21:52:52 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+21:52:52 load_provider_highlights: Theme set but highlights unavailable
+21:52:52 ERROR: Failed to load highlights for azure
+21:52:52 ERROR: Theme not loaded
+22:14:18 === load_saved_theme() called ===
+22:14:18 Current theme: azure-theme
+22:14:18 Clean theme: azure
+22:14:18 Checking theme: name=aws-theme, provider=aws
+22:14:18 Checking theme: name=azure-theme, provider=azure
+22:14:18 MATCH! Loading provider: azure
+22:14:18 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:18 load_provider_highlights: Theme set but highlights unavailable
+22:14:18 ERROR: Failed to load highlights for azure
+22:14:18 ERROR: Theme not loaded
+22:14:18 === load_saved_theme() called ===
+22:14:18 Current theme: azure-theme
+22:14:18 Clean theme: azure
+22:14:18 Checking theme: name=aws-theme, provider=aws
+22:14:18 Checking theme: name=azure-theme, provider=azure
+22:14:18 MATCH! Loading provider: azure
+22:14:18 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:18 load_provider_highlights: Theme set but highlights unavailable
+22:14:18 ERROR: Failed to load highlights for azure
+22:14:18 ERROR: Theme not loaded
+22:14:18 === load_saved_theme() called ===
+22:14:18 Current theme: azure-theme
+22:14:18 Clean theme: azure
+22:14:18 Checking theme: name=aws-theme, provider=aws
+22:14:18 Checking theme: name=azure-theme, provider=azure
+22:14:18 MATCH! Loading provider: azure
+22:14:18 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:18 load_provider_highlights: Theme set but highlights unavailable
+22:14:18 ERROR: Failed to load highlights for azure
+22:14:18 ERROR: Theme not loaded
+22:14:18 === load_saved_theme() called ===
+22:14:18 Current theme: azure-theme
+22:14:18 Clean theme: azure
+22:14:18 Checking theme: name=aws-theme, provider=aws
+22:14:18 Checking theme: name=azure-theme, provider=azure
+22:14:18 MATCH! Loading provider: azure
+22:14:18 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:18 load_provider_highlights: Theme set but highlights unavailable
+22:14:18 ERROR: Failed to load highlights for azure
+22:14:18 ERROR: Theme not loaded
+22:14:18 === load_saved_theme() called ===
+22:14:18 Current theme: azure-theme
+22:14:18 Clean theme: azure
+22:14:18 Checking theme: name=aws-theme, provider=aws
+22:14:18 Checking theme: name=azure-theme, provider=azure
+22:14:18 MATCH! Loading provider: azure
+22:14:18 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:18 load_provider_highlights: Theme set but highlights unavailable
+22:14:18 ERROR: Failed to load highlights for azure
+22:14:18 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:19 === load_saved_theme() called ===
+22:14:19 Current theme: azure-theme
+22:14:19 Clean theme: azure
+22:14:19 Checking theme: name=aws-theme, provider=aws
+22:14:19 Checking theme: name=azure-theme, provider=azure
+22:14:19 MATCH! Loading provider: azure
+22:14:19 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:19 load_provider_highlights: Theme set but highlights unavailable
+22:14:19 ERROR: Failed to load highlights for azure
+22:14:19 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:20 === load_saved_theme() called ===
+22:14:20 Current theme: azure-theme
+22:14:20 Clean theme: azure
+22:14:20 Checking theme: name=aws-theme, provider=aws
+22:14:20 Checking theme: name=azure-theme, provider=azure
+22:14:20 MATCH! Loading provider: azure
+22:14:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:20 load_provider_highlights: Theme set but highlights unavailable
+22:14:20 ERROR: Failed to load highlights for azure
+22:14:20 ERROR: Theme not loaded
+22:14:21 === load_saved_theme() called ===
+22:14:21 Current theme: azure-theme
+22:14:21 Clean theme: azure
+22:14:21 Checking theme: name=aws-theme, provider=aws
+22:14:21 Checking theme: name=azure-theme, provider=azure
+22:14:21 MATCH! Loading provider: azure
+22:14:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:21 load_provider_highlights: Theme set but highlights unavailable
+22:14:21 ERROR: Failed to load highlights for azure
+22:14:21 ERROR: Theme not loaded
+22:14:31 === load_saved_theme() called ===
+22:14:31 Current theme: azure-theme
+22:14:31 Clean theme: azure
+22:14:31 Checking theme: name=aws-theme, provider=aws
+22:14:31 Checking theme: name=azure-theme, provider=azure
+22:14:31 MATCH! Loading provider: azure
+22:14:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:31 load_provider_highlights: Theme set but highlights unavailable
+22:14:31 ERROR: Failed to load highlights for azure
+22:14:31 ERROR: Theme not loaded
+22:14:31 === load_saved_theme() called ===
+22:14:31 Current theme: azure-theme
+22:14:31 Clean theme: azure
+22:14:31 Checking theme: name=aws-theme, provider=aws
+22:14:31 Checking theme: name=azure-theme, provider=azure
+22:14:31 MATCH! Loading provider: azure
+22:14:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:31 load_provider_highlights: Theme set but highlights unavailable
+22:14:31 ERROR: Failed to load highlights for azure
+22:14:31 ERROR: Theme not loaded
+22:14:31 === load_saved_theme() called ===
+22:14:31 Current theme: azure-theme
+22:14:31 Clean theme: azure
+22:14:31 Checking theme: name=aws-theme, provider=aws
+22:14:31 Checking theme: name=azure-theme, provider=azure
+22:14:31 MATCH! Loading provider: azure
+22:14:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:31 load_provider_highlights: Theme set but highlights unavailable
+22:14:31 ERROR: Failed to load highlights for azure
+22:14:31 ERROR: Theme not loaded
+22:14:31 === load_saved_theme() called ===
+22:14:31 Current theme: azure-theme
+22:14:31 Clean theme: azure
+22:14:31 Checking theme: name=aws-theme, provider=aws
+22:14:31 Checking theme: name=azure-theme, provider=azure
+22:14:31 MATCH! Loading provider: azure
+22:14:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:31 load_provider_highlights: Theme set but highlights unavailable
+22:14:31 ERROR: Failed to load highlights for azure
+22:14:31 ERROR: Theme not loaded
+22:14:31 === load_saved_theme() called ===
+22:14:31 Current theme: azure-theme
+22:14:31 Clean theme: azure
+22:14:31 Checking theme: name=aws-theme, provider=aws
+22:14:31 Checking theme: name=azure-theme, provider=azure
+22:14:31 MATCH! Loading provider: azure
+22:14:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:31 load_provider_highlights: Theme set but highlights unavailable
+22:14:31 ERROR: Failed to load highlights for azure
+22:14:31 ERROR: Theme not loaded
+22:14:31 === load_saved_theme() called ===
+22:14:31 Current theme: azure-theme
+22:14:31 Clean theme: azure
+22:14:31 Checking theme: name=aws-theme, provider=aws
+22:14:31 Checking theme: name=azure-theme, provider=azure
+22:14:31 MATCH! Loading provider: azure
+22:14:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:31 load_provider_highlights: Theme set but highlights unavailable
+22:14:31 ERROR: Failed to load highlights for azure
+22:14:31 ERROR: Theme not loaded
+22:14:31 === load_saved_theme() called ===
+22:14:31 Current theme: azure-theme
+22:14:31 Clean theme: azure
+22:14:31 Checking theme: name=aws-theme, provider=aws
+22:14:31 Checking theme: name=azure-theme, provider=azure
+22:14:31 MATCH! Loading provider: azure
+22:14:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:31 load_provider_highlights: Theme set but highlights unavailable
+22:14:31 ERROR: Failed to load highlights for azure
+22:14:31 ERROR: Theme not loaded
+22:14:31 === load_saved_theme() called ===
+22:14:31 Current theme: azure-theme
+22:14:31 Clean theme: azure
+22:14:31 Checking theme: name=aws-theme, provider=aws
+22:14:31 Checking theme: name=azure-theme, provider=azure
+22:14:31 MATCH! Loading provider: azure
+22:14:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:31 load_provider_highlights: Theme set but highlights unavailable
+22:14:31 ERROR: Failed to load highlights for azure
+22:14:31 ERROR: Theme not loaded
+22:14:31 === load_saved_theme() called ===
+22:14:31 Current theme: azure-theme
+22:14:31 Clean theme: azure
+22:14:31 Checking theme: name=aws-theme, provider=aws
+22:14:31 Checking theme: name=azure-theme, provider=azure
+22:14:31 MATCH! Loading provider: azure
+22:14:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:31 load_provider_highlights: Theme set but highlights unavailable
+22:14:31 ERROR: Failed to load highlights for azure
+22:14:31 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:32 Clean theme: azure
+22:14:32 Checking theme: name=aws-theme, provider=aws
+22:14:32 Checking theme: name=azure-theme, provider=azure
+22:14:32 MATCH! Loading provider: azure
+22:14:32 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:32 load_provider_highlights: Theme set but highlights unavailable
+22:14:32 ERROR: Failed to load highlights for azure
+22:14:32 ERROR: Theme not loaded
+22:14:32 === load_saved_theme() called ===
+22:14:32 Current theme: azure-theme
+22:14:33 Clean theme: azure
+22:14:33 Checking theme: name=aws-theme, provider=aws
+22:14:33 Checking theme: name=azure-theme, provider=azure
+22:14:33 MATCH! Loading provider: azure
+22:14:33 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:33 load_provider_highlights: Theme set but highlights unavailable
+22:14:33 ERROR: Failed to load highlights for azure
+22:14:33 ERROR: Theme not loaded
+22:14:33 === load_saved_theme() called ===
+22:14:33 Current theme: azure-theme
+22:14:33 Clean theme: azure
+22:14:33 Checking theme: name=aws-theme, provider=aws
+22:14:33 Checking theme: name=azure-theme, provider=azure
+22:14:33 MATCH! Loading provider: azure
+22:14:33 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:33 load_provider_highlights: Theme set but highlights unavailable
+22:14:33 ERROR: Failed to load highlights for azure
+22:14:33 ERROR: Theme not loaded
+22:14:33 === load_saved_theme() called ===
+22:14:33 Current theme: azure-theme
+22:14:33 Clean theme: azure
+22:14:33 Checking theme: name=aws-theme, provider=aws
+22:14:33 Checking theme: name=azure-theme, provider=azure
+22:14:33 MATCH! Loading provider: azure
+22:14:33 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:33 load_provider_highlights: Theme set but highlights unavailable
+22:14:33 ERROR: Failed to load highlights for azure
+22:14:33 ERROR: Theme not loaded
+22:14:33 === load_saved_theme() called ===
+22:14:33 Current theme: azure-theme
+22:14:33 Clean theme: azure
+22:14:33 Checking theme: name=aws-theme, provider=aws
+22:14:33 Checking theme: name=azure-theme, provider=azure
+22:14:33 MATCH! Loading provider: azure
+22:14:33 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:33 load_provider_highlights: Theme set but highlights unavailable
+22:14:33 ERROR: Failed to load highlights for azure
+22:14:33 ERROR: Theme not loaded
+22:14:33 === load_saved_theme() called ===
+22:14:33 Current theme: azure-theme
+22:14:33 Clean theme: azure
+22:14:33 Checking theme: name=aws-theme, provider=aws
+22:14:33 Checking theme: name=azure-theme, provider=azure
+22:14:33 MATCH! Loading provider: azure
+22:14:33 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:33 load_provider_highlights: Theme set but highlights unavailable
+22:14:33 ERROR: Failed to load highlights for azure
+22:14:33 ERROR: Theme not loaded
+22:14:33 === load_saved_theme() called ===
+22:14:33 Current theme: azure-theme
+22:14:33 Clean theme: azure
+22:14:33 Checking theme: name=aws-theme, provider=aws
+22:14:33 Checking theme: name=azure-theme, provider=azure
+22:14:33 MATCH! Loading provider: azure
+22:14:33 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:33 load_provider_highlights: Theme set but highlights unavailable
+22:14:33 ERROR: Failed to load highlights for azure
+22:14:33 ERROR: Theme not loaded
+22:14:33 === load_saved_theme() called ===
+22:14:33 Current theme: azure-theme
+22:14:33 Clean theme: azure
+22:14:33 Checking theme: name=aws-theme, provider=aws
+22:14:33 Checking theme: name=azure-theme, provider=azure
+22:14:33 MATCH! Loading provider: azure
+22:14:33 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:33 load_provider_highlights: Theme set but highlights unavailable
+22:14:33 ERROR: Failed to load highlights for azure
+22:14:33 ERROR: Theme not loaded
+22:14:33 === load_saved_theme() called ===
+22:14:33 Current theme: azure-theme
+22:14:33 Clean theme: azure
+22:14:33 Checking theme: name=aws-theme, provider=aws
+22:14:33 Checking theme: name=azure-theme, provider=azure
+22:14:33 MATCH! Loading provider: azure
+22:14:33 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:14:33 load_provider_highlights: Theme set but highlights unavailable
+22:14:33 ERROR: Failed to load highlights for azure
+22:14:33 ERROR: Theme not loaded
+22:15:20 === load_saved_theme() called ===
+22:15:20 Current theme: azure-theme
+22:15:20 Clean theme: azure
+22:15:20 Checking theme: name=aws-theme, provider=aws
+22:15:20 Checking theme: name=azure-theme, provider=azure
+22:15:20 MATCH! Loading provider: azure
+22:15:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:20 load_provider_highlights: Theme set but highlights unavailable
+22:15:20 ERROR: Failed to load highlights for azure
+22:15:20 ERROR: Theme not loaded
+22:15:20 === load_saved_theme() called ===
+22:15:20 Current theme: azure-theme
+22:15:20 Clean theme: azure
+22:15:20 Checking theme: name=aws-theme, provider=aws
+22:15:20 Checking theme: name=azure-theme, provider=azure
+22:15:20 MATCH! Loading provider: azure
+22:15:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:20 load_provider_highlights: Theme set but highlights unavailable
+22:15:20 ERROR: Failed to load highlights for azure
+22:15:20 ERROR: Theme not loaded
+22:15:20 === load_saved_theme() called ===
+22:15:20 Current theme: azure-theme
+22:15:20 Clean theme: azure
+22:15:20 Checking theme: name=aws-theme, provider=aws
+22:15:20 Checking theme: name=azure-theme, provider=azure
+22:15:20 MATCH! Loading provider: azure
+22:15:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:20 load_provider_highlights: Theme set but highlights unavailable
+22:15:20 ERROR: Failed to load highlights for azure
+22:15:20 ERROR: Theme not loaded
+22:15:20 === load_saved_theme() called ===
+22:15:20 Current theme: azure-theme
+22:15:20 Clean theme: azure
+22:15:20 Checking theme: name=aws-theme, provider=aws
+22:15:20 Checking theme: name=azure-theme, provider=azure
+22:15:20 MATCH! Loading provider: azure
+22:15:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:20 load_provider_highlights: Theme set but highlights unavailable
+22:15:20 ERROR: Failed to load highlights for azure
+22:15:20 ERROR: Theme not loaded
+22:15:20 === load_saved_theme() called ===
+22:15:20 Current theme: azure-theme
+22:15:20 Clean theme: azure
+22:15:20 Checking theme: name=aws-theme, provider=aws
+22:15:20 Checking theme: name=azure-theme, provider=azure
+22:15:20 MATCH! Loading provider: azure
+22:15:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:20 load_provider_highlights: Theme set but highlights unavailable
+22:15:20 ERROR: Failed to load highlights for azure
+22:15:20 ERROR: Theme not loaded
+22:15:20 === load_saved_theme() called ===
+22:15:20 Current theme: azure-theme
+22:15:20 Clean theme: azure
+22:15:20 Checking theme: name=aws-theme, provider=aws
+22:15:20 Checking theme: name=azure-theme, provider=azure
+22:15:20 MATCH! Loading provider: azure
+22:15:20 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:20 load_provider_highlights: Theme set but highlights unavailable
+22:15:20 ERROR: Failed to load highlights for azure
+22:15:20 ERROR: Theme not loaded
+22:15:20 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:21 === load_saved_theme() called ===
+22:15:21 Current theme: azure-theme
+22:15:21 Clean theme: azure
+22:15:21 Checking theme: name=aws-theme, provider=aws
+22:15:21 Checking theme: name=azure-theme, provider=azure
+22:15:21 MATCH! Loading provider: azure
+22:15:21 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:21 load_provider_highlights: Theme set but highlights unavailable
+22:15:21 ERROR: Failed to load highlights for azure
+22:15:21 ERROR: Theme not loaded
+22:15:22 === load_saved_theme() called ===
+22:15:22 Current theme: azure-theme
+22:15:22 Clean theme: azure
+22:15:22 Checking theme: name=aws-theme, provider=aws
+22:15:22 Checking theme: name=azure-theme, provider=azure
+22:15:22 MATCH! Loading provider: azure
+22:15:22 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:22 load_provider_highlights: Theme set but highlights unavailable
+22:15:22 ERROR: Failed to load highlights for azure
+22:15:22 ERROR: Theme not loaded
+22:15:22 === load_saved_theme() called ===
+22:15:22 Current theme: azure-theme
+22:15:22 Clean theme: azure
+22:15:22 Checking theme: name=aws-theme, provider=aws
+22:15:22 Checking theme: name=azure-theme, provider=azure
+22:15:22 MATCH! Loading provider: azure
+22:15:22 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:22 load_provider_highlights: Theme set but highlights unavailable
+22:15:22 ERROR: Failed to load highlights for azure
+22:15:22 ERROR: Theme not loaded
+22:15:22 === load_saved_theme() called ===
+22:15:22 Current theme: azure-theme
+22:15:22 Clean theme: azure
+22:15:22 Checking theme: name=aws-theme, provider=aws
+22:15:22 Checking theme: name=azure-theme, provider=azure
+22:15:22 MATCH! Loading provider: azure
+22:15:22 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:22 load_provider_highlights: Theme set but highlights unavailable
+22:15:22 ERROR: Failed to load highlights for azure
+22:15:22 ERROR: Theme not loaded
+22:15:22 === load_saved_theme() called ===
+22:15:22 Current theme: azure-theme
+22:15:22 Clean theme: azure
+22:15:22 Checking theme: name=aws-theme, provider=aws
+22:15:22 Checking theme: name=azure-theme, provider=azure
+22:15:22 MATCH! Loading provider: azure
+22:15:22 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:22 load_provider_highlights: Theme set but highlights unavailable
+22:15:22 ERROR: Failed to load highlights for azure
+22:15:22 ERROR: Theme not loaded
+22:15:22 === load_saved_theme() called ===
+22:15:22 Current theme: azure-theme
+22:15:22 Clean theme: azure
+22:15:22 Checking theme: name=aws-theme, provider=aws
+22:15:22 Checking theme: name=azure-theme, provider=azure
+22:15:22 MATCH! Loading provider: azure
+22:15:22 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:22 load_provider_highlights: Theme set but highlights unavailable
+22:15:22 ERROR: Failed to load highlights for azure
+22:15:22 ERROR: Theme not loaded
+22:15:22 === load_saved_theme() called ===
+22:15:22 Current theme: azure-theme
+22:15:22 Clean theme: azure
+22:15:22 Checking theme: name=aws-theme, provider=aws
+22:15:22 Checking theme: name=azure-theme, provider=azure
+22:15:22 MATCH! Loading provider: azure
+22:15:22 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:22 load_provider_highlights: Theme set but highlights unavailable
+22:15:22 ERROR: Failed to load highlights for azure
+22:15:22 ERROR: Theme not loaded
+22:15:22 === load_saved_theme() called ===
+22:15:22 Current theme: azure-theme
+22:15:22 Clean theme: azure
+22:15:22 Checking theme: name=aws-theme, provider=aws
+22:15:22 Checking theme: name=azure-theme, provider=azure
+22:15:22 MATCH! Loading provider: azure
+22:15:22 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:22 load_provider_highlights: Theme set but highlights unavailable
+22:15:22 ERROR: Failed to load highlights for azure
+22:15:22 ERROR: Theme not loaded
+22:15:22 === load_saved_theme() called ===
+22:15:22 Current theme: azure-theme
+22:15:22 Clean theme: azure
+22:15:22 Checking theme: name=aws-theme, provider=aws
+22:15:22 Checking theme: name=azure-theme, provider=azure
+22:15:22 MATCH! Loading provider: azure
+22:15:22 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:22 load_provider_highlights: Theme set but highlights unavailable
+22:15:22 ERROR: Failed to load highlights for azure
+22:15:22 ERROR: Theme not loaded
+22:15:26 === load_saved_theme() called ===
+22:15:26 Current theme: azure-theme
+22:15:26 Clean theme: azure
+22:15:26 Checking theme: name=aws-theme, provider=aws
+22:15:26 Checking theme: name=azure-theme, provider=azure
+22:15:26 MATCH! Loading provider: azure
+22:15:26 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:26 load_provider_highlights: Theme set but highlights unavailable
+22:15:26 ERROR: Failed to load highlights for azure
+22:15:26 ERROR: Theme not loaded
+22:15:26 === load_saved_theme() called ===
+22:15:26 Current theme: azure-theme
+22:15:26 Clean theme: azure
+22:15:26 Checking theme: name=aws-theme, provider=aws
+22:15:26 Checking theme: name=azure-theme, provider=azure
+22:15:26 MATCH! Loading provider: azure
+22:15:26 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:26 load_provider_highlights: Theme set but highlights unavailable
+22:15:26 ERROR: Failed to load highlights for azure
+22:15:26 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:27 === load_saved_theme() called ===
+22:15:27 Current theme: azure-theme
+22:15:27 Clean theme: azure
+22:15:27 Checking theme: name=aws-theme, provider=aws
+22:15:27 Checking theme: name=azure-theme, provider=azure
+22:15:27 MATCH! Loading provider: azure
+22:15:27 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:27 load_provider_highlights: Theme set but highlights unavailable
+22:15:27 ERROR: Failed to load highlights for azure
+22:15:27 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:28 ERROR: Failed to load highlights for azure
+22:15:28 ERROR: Theme not loaded
+22:15:28 === load_saved_theme() called ===
+22:15:28 Current theme: azure-theme
+22:15:28 Clean theme: azure
+22:15:28 Checking theme: name=aws-theme, provider=aws
+22:15:28 Checking theme: name=azure-theme, provider=azure
+22:15:28 MATCH! Loading provider: azure
+22:15:28 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:28 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:29 === load_saved_theme() called ===
+22:15:29 Current theme: azure-theme
+22:15:29 Clean theme: azure
+22:15:29 Checking theme: name=aws-theme, provider=aws
+22:15:29 Checking theme: name=azure-theme, provider=azure
+22:15:29 MATCH! Loading provider: azure
+22:15:29 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:29 load_provider_highlights: Theme set but highlights unavailable
+22:15:29 ERROR: Failed to load highlights for azure
+22:15:29 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:30 MATCH! Loading provider: azure
+22:15:30 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:30 load_provider_highlights: Theme set but highlights unavailable
+22:15:30 ERROR: Failed to load highlights for azure
+22:15:30 ERROR: Theme not loaded
+22:15:30 === load_saved_theme() called ===
+22:15:30 Current theme: azure-theme
+22:15:30 Clean theme: azure
+22:15:30 Checking theme: name=aws-theme, provider=aws
+22:15:30 Checking theme: name=azure-theme, provider=azure
+22:15:31 MATCH! Loading provider: azure
+22:15:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:31 load_provider_highlights: Theme set but highlights unavailable
+22:15:31 ERROR: Failed to load highlights for azure
+22:15:31 ERROR: Theme not loaded
+22:15:31 === load_saved_theme() called ===
+22:15:31 Current theme: azure-theme
+22:15:31 Clean theme: azure
+22:15:31 Checking theme: name=aws-theme, provider=aws
+22:15:31 Checking theme: name=azure-theme, provider=azure
+22:15:31 MATCH! Loading provider: azure
+22:15:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:31 load_provider_highlights: Theme set but highlights unavailable
+22:15:31 ERROR: Failed to load highlights for azure
+22:15:31 ERROR: Theme not loaded
+22:15:31 === load_saved_theme() called ===
+22:15:31 Current theme: azure-theme
+22:15:31 Clean theme: azure
+22:15:31 Checking theme: name=aws-theme, provider=aws
+22:15:31 Checking theme: name=azure-theme, provider=azure
+22:15:31 MATCH! Loading provider: azure
+22:15:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:31 load_provider_highlights: Theme set but highlights unavailable
+22:15:31 ERROR: Failed to load highlights for azure
+22:15:31 ERROR: Theme not loaded
+22:15:31 === load_saved_theme() called ===
+22:15:31 Current theme: azure-theme
+22:15:31 Clean theme: azure
+22:15:31 Checking theme: name=aws-theme, provider=aws
+22:15:31 Checking theme: name=azure-theme, provider=azure
+22:15:31 MATCH! Loading provider: azure
+22:15:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:31 load_provider_highlights: Theme set but highlights unavailable
+22:15:31 ERROR: Failed to load highlights for azure
+22:15:31 ERROR: Theme not loaded
+22:15:31 === load_saved_theme() called ===
+22:15:31 Current theme: azure-theme
+22:15:31 Clean theme: azure
+22:15:31 Checking theme: name=aws-theme, provider=aws
+22:15:31 Checking theme: name=azure-theme, provider=azure
+22:15:31 MATCH! Loading provider: azure
+22:15:31 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:15:31 load_provider_highlights: Theme set but highlights unavailable
+22:15:31 ERROR: Failed to load highlights for azure
+22:15:31 ERROR: Theme not loaded
+22:36:48 === load_saved_theme() called ===
+22:36:48 Current theme: azure-theme
+22:36:48 Clean theme: azure
+22:36:48 Checking theme: name=aws-theme, provider=aws
+22:36:48 Checking theme: name=azure-theme, provider=azure
+22:36:48 MATCH! Loading provider: azure
+22:36:48 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:36:48 load_provider_highlights: Theme set but highlights unavailable
+22:36:48 ERROR: Failed to load highlights for azure
+22:36:48 ERROR: Theme not loaded
+22:37:26 === load_saved_theme() called ===
+22:37:26 Current theme: azure-theme
+22:37:26 Clean theme: azure
+22:37:26 Checking theme: name=aws-theme, provider=aws
+22:37:26 Checking theme: name=azure-theme, provider=azure
+22:37:26 MATCH! Loading provider: azure
+22:37:26 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:37:26 load_provider_highlights: Theme set but highlights unavailable
+22:37:26 ERROR: Failed to load highlights for azure
+22:37:26 ERROR: Theme not loaded
+22:37:52 === load_saved_theme() called ===
+22:37:52 Current theme: azure-theme
+22:37:52 Clean theme: azure
+22:37:52 Checking theme: name=aws-theme, provider=aws
+22:37:52 Checking theme: name=azure-theme, provider=azure
+22:37:52 MATCH! Loading provider: azure
+22:37:52 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:37:52 load_provider_highlights: Theme set but highlights unavailable
+22:37:52 ERROR: Failed to load highlights for azure
+22:37:52 ERROR: Theme not loaded
+22:38:23 === load_saved_theme() called ===
+22:38:23 Current theme: azure-theme
+22:38:23 Clean theme: azure
+22:38:23 Checking theme: name=aws-theme, provider=aws
+22:38:23 Checking theme: name=azure-theme, provider=azure
+22:38:23 MATCH! Loading provider: azure
+22:38:23 load_provider_highlights: Calling engine.manage_theme('set', 'azure')
+22:38:23 load_provider_highlights: Theme set but highlights unavailable
+22:38:23 ERROR: Failed to load highlights for azure
+22:38:23 ERROR: Theme not loaded

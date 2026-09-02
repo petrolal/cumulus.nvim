@@ -54,13 +54,9 @@ return {
               end
             end
 
-            -- SPEC-2.1: Project-Wide Safe Rename -- mirror the same
-            -- buffer-local <leader>cr override installed for JDTLS in
-            -- ftplugin/java.lua. Global <leader>cr for non-JVM filetypes
-            -- stays untouched.
-            vim.keymap.set("n", "<leader>cr", function()
-              require("cumulus.util.refactor").project_rename()
-            end, { buffer = bufnr, desc = "Project-Wide Rename (Kotlin)" })
+            -- SPEC-2.1: <leader>cr is installed unconditionally in
+            -- ftplugin/kotlin.lua (so the no-client case still notifies) --
+            -- not re-bound here.
 
             -- SPEC-2.2: Intelligent Extraction
             vim.keymap.set("n", "<leader>ce", function()

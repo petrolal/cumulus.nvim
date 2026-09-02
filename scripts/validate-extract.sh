@@ -399,7 +399,7 @@ end
 " -c "qa!"
 
 echo "[7/7] Behavioral: visual-mode byte columns are converted to LSP CHARACTER offsets (not passed through raw) for a line with multi-byte UTF-8 text before the selection..."
-nvim --headless -c 'lua
+nvim -u init.lua --headless -c 'lua
 local ok, err = pcall(function()
   vim.cmd("enew")
   local bufnr = vim.api.nvim_get_current_buf()

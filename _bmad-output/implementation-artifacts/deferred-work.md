@@ -57,3 +57,117 @@
 - source_spec: `/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces-2.md`
   summary: Missing behavioral test for code action title filtering.
   evidence: `validate-extract.sh` mocks responses with exact titles but never tests rejecting a code action with a matching kind but non-matching title.
+
+- source_spec: `/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/spec-4-1-review-remediation.md`
+  summary: `scripts/validate-4-1.sh` stage `[4/7]` runs `vim.cmd('cquit 1')` on failure and the script has `set -e`, so once the stale stage-4 assertion fails the script aborts and stages `[5/7]`-`[7/7]` (the only runtime coverage of `<leader>gco` opening the merge tabpage, `<leader>gcq` closing it, `<leader>gch`/`<leader>gcH` file history, and the `<leader>gx*`/`<leader>gX*` conflict-resolution keymaps writing to disk) never execute.
+  evidence: Verified in-session -- running `bash scripts/validate-4-1.sh` after the SPEC-4.1 review-remediation implementation stops after the stage-4 `FAIL` line and never prints `[5/7]`+. The existing `validate-4-1.sh` hardening entry names the stage-4 assertion fix (`in_worktree() == false` -> `guard() == false`) but not that fixing it is also what re-enables all downstream behavioral stages; the `conflict_binds`/`scope_flag`/command-string rework this remediation ships is exactly what stages 5-7 exercise, so that coverage is currently dark. Fold into the same `validate-4-1.sh` follow-up: the assertion fix and a non-fatal `set -e` guard on stage 4 must land together so 5-7 run again.
+
+- source_spec: `/home/petrolal/cumulus.nvim/_bmad-output/implementation-artifacts/spec-4-1-review-remediation.md`
+  summary: The buffer-local `<leader>gx` / `<leader>gX` which-key groups in `tools-diffview.lua` `config()` register with `buffer = 0` from `User DiffviewViewOpened`/`DiffviewViewEnter` and `FileType DiffviewFiles`/`DiffviewFileHistory`, but the merge-tool diff panes (OURS/BASE/THEIRS/result) are separate buffers carrying the edited file's own filetype, so the custom group label is absent in most panes where the keys are actually pressed.
+  evidence: diffview marks the tabpage (`vim.t[tabpage].diffview_view_initialized`) and names only its panel buffers `diffview://...`; the diff panes are plain file buffers. The `<leader>gx*`/`<leader>gX*` keymaps still work (diffview installs them buffer-locally via `keymaps.view`), and which-key still lists them by `desc`, but the `group` label degrades to a generic "+prefix" node in the panes the single `buffer = 0` autocmd did not land on. Follow-up: scope registration via a `BufWinEnter` check on `vim.wo.diff` + the tabpage's `diffview_view_initialized`, or on diffview buffer-name pattern, so every merge pane gets the labelled group.
+
+## Deferred from: code review of spec-2-1-project-wide-safe-rename-move (2026-09-01)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: Collision detection (matrix row 2 / AC3) depends entirely on JDTLS/Kotlin LS returning `resp.err` for a colliding rename; a `workspace/symbol` pre-check would abort before the quickfix independently of the server. Already disclosed in the frozen-era Spec Change Log.
+  evidence: bmad-code-review acceptance-auditor + edge-case-hunter layers, 2026-09-01. `refactor.lua:362` — the only collision guard is `if not resp or resp.err`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: `classify_xml_line` requires `<bean` and `class=` on the same physical line; multi-line `<bean id="…"\n  class="…"/>` declarations (a common Spring XML style) are silently missed. Single-line-only is currently undocumented.
+  evidence: bmad-code-review blind-hunter + edge-case-hunter + verification-gap layers, 2026-09-01. `refactor-treesitter.lua:130`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: `.kts` files are never scanned — `LANG_BY_EXT` maps `kts→kotlin` but the `rg`/`grep` globs only cover `*.kt`/`*.java`/`*.xml`, so Spring references in Kotlin build scripts are omitted from the rename preview.
+  evidence: bmad-code-review edge-case-hunter + blind-hunter layers, 2026-09-01. `refactor-treesitter.lua:408` (rg_cmd) / `:452` (grep --include).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: The `grep` fallback uses GNU-only flags (`-r`, `--include`, `--exclude-dir`); on busybox/Alpine `grep` it errors out and the scan returns `{}` (with a warn), giving zero Spring coverage whenever `rg` is not installed.
+  evidence: bmad-code-review blind-hunter + edge-case-hunter layers, 2026-09-01. `refactor-treesitter.lua:447`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: `action-lock.lua` has no recovery path — no `reset()`, no user command, no expiry. A single missed `release()` on any of the ~10 terminal paths in `refactor.lua` (or `extract.lua`, which shares the lock) disables both project-wide rename and extract/inline for the rest of the session.
+  evidence: bmad-code-review blind-hunter + edge-case-hunter + verification-gap layers, 2026-09-01. `action-lock.lua` exposes only `is_busy`/`acquire`/`release`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: Final success count can over-report — `total_applied = #lsp_items + spring_applied` assumes every LSP edit landed, but `vim.lsp.util.apply_workspace_edit` can partially fail (e.g. an unwritable URI) without throwing, so "Renamed N/N location(s)" is not always true.
+  evidence: bmad-code-review blind-hunter + edge-case-hunter layers, 2026-09-01. `refactor.lua:469`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: No `undojoin` coordination between `apply_workspace_edit` and `apply_spring_edits` when both touch the same file, so one logical rename becomes several undo steps and a single `u` leaves the file half-renamed. Also: touched buffers are left modified/unsaved with no summary or `:wa` hint, which at multi-file scale makes the success toast misleading.
+  evidence: bmad-code-review blind-hunter layer, 2026-09-01. `refactor.lua:452`–`:481`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: Apply wraps both edit phases in `vim.o.eventignore = "all"` (global, all buffers) rather than a targeted guard against the JVM `FileType`/`LspAttach` autostart it is actually trying to suppress. Restored correctly on every path, but the blast radius is the whole editor for the duration of the apply.
+  evidence: bmad-code-review blind-hunter layer, 2026-09-01. `refactor.lua:451`, `refactor.lua:203`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: ~35 lines of buffer-local keymap wiring (`<leader>cr` + the five `<leader>c*` extract maps) are duplicated verbatim between `ftplugin/java.lua` on_attach and `lsp-kotlin.lua` on_attach, differing only by the `desc` language label; extract a shared `require`-able helper.
+  evidence: bmad-code-review blind-hunter layer, 2026-09-01. `ftplugin/java.lua:65`–`:103` vs `lua/cumulus/plugins/lsp-kotlin.lua:61`–`:100`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: `old_name` comes from `vim.fn.expand("<cword>")` with no `textDocument/prepareRename`; a cursor on a non-identifier token or mid-punctuation can make the Spring text scan search a different string than the position-based LSP rename actually targets. Related: `win` is captured before the async `vim.ui.input` and used in `make_position_params(win, …)` with no `nvim_win_is_valid` guard, so a window/cursor move during the prompt shifts the rename position.
+  evidence: bmad-code-review blind-hunter + edge-case-hunter layers, 2026-09-01. `refactor.lua:265`, `refactor.lua:257`/`:323`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: `refactor_spec.lua` hygiene — `loadfile("ftplugin/java.lua")` is cwd-relative, scratch buffers created by `enew`/`edit` are not cleaned between `it()` blocks, and a failed assertion before `action_lock.release()` leaks the shared singleton lock into later tests. Add an `after_each` that force-releases the lock and wipes scratch buffers, plus a multi-line-XML-comment case for `is_inside_xml_comment`.
+  evidence: bmad-code-review blind-hunter + verification-gap layers, 2026-09-01. `refactor_spec.lua:562`, and the `action_lock` usage at `:47`–`:114`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: `classify_xml_line`'s `line:find("class%s*=%s*[\"'])` is unanchored, so a `<bean>` line carrying `superclass="com.x.FooService"` (or `data-class=`) but no `class=` is misclassified as a bean-class reference. Anchor with `%f[%a]class%s*=`.
+  evidence: bmad-code-review edge-case-hunter layer, 2026-09-01. `refactor-treesitter.lua:134`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-project-wide-safe-rename-move.md`
+  summary: The `<leader>H*` HTTP keymap block in `core/keymaps.lua` needs its own review under SPEC-3.2 — `cumulus_http_open_in_split` opens stacked *listed* helper buffers with no `buftype=nofile`/window reuse, `<leader>Hj` filters the focused buffer instead of kulala's response buffer, `<leader>Hr` has no `pcall` around `kulala.run` (raw stack trace on a malformed `.http` buffer), and `looks_like_json`'s NDJSON/concatenated-stream branch has no test coverage. This code was only swept into the SPEC-2.1 diff by the multi-spec fix commit `798b9a4`.
+  evidence: bmad-code-review blind-hunter + edge-case-hunter + verification-gap layers, 2026-09-01. `lua/cumulus/core/keymaps.lua:64`–`:214`.
+
+## Deferred from: code review of spec-2-2-intelligent-extraction (…-2 finalization) (2026-09-01)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces-2.md`
+  summary: The `codeAction/resolve` command-without-edit fallback in `extract.lua` `proceed_with_action` has zero execution coverage — every mocked codeAction response in `validate-extract.sh` carries `.edit`, and step 7 only inspects outgoing params. Add a deterministic mock-seam step: `buf_request_all` returns a command-only action for `textDocument/codeAction` and `{ result = { edit = … } }` for `codeAction/resolve`; assert the edit applies and `action_lock.is_busy()` is false. Add a sibling case with `codeActionProvider = true` (no `resolveProvider`) asserting a clean WARN + lock release.
+  evidence: bmad-code-review verification-gap + blind-hunter layers, 2026-09-01. `lua/cumulus/util/extract.lua:28`–`:71`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces-2.md`
+  summary: `<leader>cm`/`<leader>cv`/`<leader>cc` (Extract Method/Variable/Constant) disambiguate purely on JDTLS English code-action titles (`"Extract to method"` / `"Extract to local variable"` / `"Extract to constant"`) via `string.find(…, 1, true)`. kotlin-language-server emits different titles and limited refactor kinds, so these three keymaps will report "No applicable code action" on every Kotlin buffer — so the finalization AC ("Given a Java/Kotlin buffer, invoking `<leader>cm/cv/cc` … a preview is correctly presented") is not satisfied for Kotlin. Also affects a JDTLS locale change or an appended ellipsis. Widen to kind-based matching with a title fallback, or discover the server's actual titles.
+  evidence: bmad-code-review blind-hunter + acceptance-auditor + edge-case-hunter layers, 2026-09-01. Extends the two existing `deferred-work.md` entries on JDTLS-specific title matching. `lua/cumulus/util/extract.lua:74`–`:102`, `:278`–`:288`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces-2.md`
+  summary: `extract.lua` LSP-robustness gaps: `params.context.only = { "refactor.extract.interface" }` / `{ "refactor.inline" }` may be too specific for a server that tags the action with the shorter parent kind; actions with `kind == nil` are silently dropped (`action.kind and vim.startswith(...)`); normal-mode `<leader>cm/cv/cc` and visual `<leader>ce` pass a zero-width / meaningless range that JDTLS mostly rejects; `nvim_feedkeys('<Esc>','x')` to refresh `'<`/`'>` in a `<Cmd>` visual mapping is version-sensitive; 2-arg `make_range_params` (0.10+, deprecated 0.11) and `character_offset` are used with no min-version note / `pcall`; `diagnostics` context only samples the range's start line.
+  evidence: bmad-code-review blind-hunter + edge-case-hunter layers, 2026-09-01. Cluster of unverified-without-a-live-LSP concerns. `lua/cumulus/util/extract.lua:97`, `:199`–`:240`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces-2.md`
+  summary: Shared `action-lock` recovery + preview-UX gaps: a dismissed/ignored `vim.ui.select` (confirm or disambiguation) strands the shared lock forever — the outer request timeout has already cleared, there is no stage-timeout, and `action-lock.lua` has no `force_release` / user command (disables extract AND project-rename until Neovim restarts); `_show_preview` calls `copen` unconditionally and never `cclose`s; the disambiguation menu shows identical `action.title` entries with nothing to choose between (append the target range/scope).
+  evidence: bmad-code-review blind-hunter + edge-case-hunter layers, 2026-09-01. Same cross-cutting `action-lock` recovery item as the SPEC-2.1 defer. `lua/cumulus/util/extract.lua:115`–`:180`, `lua/cumulus/util/action-lock.lua`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces-2.md`
+  summary: `scripts/validate.sh` (frozen for this session's edits) — the finalization pass deleted `assert(ensure_set['metals'], 'Missing Mason package: metals')` with no replacement (violates its own frozen "Never silently delete failing tests in validate.sh"; metals is still gated by `validate-dap-jvm.sh` + `dap_jvm_spec.lua`), and swapped the `[5/7]` completion-plugin check from `require('blink.cmp')` to `require('cmp')` (follows the finalization CRITICAL-CONSTRAINTS line literally but conflicts with its Code Map "mock blink.cmp properly"; the assertion never gated anyway — non-exit-propagating `+lua` block). Restore the metals assertion and reconcile the completion-engine check in a dedicated validate.sh pass.
+  evidence: bmad-code-review acceptance-auditor + verification-gap + blind-hunter layers, 2026-09-01. `scripts/validate.sh` (removed lines around the SPEC-1.1 Mason block and the `[5/7]` UI-spec block).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-intelligent-extraction-methods-variables-interfaces-2.md`
+  summary: `scripts/validate-extract.sh` has no end-to-end extract-interface or inline scenario (the original spec Execution task listed both) — the rewritten 7-stage script only exercises `extract_method` behaviorally. `lua/cumulus/core/devops.lua`'s `resolve_search_dir` forward-reference hoist was bundled into this extraction feature (legitimate fix, off-topic; `validate-devops.sh` now covers it). The `<leader>jx` which-key group ("refactor & jdtls") now labels only `jxo`/`jxH` after `jxm/jxv/jxc` were removed. Docs drift: `spec-2-1` and the original `spec-2-2` still describe `jvm.lua:436-486` `<leader>jx*` extract as an intact sibling feature; no help/README/which-key text reflects the `<leader>jx{m,v,c}` → `<leader>c{e,i,m,v,c}` move.
+  evidence: bmad-code-review blind-hunter + acceptance-auditor layers, 2026-09-01.
+
+- source_spec: none
+  summary: A ~80MB / ~2.3M-line corrupted `scripts/validate-extract.sh` blob (from an earlier commit, since replaced by the clean 486-line version) remains in git history, bloating every clone. Needs a `git filter-repo` / history-rewrite + `gc` decision (destructive, coordination-sensitive) and a sweep for any other oversized committed blobs. Not fixable by a code patch.
+  evidence: bmad-code-review blind-hunter layer, 2026-09-01 (review of spec-2-2 finalization). The current `scripts/validate-extract.sh` header itself notes it "replaces a previously-corrupted … version of itself".
+
+## Deferred from: code review of spec-3-1-embedded-database-explorer (2026-09-01)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-embedded-database-explorer.md`
+  summary: `db.lua` only scans the exact filenames `application.properties` / `application.yml` / `application.yaml`. Spring profile-specific config files (`application-local.yml`, `application-dev.properties`, `application-docker.yml`, …), selected via `SPRING_PROFILES_ACTIVE` / `spring.profiles.active`, and multi-document YAML (`---` separators with `spring.config.activate.on-profile`) are never read — projects that keep datasource settings only in a profile file (very common for local dev) silently yield zero connections.
+  evidence: bmad-code-review blind-hunter + edge-case-hunter layers, 2026-09-01. `lua/cumulus/util/db.lua` `find_files` / `parse_yaml_lines`. Outside the frozen scope (spec names exactly the three base filenames).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-embedded-database-explorer.md`
+  summary: `db.lua` recognizes only `spring.datasource.{url,username,password}` and JDBC URLs of the `scheme://authority` shape. Not handled: Hikari keys (`spring.datasource.hikari.jdbc-url` / `jdbcUrl`); non-`://` JDBC URLs (`jdbc:h2:mem:testdb`, `jdbc:oracle:thin:@host:1521:sid`, SQLite, `jdbc:tc:` Testcontainers) → misleading "Could not parse spring.datasource.url"; no driver-name mapping (SQL Server `;databaseName=` params left intact and unusable for dadbod). H2 in particular is ubiquitous in Spring dev/test.
+  evidence: bmad-code-review blind-hunter layer, 2026-09-01. `lua/cumulus/util/db.lua` `parse_properties_lines` / `jdbc_to_dadbod_url`. Frozen scope is the three keys + JDBC-style URL.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-embedded-database-explorer.md`
+  summary: Discovery cost & UX: `init()` runs the recursive walk + file reads synchronously on the main thread during plugin init (startup latency ∝ repo size, even for sessions that never touch a DB); `DirChanged` re-runs the same on every global `:cd` (telescope/oil/project.nvim issue these on routine navigation) with no debounce/cache; malformed-block / unresolved-var warnings re-fire on every re-entry into a project (no warn-once-per-path guard); `MAX_DEPTH = 8` is shallow for deep monorepos and produces a scary truncation warning; symlinked directories (`kind == "link"`) are skipped and a directory-symlink cycle is re-walked to the depth cap; discovery + `.env` load assume `cwd` IS the project root (no upward `.git`/`pom.xml`/`build.gradle` search), so opening Neovim in a submodule misses the real root `.env`; cross-module precedence is global (`if #dbs > 0 then return`) not per-config-directory, so a module with only `application.yml` is dropped when any other module has a `.properties` entry.
+  evidence: bmad-code-review blind-hunter + edge-case-hunter + acceptance-auditor layers, 2026-09-01. Cluster of scale/robustness enhancements to `lua/cumulus/util/db.lua` + `lua/cumulus/plugins/tools-dadbod.lua`; the "stateless, re-read every call" design is the spec's explicit choice, so these are additive (debounce, project-marker fast-path, warn-once, per-dir precedence, realpath cycle guard) rather than corrections.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-embedded-database-explorer.md`
+  summary: Parser robustness gaps in `db.lua`: `.properties` backslash line-continuation and `\uXXXX` escapes not handled (a continued value is truncated to its first physical line); CRLF files; YAML block scalars (`password: |` / `url: >`) store the literal `|`/`>` and drop the real multi-line value; a flat dotted `spring.datasource.url:` key written inside a YAML file is silently ignored by the indentation-stack parser (Spring allows it).
+  evidence: bmad-code-review blind-hunter + edge-case-hunter layers, 2026-09-01. `lua/cumulus/util/db.lua` `parse_properties_lines` / `parse_yaml_lines`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-embedded-database-explorer.md`
+  summary: No manual re-discovery escape hatch or observability — no `:CumulusDbRediscover` command, no `BufWritePost application.{yml,properties}` refresh when the user edits config mid-session, and the `:checkhealth` section (health.lua ~line 202) reports only vim-dadbod-completion resolvability + the `sql` Tree-sitter parser, nothing about how many connections discovery produced for the current project or why it produced zero. A user hand-authored `vim.g.dbs` is also clobbered unconditionally on every `init()` / global `DirChanged` (folded into the code-review decision item on `vim.g.dbs` semantics — a "only overwrite our own discovered list" guard would need a sentinel).
+  evidence: bmad-code-review blind-hunter + edge-case-hunter layers, 2026-09-01. `lua/cumulus/plugins/tools-dadbod.lua` / `lua/cumulus/health.lua`.

@@ -1,5 +1,16 @@
 -- Java JDTLS Ftplugin Auto-Launcher (Story 4.1, Story 13.3 & Story 37.1)
 
+-- SPEC-2.1: Project-Wide Safe Rename -- buffer-local override of the global
+-- <leader>cr (plain vim.lsp.buf.rename() in core/keymaps.lua). Installed
+-- UNCONDITIONALLY for every Java buffer, not gated on LSP attach: the I/O
+-- matrix requires that pressing <leader>cr in a Java buffer with no JDTLS
+-- client still produces a visible "no project-wide rename available" notify
+-- (via project_rename's own guard) rather than silently falling through to
+-- the default rename. The global mapping for non-JVM filetypes is untouched.
+vim.keymap.set("n", "<leader>cr", function()
+  require("cumulus.util.refactor").project_rename()
+end, { buffer = 0, desc = "Project-Wide Rename (Java)" })
+
 local ok, jdtls = pcall(require, "jdtls")
 if not ok then
   return
@@ -58,13 +69,9 @@ local config = {
     -- Attach notification is handled generically for every LSP client
     -- (including jdtls) by the LspAttach autocmd in lsp-core.lua.
 
-    -- SPEC-2.1: Project-Wide Safe Rename -- buffer-local override of the
-    -- global <leader>cr (plain vim.lsp.buf.rename() in core/keymaps.lua).
-    -- Only this Java buffer gets the project-wide, preview-then-confirm
-    -- flow; the global mapping for non-JVM filetypes is untouched.
-    vim.keymap.set("n", "<leader>cr", function()
-      require("cumulus.util.refactor").project_rename()
-    end, { buffer = bufnr, desc = "Project-Wide Rename (Java)" })
+    -- SPEC-2.1: <leader>cr is installed unconditionally at the top of this
+    -- ftplugin (see there) so the no-client case still notifies -- not
+    -- re-bound here.
 
     -- SPEC-2.2: Intelligent Extraction
     vim.keymap.set("n", "<leader>ce", function()
