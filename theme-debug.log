@@ -128246,3 +128246,159 @@
 22:56:34 load_provider_highlights: Using native Lua implementation (bypassing legacy engine) for 'aws'
 22:56:34 load_provider_highlights: Got fallback highlights natively, applying...
 22:56:34 SUCCESS: Theme loaded!
+23:01:53 === load_saved_theme() called ===
+23:01:53 Current theme: aws-theme
+23:01:53 Clean theme: aws
+23:01:53 Checking theme: name=aws-theme, provider=aws
+23:01:53 MATCH! Loading provider: aws
+23:01:53 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:01:53 load_provider_highlights: palette.json not found, using fallback
+23:01:53 load_provider_highlights: Applying highlights...
+23:01:53 SUCCESS: Theme loaded!
+23:02:00 === load_saved_theme() called ===
+23:02:00 Current theme: aws-theme
+23:02:00 Clean theme: aws
+23:02:00 Checking theme: name=aws-theme, provider=aws
+23:02:00 MATCH! Loading provider: aws
+23:02:00 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:02:00 load_provider_highlights: palette.json not found, using fallback
+23:02:00 load_provider_highlights: Applying highlights...
+23:02:00 SUCCESS: Theme loaded!
+23:05:31 === load_saved_theme() called ===
+23:05:31 Current theme: aws-theme
+23:05:31 Clean theme: aws
+23:05:31 Checking theme: name=aws-theme, provider=aws
+23:05:31 MATCH! Loading provider: aws
+23:05:31 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:05:31 load_provider_highlights: palette.json not found, using fallback
+23:05:31 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+23:05:31 load_provider_highlights: Applying highlights...
+23:05:31 SUCCESS: Theme loaded!
+23:05:35 === load_saved_theme() called ===
+23:05:35 Current theme: aws-theme
+23:05:35 Clean theme: aws
+23:05:35 Checking theme: name=aws-theme, provider=aws
+23:05:35 MATCH! Loading provider: aws
+23:05:35 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:05:35 load_provider_highlights: palette.json not found, using fallback
+23:05:35 load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.
+23:05:35 load_provider_highlights: Applying highlights...
+23:05:35 SUCCESS: Theme loaded!
+23:09:28 === load_saved_theme() called ===
+23:09:28 Current theme: aws-theme
+23:09:28 Clean theme: aws
+23:09:28 Checking theme: name=aws-theme, provider=aws
+23:09:28 MATCH! Loading provider: aws
+23:09:28 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:09:28 load_provider_highlights: Parsing dotfile conf: /home/petrolal/cumulus.dotfiles/themes/palettes/aws.conf
+23:09:28 load_provider_highlights: Applying highlights...
+23:09:28 SUCCESS: Theme loaded!
+23:09:34 === load_saved_theme() called ===
+23:09:34 Current theme: aws-theme
+23:09:34 Clean theme: aws
+23:09:34 Checking theme: name=aws-theme, provider=aws
+23:09:34 MATCH! Loading provider: aws
+23:09:34 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:09:34 load_provider_highlights: Parsing dotfile conf: /home/petrolal/cumulus.dotfiles/themes/palettes/aws.conf
+23:09:34 load_provider_highlights: Applying highlights...
+23:09:34 SUCCESS: Theme loaded!
+23:09:43 === load_saved_theme() called ===
+23:09:43 Current theme: aws-theme
+23:09:43 Clean theme: aws
+23:09:43 Checking theme: name=aws-theme, provider=aws
+23:09:43 MATCH! Loading provider: aws
+23:09:43 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:09:43 load_provider_highlights: Parsing dotfile conf: /home/petrolal/cumulus.dotfiles/themes/palettes/aws.conf
+23:09:43 load_provider_highlights: Applying highlights...
+23:09:43 SUCCESS: Theme loaded!
+23:09:58 === load_saved_theme() called ===
+23:09:58 Current theme: aws-theme
+23:09:58 Clean theme: aws
+23:09:58 Checking theme: name=aws-theme, provider=aws
+23:09:58 MATCH! Loading provider: aws
+23:09:58 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:09:58 load_provider_highlights: Parsing dotfile conf: /home/petrolal/cumulus.dotfiles/themes/palettes/aws.conf
+23:09:58 load_provider_highlights: Applying highlights...
+23:09:58 SUCCESS: Theme loaded!
+23:10:00 === load_saved_theme() called ===
+23:10:00 Current theme: aws-theme
+23:10:00 Clean theme: aws
+23:10:00 Checking theme: name=aws-theme, provider=aws
+23:10:00 MATCH! Loading provider: aws
+23:10:00 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:10:00 load_provider_highlights: Parsing dotfile conf: /home/petrolal/cumulus.dotfiles/themes/palettes/aws.conf
+23:10:00 load_provider_highlights: Applying highlights...
+23:10:00 SUCCESS: Theme loaded!
+23:10:04 === load_saved_theme() called ===
+23:10:04 Current theme: aws-theme
+23:10:04 Clean theme: aws
+23:10:04 Checking theme: name=aws-theme, provider=aws
+23:10:04 MATCH! Loading provider: aws
+23:10:04 load_provider_highlights: Loading native dotfile theme for 'aws'
+23:10:04 load_provider_highlights: Parsing dotfile conf: /home/petrolal/cumulus.dotfiles/themes/palettes/aws.conf
+23:10:04 load_provider_highlights: Applying highlights...
+23:10:04 SUCCESS: Theme loaded!
+23:11:59 === load_saved_theme() called ===
+23:11:59 Current theme: FLAVOR=aws-theme
+23:11:59 Clean theme: FLAVOR=aws
+23:11:59 Checking theme: name=aws-theme, provider=aws
+23:11:59 Checking theme: name=azure-theme, provider=azure
+23:11:59 Checking theme: name=gcp-theme, provider=gcp
+23:11:59 Checking theme: name=oci-theme, provider=oci
+23:11:59 ERROR: Theme not loaded
+23:12:21 === load_saved_theme() called ===
+23:12:21 Current theme: FLAVOR=aws-theme
+23:12:21 Clean theme: FLAVOR=aws
+23:12:21 Checking theme: name=aws-theme, provider=aws
+23:12:21 Checking theme: name=azure-theme, provider=azure
+23:12:21 Checking theme: name=gcp-theme, provider=gcp
+23:12:21 Checking theme: name=oci-theme, provider=oci
+23:12:21 ERROR: Theme not loaded
+23:12:28 === load_saved_theme() called ===
+23:12:28 Current theme: FLAVOR=aws-theme
+23:12:28 Clean theme: FLAVOR=aws
+23:12:28 Checking theme: name=aws-theme, provider=aws
+23:12:28 Checking theme: name=azure-theme, provider=azure
+23:12:28 Checking theme: name=gcp-theme, provider=gcp
+23:12:28 Checking theme: name=oci-theme, provider=oci
+23:12:28 ERROR: Theme not loaded
+23:12:30 === load_saved_theme() called ===
+23:12:30 Current theme: FLAVOR=aws-theme
+23:12:30 Clean theme: FLAVOR=aws
+23:12:30 Checking theme: name=aws-theme, provider=aws
+23:12:30 Checking theme: name=azure-theme, provider=azure
+23:12:30 Checking theme: name=gcp-theme, provider=gcp
+23:12:30 Checking theme: name=oci-theme, provider=oci
+23:12:30 ERROR: Theme not loaded
+11:08:54 === load_saved_theme() called ===
+11:08:54 Current theme: FLAVOR=aws-theme
+11:08:55 Clean theme: FLAVOR=aws
+11:08:55 Checking theme: name=aws-theme, provider=aws
+11:08:55 Checking theme: name=azure-theme, provider=azure
+11:08:55 Checking theme: name=gcp-theme, provider=gcp
+11:08:55 Checking theme: name=oci-theme, provider=oci
+11:08:55 ERROR: Theme not loaded
+11:09:00 === load_saved_theme() called ===
+11:09:00 Current theme: FLAVOR=aws-theme
+11:09:00 Clean theme: FLAVOR=aws
+11:09:00 Checking theme: name=aws-theme, provider=aws
+11:09:00 Checking theme: name=azure-theme, provider=azure
+11:09:00 Checking theme: name=gcp-theme, provider=gcp
+11:09:00 Checking theme: name=oci-theme, provider=oci
+11:09:00 ERROR: Theme not loaded
+11:28:53 === load_saved_theme() called ===
+11:28:53 Current theme: FLAVOR=aws-theme
+11:28:53 Clean theme: FLAVOR=aws
+11:28:53 Checking theme: name=aws-theme, provider=aws
+11:28:53 Checking theme: name=azure-theme, provider=azure
+11:28:53 Checking theme: name=gcp-theme, provider=gcp
+11:28:53 Checking theme: name=oci-theme, provider=oci
+11:28:53 ERROR: Theme not loaded
+11:28:56 === load_saved_theme() called ===
+11:28:56 Current theme: FLAVOR=aws-theme
+11:28:56 Clean theme: FLAVOR=aws
+11:28:56 Checking theme: name=aws-theme, provider=aws
+11:28:56 Checking theme: name=azure-theme, provider=azure
+11:28:56 Checking theme: name=gcp-theme, provider=gcp
+11:28:56 Checking theme: name=oci-theme, provider=oci
+11:28:56 ERROR: Theme not loaded

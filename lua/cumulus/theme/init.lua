@@ -72,18 +72,27 @@ local function load_provider_highlights(provider)
     local ok, parsed = pcall(vim.fn.json_decode, content)
     if ok and parsed and type(parsed) == "table" then
       log("load_provider_highlights: Successfully parsed palette.json")
-      -- If the JSON has a nested 'highlights' key, use it. Otherwise assume the root is the highlight map.
       highlights = parsed.highlights or parsed
     else
-      log("load_provider_highlights: Failed to parse palette.json, using fallback")
-      vim.notify("Invalid JSON in theme palette.json, using fallback.", vim.log.levels.WARN)
+      log("load_provider_highlights: Failed to parse palette.json")
+      vim.notify("Invalid JSON in theme palette.json", vim.log.levels.WARN)
     end
-  else
-    log("load_provider_highlights: palette.json not found, using fallback")
   end
 
   if vim.tbl_isempty(highlights) then
-    -- Fallback theme based on provider
+    log("load_provider_highlights: palette.json not found or invalid, falling back to legacy engine for backward compatibility.")
+    local engine_ok, engine = pcall(require, "cumulus.util.engine")
+    if engine_ok and engine.is_available() then
+      local engine_result = engine.manage_theme("set", { theme = provider })
+      if engine_result and engine_result.highlights and not vim.tbl_isempty(engine_result.highlights) then
+        highlights = engine_result.highlights
+        log("load_provider_highlights: Legacy engine fallback succeeded.")
+      end
+    end
+  end
+
+  -- Absolute worst-case fallback if engine is truly gone and no dotfile exists
+  if vim.tbl_isempty(highlights) then
     highlights = {
       Normal = { fg = "#c0caf5", bg = "#1a1b26" },
       String = { fg = "#9ece6a" },
@@ -95,18 +104,11 @@ local function load_provider_highlights(provider)
       Error = { fg = "#db4b4b" }
     }
     
-    -- Specific accent color based on provider
-    if provider == "aws" then
-      highlights.CursorLineNr = { fg = "#FF9900", bold = true }
-    elseif provider == "azure" then
-      highlights.CursorLineNr = { fg = "#0078D4", bold = true }
-    elseif provider == "gcp" then
-      highlights.CursorLineNr = { fg = "#4285F4", bold = true }
-    elseif provider == "oci" then
-      highlights.CursorLineNr = { fg = "#C74634", bold = true }
-    else
-      highlights.CursorLineNr = { fg = "#FF9900", bold = true }
-    end
+    if provider == "aws" then highlights.CursorLineNr = { fg = "#FF9900", bold = true }
+    elseif provider == "azure" then highlights.CursorLineNr = { fg = "#0078D4", bold = true }
+    elseif provider == "gcp" then highlights.CursorLineNr = { fg = "#4285F4", bold = true }
+    elseif provider == "oci" then highlights.CursorLineNr = { fg = "#C74634", bold = true }
+    else highlights.CursorLineNr = { fg = "#FF9900", bold = true } end
   end
 
   log("load_provider_highlights: Applying highlights...")
@@ -118,11 +120,29 @@ local function load_provider_highlights(provider)
 end
 
 function M.get_current_theme()
+  -- 1. Read global dotfile theme state
+  local global_state_file = vim.fn.expand("~/.config/cumulus/theme/state")
+  if vim.fn.filereadable(global_state_file) == 1 then
+    local lines = vim.fn.readfile(global_state_file)
+    if #lines > 0 and lines[1] ~= "" then
+      local t = lines[1]
+      if not t:match("%-theme$") then
+        t = t .. "-theme"
+      end
+      return t
+    end
+  end
+
+  -- 2. Fallback to Neovim internal state
   local internal_state_file = vim.fn.stdpath("state") .. "/cumulus_theme"
   if vim.fn.filereadable(internal_state_file) == 1 then
     local lines = vim.fn.readfile(internal_state_file)
     if #lines > 0 and lines[1] ~= "" then
-      return lines[1]
+      local t = lines[1]
+      if not t:match("%-theme$") then
+        t = t .. "-theme"
+      end
+      return t
     end
   end
   return "aws-theme"
