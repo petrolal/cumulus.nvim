@@ -4,46 +4,48 @@
 
 ## Goal
 
-Eliminate the need for external tools like DataGrip, DBeaver, Postman, or AWS Consoles by bringing database exploration and REST API testing capabilities directly into the Neovim ecosystem. This is the "ecosystem parity" epic: it lets a backend/API developer browse schemas, run SQL, and exercise HTTP endpoints without ever leaving the editor, reinforcing the product's core promise of a keyboard-driven, single-tool replacement for IntelliJ IDEA and its companion tools.
+This epic brings the everyday capabilities of DataGrip, Postman, and gRPC GUI clients directly into the Neovim editing loop so an enterprise JVM developer never has to leave the terminal to work with data and services. It delivers three self-contained toolsets: an embedded database explorer for browsing schemas and running SQL against live databases, a native HTTP/REST client for exercising Spring and Ktor controllers, and protobuf/gRPC navigation and RPC execution for microservice development. Each toolset must feel native, stay fully asynchronous, and rely only on standard plugins and language servers.
 
 ## Stories
 
 - Story 3.1: Embedded Database Explorer
 - Story 3.2: HTTP Client & REST API Explorer
+- Story 3.4: gRPC & Protobufs Integration
 
 ## Requirements & Constraints
 
-- Users must be able to execute SQL queries against a live local database (e.g., Postgres) directly from a `.sql` buffer and see results without switching tools.
-- Database exploration should include schema browsing, and query results should render in a grid-like view.
-- Database credentials should be auto-discoverable from Spring config files (`application.yml` / `application.properties`) rather than requiring manual entry.
-- SQL editing should get syntax highlighting and auto-completion informed by the live database schema.
-- Flyway migration script validation is part of the database/DevOps tooling surface for this epic.
-- `.http` files must be directly executable, with formatted JSON/XML responses viewable in a split buffer.
-- REST API tooling should support extracting OpenAPI specs to auto-generate request templates, and should support `jq` filtering on JSON responses.
-- All operations in this epic are user-initiated, synchronous-feeling actions on demand (query execution, request execution) — background/async execution must still never block the editor UI (applies project-wide, not epic-specific).
-- No new custom backend/engine surface area: functionality must be delivered via native Lua, Tree-sitter, LSP, or well-established Neovim plugins — not by extending the legacy Scala `tetravim-engine`.
+Database explorer: browse schemas and execute SQL with results shown in a grid, built on `vim-dadbod` and `vim-dadbod-ui`; auto-discover datasource URLs and credentials from Spring Boot `application.properties` / `application.yml` / `application.yaml`, resolving environment-variable and `.env` interpolation; SQL syntax highlighting and completion driven by the live database schema; must support executing queries against a running local Postgres from a `.sql` buffer; Flyway migration script validation.
+
+HTTP client: execute requests from `.http` files (via `kulala.nvim`); extract OpenAPI specifications and generate request templates from them; render formatted JSON/XML responses in a split buffer; pipe responses through `jq` filters into editor splits.
+
+gRPC / protobuf: syntax highlighting, formatting, and LSP-backed navigation for `.proto` files using `buf` / `protols`; gRPC server reflection and schema inspection to discover services and methods; interactive RPC execution with structured JSON request-payload generation. No GUI backend — reflection and execution are driven from Lua plus the standard LSP.
+
+Cross-cutting non-functional constraints: the UI must never block — all query execution, requests, and RPC calls run asynchronously with output delivered to native UI (quickfix, notifications, splits). Heavy external processes run headlessly, not in `:terminal`. Standard network access is assumed for fetching tool and LSP binaries. Scope is Java and Kotlin only; Scala/`sbt` and air-gapped installs are out of scope.
 
 ## Technical Decisions
 
-- **Buffer-first, not sidebar-first:** Follow the project's stateless, buffer-based interaction model (as used for file management via `oil.nvim`) — database and HTTP interactions should feel like editing/executing standard Neovim buffers, not driving a bespoke stateful GUI panel.
-- **Event-driven UI updates:** Any background execution (query run, HTTP request) must emit Neovim autocommands and let UI components render asynchronously via `vim.schedule` — never update UI directly from a background callback.
-- **Headless external execution:** If either feature shells out to external processes, use `vim.system` (not `:terminal`), with output piped into native Neovim UI (splits, quickfix, notifications).
-- **Stateless project context:** Don't cache database connection info or discovered credentials in memory across sessions; discover them on demand by parsing config files (e.g., `application.yml`/`application.properties`) or querying live sources.
-- **Named plugin integrations to use:**
-  - Database Explorer: `vim-dadbod` and `vim-dadbod-ui`.
-  - Decentralized plugin loading: configs for these features must be isolated by filetype/command in `lua/tetravim/plugins/`, not merged into a global config file.
-- **Result/response display:** Long-lived or referenceable output (query result grids, HTTP responses) belongs in persistent splits, not floating windows — floating windows are reserved for ephemeral, task-focused interactions (pickers, momentary confirmations).
+- Strict native intelligence (AD-07): all new logic is pure Lua with Tree-sitter, or delegated to standard LSPs. No external backend, engine, bridge, or helper Bash/Python parsing scripts. The gRPC story specifically uses `buf` / `protols` and Lua — no external GUI or daemon.
+- Event-driven UI (AD-01): executors and background logic emit Neovim autocommands; UI components listen and schedule renders with `vim.schedule`. Background tasks must not call render functions directly.
+- Headless external tooling (AD-03): shell out via `vim.system`, capture stdout/stderr, and route results to Quickfix and notifications rather than raw terminal splits.
+- Stateless project context (AD-04): no cached workspace topology. Datasource/credential discovery and OpenAPI/endpoint lookups are read from the filesystem on the fly (parse the config files each time); do not rely on file-watchers or in-memory caches.
+- Decentralized plugin orchestration (AD-02): configure each toolset in its own file under `lua/tetravim/plugins/`, lazy-loaded by filetype/command (`sql`, `http`, `proto`). No shared LSP monolith.
+- Direct UI coupling (AD-06): call `snacks.nvim` and `telescope.nvim` primitives directly; do not build an abstraction/facade layer.
+- Module conventions: feature utilities live under `lua/tetravim/util/` (`db.lua`, `http.lua`, `openapi.lua`), plugin specs under `lua/tetravim/plugins/`.
+- Resource discipline: assume a 32GB+ RAM machine but keep memory bounded; accept slightly slower first-run indexing in exchange for stability.
 
 ## UX & Interaction Patterns
 
-- Query results and HTTP responses should appear in a bottom-drawer-style split (consistent with how build logs and test output are shown elsewhere in the IDE) — not a floating window, since this is referenceable, potentially long output.
-- Any list-style interaction (e.g., selecting a saved query, choosing an endpoint from an extracted OpenAPI spec) should use the standard fuzzy-searchable Telescope/Snacks picker pattern already used for other pickers in the IDE, with preview enabled.
-- Keymaps for this epic should slot into the existing mnemonic `<leader>`-based hierarchy (e.g., `<leader>o` is already reserved for DevOps/Operations workflows) rather than introducing an inconsistent scheme.
-- Success/failure of a query or HTTP request should follow the established async pattern: a spinner/notification while in flight, then a toast notification on completion, with detailed errors surfaced explicitly (not silently swallowed).
-- Rounded borders and the active dark colorscheme (Catppuccin/Tokyonight) apply to any floating pickers this epic introduces, consistent with the rest of the IDE.
+- Keymap hierarchy is mnemonic and `<leader>`-based. Database operations sit under `<leader>db*` (Dadbod UI). HTTP/REST sits under `<leader>H`: `<leader>Hr` run request under cursor, `<leader>Ho` generate a `.http` file from an OpenAPI spec, `<leader>Hj` apply a `jq` filter to the JSON response.
+- Lists (schemas, tables, endpoints, gRPC services/methods) are presented through a fuzzy-searchable Telescope/Snacks picker, centered floating, preview pane on by default.
+- Use persistent bottom/side splits for referenceable output — result grids, response bodies. Reserve floating windows for ephemeral, task-focused steps only; never put long-running output in a float.
+- Async feedback: a statusline spinner or a Snacks notification during execution, a toast on completion, and diagnostics/errors populated into the quickfix list or inline.
+- Voice: concise and actionable, standard JVM/DevOps terminology, quiet success and explicit visible errors.
+- Response and result buffers retain syntax highlighting and follow the canonical "Tetris" palette (strings/warnings orange, errors red, constants/enum members in the `#5B8CFF` blue tint for contrast).
+- Keyboard-first: every action must be reachable without a mouse.
 
 ## Cross-Story Dependencies
 
-- Story 3.1's credential auto-discovery depends on parsing the same Spring Boot project config files (`application.yml`/`application.properties`) that Epic 1's Spring integration work (endpoint/bean discovery) already parses — reuse that discovery logic where possible rather than re-implementing it.
-- Story 3.2's OpenAPI-based request template generation is conceptually related to Spring REST endpoint discovery (Epic 1) — both surface a project's API surface — but Story 3.2 sources templates from OpenAPI specs rather than Tree-sitter AST parsing of controllers.
-- Both stories are independent of each other and can be built in parallel; neither blocks the other.
+- Stories 3.1 and 3.2 depend on Spring Boot application detection and config-file parsing (delivered by the native Spring discovery work in Epic 2) for datasource/credential auto-discovery and endpoint/OpenAPI awareness.
+- Story 3.1's config discovery should reuse the same on-the-fly `application.yml` / `.properties` parsing pattern used for Spring detection rather than introducing a parallel mechanism.
+- Stories 3.2 and 3.4 share two patterns worth factoring together: structured JSON request-payload generation, and rendering formatted responses into split buffers.
+- All three stories depend on external binaries/LSPs (`buf`, `protols`, dadbod DB adapters, `kulala.nvim`) being provisioned through the headless install / Mason path owned by Epic 5.

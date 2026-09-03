@@ -35,7 +35,7 @@ project_key: tetravim
 tracking_system: local
 story_location: EPICS_AND_STORIES.md
 development_status:
-  epic-1: in-progress
+  epic-1: done
   1-1-advanced-jvm-debugger-nvim-dap-integration: done
   1-2-continuous-profiling-flamegraphs: done
   1-3-visual-test-runner-coverage: done
@@ -58,8 +58,8 @@ development_status:
   4-2-in-editor-code-reviews-github-gitlab: done
   epic-4-retrospective: optional
 
-  epic-5: in-progress
-  5-1-asynchronous-lsp-operations-resilience: backlog
+  epic-5: backlog
+  5-1-asynchronous-lsp-operations-resilience: backlog # 2026-09-03: legacy engine purged; async-LSP resilience folded into standard LSP config, no dedicated story planned
   5-2-enterprise-headless-setup-telemetry: backlog
   epic-5-retrospective: optional
 
