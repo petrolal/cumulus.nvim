@@ -26,6 +26,7 @@ return {
         { "<leader>w", group = "windows", icon = "󰖲 " },
         { "<leader>l", group = "lazy/mason/lsp", icon = "󰒓 " },
         { "<leader>g", group = "git control", icon = "󰊢 " },
+        { "<leader>gh", group = "git hunks", icon = "󰊢 " },
         -- <leader>gc children (gco/gcq/gch/gcH/gcf) are global. The <leader>gx
         -- / <leader>gX conflict-pick groups are registered buffer-locally for
         -- diffview buffers only -- see lua/tetravim/plugins/tools-diffview.lua.
@@ -48,17 +49,11 @@ return {
 
       -- DevOps & Infrastructure Tooling Suite (<leader>o)
       vim.list_extend(opts.spec, {
-        { "<leader>o", group = "devops/infra", icon = "󱁢 " },
         { "<leader>ot", group = "terraform/opentofu", icon = "󱁢 " },
         { "<leader>oc", group = "cloudformation/sam", icon = "󰅟 " },
         { "<leader>oy", group = "ansible", icon = "󰚰 " },
         { "<leader>od", group = "docker", icon = "󰡨 " },
         { "<leader>ok", group = "helm/k8s", icon = "󱃾 " },
-        -- DevOps Validation Keymaps (Story 3.1: avoid collisions with existing groups)
-        { "<leader>cf", group = "cloudformation validation", icon = "󰅟 " },
-        { "<leader>ay", group = "ansible validation", icon = "󰚰 " },
-        { "<leader>dk", group = "docker validation", icon = "󰡨 " },
-        { "<leader>hm", group = "helm validation", icon = "󱃾 " },
       })
 
       local jvm = require("tetravim.util.jvm")

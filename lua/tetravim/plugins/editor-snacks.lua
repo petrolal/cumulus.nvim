@@ -229,20 +229,6 @@ return {
         desc = "Keymaps",
       },
       {
-        "<leader>bd",
-        function()
-          Snacks.bufdelete()
-        end,
-        desc = "Close Buffer",
-      },
-      {
-        "<leader>bo",
-        function()
-          Snacks.bufdelete.other()
-        end,
-        desc = "Close Other Buffers",
-      },
-      {
         "gd",
         function()
           if #vim.lsp.get_clients({ bufnr = 0, method = "textDocument/definition" }) > 0 then
@@ -303,7 +289,7 @@ return {
         desc = "References (Grep Fallback)",
       },
       {
-        "<leader>od",
+        "<leader>odd",
         function()
           Snacks.terminal("lazydocker")
         end,
@@ -405,13 +391,6 @@ return {
         end,
         desc = "Delete Invisible Buffers",
       },
-      {
-        "<leader>bl",
-        function()
-          Snacks.picker.buffers()
-        end,
-        desc = "List Buffers",
-      },
       { "<leader>b1", "<cmd>BufferLineGoToBuffer 1<cr>", desc = "Go to Buffer 1" },
       { "<leader>b2", "<cmd>BufferLineGoToBuffer 2<cr>", desc = "Go to Buffer 2" },
       { "<leader>b3", "<cmd>BufferLineGoToBuffer 3<cr>", desc = "Go to Buffer 3" },
@@ -423,11 +402,6 @@ return {
       { "<leader>b9", "<cmd>BufferLineGoToBuffer 9<cr>", desc = "Go to Buffer 9" },
       {
         "<leader>bb",
-        "<cmd>e #<cr>",
-        desc = "Switch to Other Buffer",
-      },
-      {
-        "<leader>`",
         "<cmd>e #<cr>",
         desc = "Switch to Other Buffer",
       },

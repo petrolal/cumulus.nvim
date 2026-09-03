@@ -985,11 +985,6 @@ function M.whichkey_spec()
     { "<leader>oy", group = "ansible", icon = "󰚰 " },
     { "<leader>od", group = "docker", icon = "󰡨 " },
     { "<leader>ok", group = "helm/k8s", icon = "󱃾 " },
-    -- DevOps Validation Keymaps (Story 3.1: avoid collisions with existing groups)
-    { "<leader>cf", group = "cloudformation validation", icon = "󰅟 " },
-    { "<leader>ay", group = "ansible validation", icon = "󰚰 " },
-    { "<leader>dk", group = "docker validation", icon = "󰡨 " },
-    { "<leader>hm", group = "helm validation", icon = "󱃾 " },
   }
 end
 
@@ -1051,16 +1046,19 @@ function M.setup_keymaps(force)
   safe_map("n", "<leader>okl", M.helm_lint, { desc = "Helm: Lint Chart", silent = true })
   safe_map("n", "<leader>okt", M.helm_template, { desc = "Helm: Render Template", silent = true })
 
-  -- DevOps Validation Keymaps (Story 3.1: Engine-driven validation with non-colliding bindings)
+  -- DevOps Validation Keymaps (Clean group-aligned bindings)
   safe_map(
     "n",
     "<leader>otV",
     M.validate_terraform_unified,
     { desc = "Validate Terraform (Struct + Security)", silent = true }
   )
+  safe_map("n", "<leader>oyV", M.validate_ansible, { desc = "Validate Ansible Playbook", silent = true })
   safe_map("n", "<leader>ayV", M.validate_ansible, { desc = "Validate Ansible Playbook", silent = true })
-  safe_map("n", "<leader>cfV", M.validate_cloudformation, { desc = "Validate CloudFormation Template", silent = true })
+  safe_map("n", "<leader>ocC", M.validate_cloudformation, { desc = "Validate CloudFormation Template", silent = true })
+  safe_map("n", "<leader>odV", M.validate_docker, { desc = "Validate Dockerfile", silent = true })
   safe_map("n", "<leader>dkV", M.validate_docker, { desc = "Validate Dockerfile", silent = true })
+  safe_map("n", "<leader>okV", M.validate_helm, { desc = "Validate Helm Chart", silent = true })
   safe_map("n", "<leader>hmV", M.validate_helm, { desc = "Validate Helm Chart", silent = true })
 
   M.keymaps_registered = true

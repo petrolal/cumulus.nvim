@@ -320,11 +320,13 @@ function M.setup_keymaps()
     vim.notify("Offline Mode: " .. status .. " " .. flags, vim.log.levels.INFO)
   end, { desc = "Toggle Offline Mode (-o / --offline)" })
 
-  map("n", "<leader>jbS", function()
+  local function resync_dependencies()
     local sync_state = require("tetravim.util.build-sync-state")
     sync_state.reset()
     sync_state.run()
-  end, { desc = "Resync Dependencies (Maven/Gradle)" })
+  end
+
+  map("n", "<leader>jbS", resync_dependencies, { desc = "Resync Dependencies (Maven/Gradle)" })
 
   -- 2. Test Runner (<leader>jt)
   map("n", "<leader>jta", function()
@@ -485,11 +487,7 @@ function M.setup_keymaps()
     end
   end, { desc = "Check Dependency Versions" })
 
-  map("n", "<leader>jds", function()
-    local sync_state = require("tetravim.util.build-sync-state")
-    sync_state.reset()
-    sync_state.run()
-  end, { desc = "Maven/Gradle: Resync Dependencies" })
+  map("n", "<leader>jds", resync_dependencies, { desc = "Maven/Gradle: Resync Dependencies" })
 
   -- 7. Engine & Diagnostics (<leader>ji)
   map("n", "<leader>jii", function()

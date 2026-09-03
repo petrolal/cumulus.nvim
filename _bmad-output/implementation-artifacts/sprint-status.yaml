@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-25-2026 02:55
-last_updated: 09-02-2026 20:16
+last_updated: 09-02-2026
 project: tetravim.nvim
 project_key: tetravim
 tracking_system: local
@@ -44,7 +44,7 @@ development_status:
   epic-2: in-progress
   2-1-project-wide-safe-rename-move: done
   2-2-intelligent-extraction-methods-variables-interfaces: done
-  2-3-native-spring-boot-discovery-legacy-engine-deprecation: backlog
+  2-3-native-spring-boot-discovery-legacy-engine-deprecation: in-progress
   epic-2-retrospective: optional
 
   epic-3: in-progress
