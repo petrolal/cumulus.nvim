@@ -92,7 +92,10 @@ return {
       "nvim-treesitter/nvim-treesitter",
       "rcasia/neotest-java",
     },
-    ft = { "java", "kotlin", "scala" },
+    -- Only `neotest-java` is registered as an adapter below, so there is no
+    -- runnable coverage for kotlin/scala buffers -- gate the plugin load on
+    -- java alone to avoid loading neotest where it can do nothing.
+    ft = { "java" },
     keys = {
       {
         "<leader>tr",

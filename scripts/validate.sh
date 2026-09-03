@@ -492,6 +492,17 @@ end
 " -c "qa!"
 echo "✔ Engine bridge & DevOps suite PASSED."
 
+echo "[6.1/7] Verifying Coverage Unit Specs (test_coverage_spec.lua)..."
+if nvim --headless -u init.lua \
+  -c "lua require('plenary.busted')" \
+  -c "PlenaryBustedDirectory lua/tetravim/tests/test_coverage_spec.lua" \
+  -c "qa"; then
+  echo "✔ Coverage unit specs PASSED."
+else
+  echo "✖ Coverage unit specs FAILED."
+  exit 1
+fi
+
 echo "[7/7] Verifying Visual Test Runner & JaCoCo Coverage (SPEC-1.3)..."
 if bash scripts/validate-test-coverage.sh; then
   echo "✔ Test runner & coverage suite PASSED."

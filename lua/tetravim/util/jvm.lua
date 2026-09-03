@@ -30,7 +30,7 @@ function M.whichkey_spec()
     { "<leader>j", group = "jvm platform", icon = "☕ " },
     { "<leader>jb", group = "build & tasks", icon = "󰒓 " },
     { "<leader>jt", group = "test runner", icon = "󰙨 " },
-    { "<leader>jc", group = "code coverage", icon = "󰙨 " },
+    { "<leader>jc", group = "code coverage", icon = "📊 " },
     { "<leader>jr", group = "run & execute", icon = "󰐊 " },
     { "<leader>js", group = "spring & frameworks", icon = "󱎘 " },
     { "<leader>jx", group = "refactor & jdtls", icon = "󰨞 " },
@@ -94,6 +94,40 @@ function M.setup_keymaps()
       return "./gradlew"
     end
     return "gradle"
+  end
+
+  -- Detect concrete test source roots under `cwd` (single- or multi-module
+  -- layouts) so a "run all tests" action can target those directories
+  -- instead of forcing neotest to discover the entire working tree.
+  ---@param cwd string
+  ---@return string[] roots
+  local function detect_test_roots(cwd)
+    local roots = {}
+    local direct = {
+      "src/test/java",
+      "src/test/kotlin",
+      "src/test/groovy",
+      "src/test/scala",
+      "src/integrationTest/java",
+      "src/integrationTest/kotlin",
+    }
+    for _, rel in ipairs(direct) do
+      local p = cwd .. "/" .. rel
+      if vim.fn.isdirectory(p) == 1 then
+        table.insert(roots, p)
+      end
+    end
+    if #roots == 0 then
+      -- Multi-module fallback: one level of sub-projects only (bounded).
+      for _, pattern in ipairs({ "/*/src/test/java", "/*/src/test/kotlin" }) do
+        for _, p in ipairs(vim.fn.glob(cwd .. pattern, false, true)) do
+          if vim.fn.isdirectory(p) == 1 then
+            table.insert(roots, p)
+          end
+        end
+      end
+    end
+    return roots
   end
 
   -- Helper function to run tests via engine APIs
@@ -337,46 +371,49 @@ function M.setup_keymaps()
   -- 2. Test Runner (<leader>jt)
   map("n", "<leader>jta", function()
     local ok, neotest = pcall(require, "neotest")
-    if ok then
-      local call_ok, _ = pcall(function()
-        neotest.run.run(vim.fn.getcwd())
-      end)
-      if call_ok then
-        return
-      end
+    if not ok then
+      run_tests("all")
+      return
     end
-    run_tests("all")
+    local cwd = vim.fn.getcwd()
+    local roots = detect_test_roots(cwd)
+    if #roots == 0 then
+      engine.notify_warn("No test source roots detected; running the build tool's full test suite", "TetraVim Test")
+      run_tests("all")
+      return
+    end
+    for _, root in ipairs(roots) do
+      pcall(function()
+        neotest.run.run(root)
+      end)
+    end
   end, { desc = "Run All Tests in Workspace" })
 
   map("n", "<leader>jtt", function()
     local ok, neotest = pcall(require, "neotest")
-    if ok then
-      local call_ok, _ = pcall(function()
-        neotest.run.run()
-      end)
-      if call_ok then
-        return
-      end
+    if not ok then
+      run_tests("nearest")
+      return
     end
-    run_tests("nearest")
+    pcall(function()
+      neotest.run.run()
+    end)
   end, { desc = "Run Nearest Test Method" })
 
   map("n", "<leader>jtc", function()
-    local ok, neotest = pcall(require, "neotest")
-    if ok then
-      local file = vim.api.nvim_buf_get_name(0)
-      if not file or file == "" or vim.bo.buftype ~= "" then
-        engine.notify_warn("Current buffer is not a runnable file", "TetraVim Test")
-        return
-      end
-      local call_ok, _ = pcall(function()
-        neotest.run.run(file)
-      end)
-      if call_ok then
-        return
-      end
+    local file = vim.api.nvim_buf_get_name(0)
+    if not file or file == "" or vim.bo.buftype ~= "" then
+      engine.notify_warn("Current buffer is not a runnable file", "TetraVim Test")
+      return
     end
-    run_tests("class")
+    local ok, neotest = pcall(require, "neotest")
+    if not ok then
+      run_tests("class")
+      return
+    end
+    pcall(function()
+      neotest.run.run(file)
+    end)
   end, { desc = "Run Current Test Class / File" })
 
   map("n", "<leader>jts", function()
@@ -435,7 +472,9 @@ function M.setup_keymaps()
   end, { desc = "Load JaCoCo Coverage Report" })
 
   map("n", "<leader>jcx", function()
-    require("tetravim.util.coverage").clear()
+    -- Hide the overlays but keep the parsed report so <leader>jct can
+    -- toggle it back without re-reading the JaCoCo XML.
+    require("tetravim.util.coverage").clear(false)
   end, { desc = "Clear Coverage Overlays" })
 
   map("n", "<leader>jct", function()

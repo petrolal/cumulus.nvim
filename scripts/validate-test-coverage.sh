@@ -32,7 +32,7 @@ local ok, err = pcall(function()
   for _, f in ipairs(neotest_spec.ft or {}) do
     ft_set[f] = true
   end
-  assert(ft_set.java and ft_set.kotlin and ft_set.scala, 'neotest must be ft-gated on java, kotlin, and scala')
+  assert(ft_set.java and not ft_set.kotlin and not ft_set.scala, 'neotest must be ft-gated on java only (no adapter for kotlin/scala)')
 
   -- Verify keys in tools-test spec
   local test_keys = {}
@@ -94,10 +94,22 @@ else
 end
 " -c "qa!"
 
-echo "[2/3] Behavioral: JaCoCo XML parsing, buffer sign & diagnostic overlays, toggle & clear..."
+echo "[2/3] Behavioral: JaCoCo XML parsing, buffer sign & virtual-text overlays, toggle & clear..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local coverage = require('tetravim.util.coverage')
+
+  local cov_ns = vim.api.nvim_create_namespace('tetravim_coverage')
+  local function wait_applied()
+    vim.wait(2000, function() return not coverage.is_loading end, 10)
+  end
+  local function vt_lines(buf)
+    local out = {}
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(buf, cov_ns, 0, -1, { details = true })) do
+      if m[4] and m[4].virt_text then out[m[2] + 1] = true end
+    end
+    return out
+  end
 
   local sample_report = [[<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
 <!DOCTYPE report PUBLIC \"-//JACOCO//DTD Report 1.1//EN\" \"report.dtd\">
@@ -129,6 +141,7 @@ local ok, err = pcall(function()
   local load_ok, res = coverage.load(tmp_xml)
   assert(load_ok, 'coverage.load failed on valid report')
   assert(coverage.is_visible, 'coverage.is_visible must be true after load')
+  wait_applied()
 
   -- 2. Verify placed signs
   local placed = vim.fn.sign_getplaced(bufnr, { group = 'tetravim_coverage_signs' })
@@ -141,16 +154,14 @@ local ok, err = pcall(function()
   assert(sign_map[8] == 'TetraVimCoverageUncovered', 'line 8 must have TetraVimCoverageUncovered sign')
   assert(sign_map[12] == 'TetraVimCoveragePartial', 'line 12 must have TetraVimCoveragePartial sign')
 
-  -- 3. Verify diagnostics
-  local ns = vim.api.nvim_create_namespace('tetravim_coverage')
-  local diags = vim.diagnostic.get(bufnr, { namespace = ns })
-  assert(#diags == 2, 'expected 2 diagnostics (uncovered + partial), got ' .. tostring(#diags))
-  local diag_lines = {}
-  for _, d in ipairs(diags) do
-    diag_lines[d.lnum + 1] = d
-  end
-  assert(diag_lines[8] and diag_lines[8].severity == vim.diagnostic.severity.WARN, 'line 8 must have WARN diagnostic')
-  assert(diag_lines[12] and diag_lines[12].severity == vim.diagnostic.severity.INFO, 'line 12 must have INFO diagnostic')
+  -- 3. Verify end-of-line virtual text on uncovered + partial lines
+  --    (the coverage layer no longer publishes vim.diagnostic entries)
+  local diags_leaked = vim.diagnostic.get(bufnr, { namespace = cov_ns })
+  assert(#diags_leaked == 0, 'coverage must not publish vim.diagnostic entries, got ' .. tostring(#diags_leaked))
+  local vt = vt_lines(bufnr)
+  assert(vt[8], 'line 8 (uncovered) must have coverage virtual text')
+  assert(vt[12], 'line 12 (partial) must have coverage virtual text')
+  assert(not vt[5], 'line 5 (covered) must not have coverage virtual text')
 
   -- 4. Test toggle functionality
   coverage.toggle()
@@ -160,6 +171,7 @@ local ok, err = pcall(function()
 
   coverage.toggle()
   assert(coverage.is_visible, 'is_visible must be true after toggle on')
+  wait_applied()
   local signs_after_show = vim.fn.sign_getplaced(bufnr, { group = 'tetravim_coverage_signs' })
   assert(#signs_after_show[1].signs == 3, 'signs must be restored when coverage is toggled on')
 
@@ -177,12 +189,12 @@ local ok, err = pcall(function()
   assert(coverage.last_coverage == nil, 'last_coverage must be nil after clear(true)')
   local signs_after_clear = vim.fn.sign_getplaced(bufnr, { group = 'tetravim_coverage_signs' })
   assert(#signs_after_clear[1].signs == 0, 'signs must be empty after clear')
-  local diags_after_clear = vim.diagnostic.get(bufnr, { namespace = ns })
-  assert(#diags_after_clear == 0, 'diagnostics must be empty after clear')
+  assert(next(vt_lines(bufnr)) == nil, 'coverage virtual text must be empty after clear')
 
   -- 7. Test user command execution
   vim.cmd('TetraVimCoverageLoad ' .. tmp_xml)
   assert(coverage.is_visible, 'TetraVimCoverageLoad must load report')
+  wait_applied()
   vim.cmd('TetraVimCoverageToggle')
   assert(not coverage.is_visible, 'TetraVimCoverageToggle must toggle')
   vim.cmd('TetraVimCoverageClear')
@@ -216,7 +228,7 @@ if not ok then
   io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
   vim.cmd('cquit 1')
 else
-  print('OK: JaCoCo XML parsing, buffer sign overlays, toggle, clear, and error handling verified')
+  print('OK: JaCoCo XML parsing, buffer sign & virtual-text overlays, toggle, clear, and error handling verified')
 end
 " -c "qa!"
 

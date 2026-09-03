@@ -2,7 +2,12 @@
 --
 -- Native Lua JaCoCo XML coverage parser and buffer overlay manager.
 -- Highlights covered, uncovered, and partially covered lines using signs
--- and diagnostics without external binary dependencies.
+-- and end-of-line virtual text, without external binary dependencies.
+--
+-- Overlay application is chunked across the event loop (one buffer per
+-- scheduled tick) so loading a large report never blocks the UI. Callers
+-- that need to observe the applied state synchronously (tests, scripts)
+-- can wait on `M.is_loading`.
 
 local M = {}
 
@@ -12,6 +17,11 @@ local SIGN_GROUP = "tetravim_coverage_signs"
 M.last_coverage = nil
 M.last_report_path = nil
 M.is_visible = false
+M.is_loading = false
+
+-- Buffers whose overlay is already applied for the current report; reset
+-- whenever coverage is (re)loaded or cleared so BufWinEnter re-applies once.
+local applied_bufs = {}
 
 local function ensure_signs_defined()
   local hl_ok = vim.fn.hlexists("DiagnosticSignOk") == 1 and "DiagnosticSignOk" or "DiffAdd"
@@ -21,6 +31,10 @@ local function ensure_signs_defined()
   vim.fn.sign_define("TetraVimCoverageCovered", { text = "▎", texthl = hl_ok })
   vim.fn.sign_define("TetraVimCoverageUncovered", { text = "▎", texthl = hl_err })
   vim.fn.sign_define("TetraVimCoveragePartial", { text = "▎", texthl = hl_warn })
+end
+
+local function vt_hl(preferred, fallback)
+  return vim.fn.hlexists(preferred) == 1 and preferred or fallback
 end
 
 --- Discover standard JaCoCo XML report paths in workspace
@@ -41,11 +55,21 @@ function M.find_report_file(start_dir)
     end
   end
 
-  -- Fallback search for jacoco*.xml in target/build directories
-  local globs = vim.fn.glob(start_dir .. "/**/jacoco*.xml", false, true)
-  for _, path in ipairs(globs) do
-    if vim.fn.filereadable(path) == 1 and not path:find("/%.") then
-      return path
+  -- Bounded multi-module fallback: only look a fixed number of directory
+  -- levels deep at the conventional report locations. This intentionally
+  -- avoids the old "**/jacoco*.xml" recursive walk, which could traverse
+  -- an entire (potentially huge) source tree on every invocation.
+  local nested = {
+    "/*/target/site/jacoco/jacoco.xml",
+    "/*/build/reports/jacoco/test/jacocoTestReport.xml",
+    "/*/*/target/site/jacoco/jacoco.xml",
+    "/*/*/build/reports/jacoco/test/jacocoTestReport.xml",
+  }
+  for _, suffix in ipairs(nested) do
+    for _, path in ipairs(vim.fn.glob(start_dir .. suffix, false, true)) do
+      if vim.fn.filereadable(path) == 1 then
+        return path
+      end
     end
   end
 
@@ -122,37 +146,40 @@ function M.parse_xml(content, report_path)
         local cb = tonumber(attrs:match('cb="(%d+)"')) or 0
         local mb = tonumber(attrs:match('mb="(%d+)"')) or 0
 
-        local status
-        if ci > 0 and mi == 0 and mb == 0 then
-          status = "covered"
-          table.insert(current_file_rec.covered_lines, nr)
-          current_file_rec.lines_covered = current_file_rec.lines_covered + 1
-          summary.lines_covered = summary.lines_covered + 1
-        elseif (ci > 0 or cb > 0) and (mi > 0 or mb > 0) then
-          status = "partial"
-          table.insert(current_file_rec.partial_lines, nr)
-          current_file_rec.lines_partial = current_file_rec.lines_partial + 1
-          summary.lines_partial = summary.lines_partial + 1
-        elseif ci == 0 and cb == 0 and (mi > 0 or mb > 0) then
-          status = "uncovered"
-          table.insert(current_file_rec.missed_lines, nr)
-          current_file_rec.lines_missed = current_file_rec.lines_missed + 1
-          summary.lines_missed = summary.lines_missed + 1
-        elseif ci > 0 then
-          status = "covered"
-          table.insert(current_file_rec.covered_lines, nr)
-          current_file_rec.lines_covered = current_file_rec.lines_covered + 1
-          summary.lines_covered = summary.lines_covered + 1
-        else
-          status = "uncovered"
-          table.insert(current_file_rec.missed_lines, nr)
-          current_file_rec.lines_missed = current_file_rec.lines_missed + 1
-          summary.lines_missed = summary.lines_missed + 1
-        end
+        -- Lines whose instruction and branch counters are all zero carry
+        -- no coverage information (blank lines, comments, braces). JaCoCo
+        -- does not count them, and neither do we -- including them here
+        -- would misreport them as uncovered and skew the totals.
+        local has_signal = ci > 0 or mi > 0 or cb > 0 or mb > 0
+        if has_signal then
+          local missed = mi > 0 or mb > 0
+          local hit = ci > 0 or cb > 0
 
-        current_file_rec.lines[nr] = status
-        current_file_rec.lines_total = current_file_rec.lines_total + 1
-        summary.lines_total = summary.lines_total + 1
+          local status
+          if missed and hit then
+            status = "partial"
+            table.insert(current_file_rec.partial_lines, nr)
+            current_file_rec.lines_partial = current_file_rec.lines_partial + 1
+            summary.lines_partial = summary.lines_partial + 1
+          elseif missed then
+            status = "uncovered"
+            table.insert(current_file_rec.missed_lines, nr)
+            current_file_rec.lines_missed = current_file_rec.lines_missed + 1
+            summary.lines_missed = summary.lines_missed + 1
+          else
+            -- hit only: fully covered instructions and/or branches with
+            -- nothing missed -- this also covers the branch-only case
+            -- (cb > 0, mb == 0, ci == 0, mi == 0).
+            status = "covered"
+            table.insert(current_file_rec.covered_lines, nr)
+            current_file_rec.lines_covered = current_file_rec.lines_covered + 1
+            summary.lines_covered = summary.lines_covered + 1
+          end
+
+          current_file_rec.lines[nr] = status
+          current_file_rec.lines_total = current_file_rec.lines_total + 1
+          summary.lines_total = summary.lines_total + 1
+        end
       end
     end
   end
@@ -163,6 +190,21 @@ function M.parse_xml(content, report_path)
     summary.coverage_pct = math.floor((summary.lines_covered / summary.lines_total) * 10000 + 0.5) / 100
   else
     summary.coverage_pct = 0
+  end
+
+  -- A structurally valid report that yields no coverable lines almost
+  -- always means the wrong file was picked or the report is stale/empty.
+  -- Surface it instead of silently "loading" a blank overlay. Only warn
+  -- when parsing a real file (report_path set), never for unit-test
+  -- strings passed straight to parse_xml.
+  if report_path and summary.lines_total == 0 then
+    vim.schedule(function()
+      vim.notify(
+        "JaCoCo report parsed but contains no coverable lines: " .. report_path,
+        vim.log.levels.WARN,
+        { title = "TetraVim Coverage" }
+      )
+    end)
   end
 
   return {
@@ -203,8 +245,12 @@ local function find_file_rec_for_buf(bufnr)
     return nil
   end
 
+  -- Match only on the package-qualified path (e.g. "com/example/Foo.java").
+  -- A bare-basename match ("Foo.java") is ambiguous: many projects have
+  -- several source files with the same name in different packages, and it
+  -- would overlay the wrong buffer's coverage.
   for file_rel, rec in pairs(M.last_coverage.files) do
-    if vim.endswith(buf_name, file_rel) or vim.endswith(buf_name, "/" .. rec.sourcefile) then
+    if buf_name == file_rel or vim.endswith(buf_name, "/" .. file_rel) then
       return rec
     end
   end
@@ -212,7 +258,7 @@ local function find_file_rec_for_buf(bufnr)
   return nil
 end
 
---- Apply coverage signs and diagnostics overlay to a specific buffer
+--- Apply coverage signs and virtual-text overlay to a specific buffer
 ---@param bufnr number
 function M.apply_to_buffer(bufnr)
   if not M.is_visible or not M.last_coverage then
@@ -229,11 +275,11 @@ function M.apply_to_buffer(bufnr)
 
   ensure_signs_defined()
 
-  -- Clear previous coverage signs for this buffer
+  -- Clear previous coverage signs and virtual text for this buffer
   vim.fn.sign_unplace(SIGN_GROUP, { buffer = bufnr })
+  vim.api.nvim_buf_clear_namespace(bufnr, coverage_ns, 0, -1)
 
-  -- Clear previous coverage diagnostics
-  vim.diagnostic.set(coverage_ns, bufnr, {})
+  local line_count = vim.api.nvim_buf_line_count(bufnr)
 
   local sign_map = {
     covered = "TetraVimCoverageCovered",
@@ -241,56 +287,98 @@ function M.apply_to_buffer(bufnr)
     partial = "TetraVimCoveragePartial",
   }
 
-  -- Place signs
+  -- Batch-place all signs in a single call. Clamp to the buffer's real
+  -- line count: a JaCoCo report can reference lines past the end of a
+  -- buffer that has since been edited, and an out-of-range lnum would
+  -- otherwise abort the whole placement.
+  local placements = {}
   for nr, status in pairs(rec.lines) do
     local sign = sign_map[status]
-    if sign then
-      vim.fn.sign_place(0, SIGN_GROUP, sign, bufnr, { lnum = nr, priority = 10 })
+    if sign and nr >= 1 and nr <= line_count then
+      table.insert(placements, {
+        buffer = bufnr,
+        group = SIGN_GROUP,
+        lnum = nr,
+        name = sign,
+        priority = 10,
+      })
+    end
+  end
+  if #placements > 0 then
+    pcall(vim.fn.sign_placelist, placements)
+  end
+
+  -- End-of-line virtual text for missed and partially covered lines
+  -- (replaces the previous vim.diagnostic layer, which polluted the
+  -- diagnostics list and the quickfix/loclist with non-error noise).
+  local hl_missed = vt_hl("DiagnosticVirtualTextError", "Comment")
+  local hl_partial = vt_hl("DiagnosticVirtualTextWarn", "Comment")
+
+  local function set_vt(nr, text, hl)
+    if nr >= 1 and nr <= line_count then
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, coverage_ns, nr - 1, 0, {
+        virt_text = { { text, hl } },
+        virt_text_pos = "eol",
+        hl_mode = "combine",
+      })
     end
   end
 
-  -- Populate diagnostics for uncovered and partial lines
-  local diags = {}
   for _, nr in ipairs(rec.missed_lines) do
-    table.insert(diags, {
-      lnum = math.max(0, nr - 1),
-      col = 0,
-      message = "Uncovered line (JaCoCo)",
-      severity = vim.diagnostic.severity.WARN,
-      source = "JaCoCo",
-    })
+    set_vt(nr, "  ▸ uncovered", hl_missed)
   end
   for _, nr in ipairs(rec.partial_lines) do
-    table.insert(diags, {
-      lnum = math.max(0, nr - 1),
-      col = 0,
-      message = "Partially covered line (JaCoCo)",
-      severity = vim.diagnostic.severity.INFO,
-      source = "JaCoCo",
-    })
+    set_vt(nr, "  ▸ partial", hl_partial)
   end
 
-  vim.diagnostic.set(coverage_ns, bufnr, diags)
+  applied_bufs[bufnr] = true
+end
+
+-- Recursively apply the overlay to a list of buffers, yielding to the
+-- event loop between each one so the UI stays responsive on large reports.
+local function schedule_apply(bufs, idx, on_done)
+  if idx > #bufs then
+    M.is_loading = false
+    if on_done then
+      on_done()
+    end
+    return
+  end
+
+  local bufnr = bufs[idx]
+  if vim.api.nvim_buf_is_loaded(bufnr) and vim.api.nvim_buf_is_valid(bufnr) then
+    M.apply_to_buffer(bufnr)
+  end
+
+  vim.schedule(function()
+    schedule_apply(bufs, idx + 1, on_done)
+  end)
 end
 
 --- Apply coverage overlays across all currently loaded valid buffers
-function M.apply_to_all_buffers()
+---@param on_done? fun() called once every buffer has been processed
+function M.apply_to_all_buffers(on_done)
   if not M.is_visible or not M.last_coverage then
+    M.is_loading = false
+    if on_done then
+      on_done()
+    end
     return
   end
 
   ensure_signs_defined()
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(bufnr) and vim.api.nvim_buf_is_valid(bufnr) then
-      M.apply_to_buffer(bufnr)
-    end
-  end
+  applied_bufs = {}
+  M.is_loading = true
+  schedule_apply(vim.api.nvim_list_bufs(), 1, on_done)
 end
 
 --- Load JaCoCo coverage report from file path (or auto-discover)
 ---@param xml_path? string
+---@param opts? { on_done?: fun() }
 ---@return boolean success, table|string result_or_err
-function M.load(xml_path)
+function M.load(xml_path, opts)
+  opts = opts or {}
+
   if not xml_path or xml_path == "" then
     xml_path = M.find_report_file()
   end
@@ -304,15 +392,27 @@ function M.load(xml_path)
   local ok, res, err = pcall(M.parse, xml_path)
   if not ok or not res then
     local err_msg = tostring(res or err or "Parse failed")
+    -- Drop any previously loaded report: keeping stale data around after a
+    -- failed reload makes toggle/summary silently operate on the old file.
+    M.last_coverage = nil
+    M.last_report_path = nil
+    M.is_visible = false
+    M.is_loading = false
+    applied_bufs = {}
     vim.notify("Failed to parse JaCoCo XML: " .. err_msg, vim.log.levels.ERROR, { title = "TetraVim Coverage" })
     return false, err_msg
   end
+
+  -- Clear the previous report's overlays before applying the new one so a
+  -- reload never leaves orphaned signs/virtual text from lines that are no
+  -- longer in the report.
+  M.clear(false)
 
   M.last_coverage = res
   M.last_report_path = xml_path
   M.is_visible = true
 
-  M.apply_to_all_buffers()
+  M.apply_to_all_buffers(opts.on_done)
 
   local s = res.summary
   vim.notify(
@@ -330,11 +430,10 @@ function M.load(xml_path)
   return true, res
 end
 
---- Clear coverage signs, diagnostics, and overlays from all buffers
+--- Clear coverage signs, virtual text, and overlays from all buffers
 ---@param reset_data? boolean If false, retains parsed data for toggle
 function M.clear(reset_data)
   vim.fn.sign_unplace(SIGN_GROUP)
-  vim.diagnostic.reset(coverage_ns)
 
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_valid(bufnr) then
@@ -343,6 +442,8 @@ function M.clear(reset_data)
   end
 
   M.is_visible = false
+  M.is_loading = false
+  applied_bufs = {}
 
   if reset_data ~= false then
     M.last_coverage = nil
@@ -391,12 +492,15 @@ function M.summary()
   return s
 end
 
--- Setup buffer autocommands for automatic overlay when opening files
+-- Setup buffer autocommands for automatic overlay when a file becomes
+-- visible in a window. BufWinEnter (not BufEnter) so we only re-apply when
+-- the buffer is actually displayed, and the applied_bufs guard keeps it to
+-- one application per buffer per loaded report.
 local group = vim.api.nvim_create_augroup("tetravim_coverage_auto", { clear = true })
-vim.api.nvim_create_autocmd({ "BufReadPost", "BufEnter" }, {
+vim.api.nvim_create_autocmd({ "BufReadPost", "BufWinEnter" }, {
   group = group,
   callback = function(args)
-    if M.is_visible and M.last_coverage then
+    if M.is_visible and M.last_coverage and not applied_bufs[args.buf] then
       M.apply_to_buffer(args.buf)
     end
   end,

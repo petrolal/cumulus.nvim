@@ -206,3 +206,36 @@
   summary: Non-hierarchical JDBC URLs (`jdbc:h2:mem:...`, `jdbc:sqlite:...`) are dropped by `jdbc_to_dadbod_url` in `lua/tetravim/util/db.lua`.
   evidence: Code review 2026-09-03. `jdbc_to_dadbod_url` matches `^([%w%+]+)://(.*)$`. URLs without `://` return nil, preventing embedded dev databases (such as in-memory H2 or SQLite) from being discovered.
 
+## Deferred from: code review of story-1-3-visual-test-runner-coverage (2026-09-03)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-visual-test-runner-coverage.md`
+  summary: Regex XML parser has no comment/CDATA handling, so a `<line>` element inside an XML comment is tallied into coverage totals.
+  evidence: lua/tetravim/util/coverage.lua:125 — `content:gmatch("<(/?[%w_:-]+)(%s*[^>]*)>")` with no comment/CDATA skipping.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-visual-test-runner-coverage.md`
+  summary: "Current buffer is not a valid/runnable test file" guard only rejects scratch buffers (`buftype ~= ""`), not ordinary non-test source files.
+  evidence: lua/tetravim/plugins/tools-test.lua:40 — `if not file or file == "" or vim.bo.buftype ~= "" then ...` in run_nearest/run_file.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-visual-test-runner-coverage.md`
+  summary: `:TetraVimCoverageLoad/Clear/Toggle/Summary` commands and the `BufReadPost`/`BufEnter` auto-overlay autocmd only register after `coverage.lua` is first required (lazy), so they are absent at startup.
+  evidence: lua/tetravim/util/coverage.lua:406 — user commands and autocmd registered at module load, not from plugin setup.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-visual-test-runner-coverage.md`
+  summary: `validate.sh` pcall/cquit smoke pattern does not catch a Lua syntax error inside the `-c` chunk — the chunk never compiles, the pcall line never runs, `qa!` exits 0, producing a false PASS.
+  evidence: scripts/validate.sh:16 — steps [2/7]–[6/7] rely on `pcall(...) ... vim.cmd('cquit 1')` which only guards runtime errors.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-visual-test-runner-coverage.md`
+  summary: JaCoCo parser hardening — single-quoted/absent `name=` attributes, missing/non-numeric `nr`, and duplicate `nr` within one sourcefile are silently mishandled (default "", dropped, or double-counted).
+  evidence: lua/tetravim/util/coverage.lua:125 — attribute extraction and line accumulation have no validation for these cases.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-visual-test-runner-coverage.md`
+  summary: Smoke tests assert existence / no-throw rather than observable behavior for the `notify_error` fallback path, the `[3/3]` handler invocation, and no-arg coverage auto-discovery (no `target/site/jacoco/jacoco.xml` fixture exists).
+  evidence: scripts/validate-test-coverage.sh — `[3/3]` wraps handler calls in one `pcall` asserting only `ok`; auto-discovery only checked for file existence.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-visual-test-runner-coverage.md`
+  summary: The `<leader>t` which-key group is always visible even though its keys are filetype-gated to JVM buffers, leaving an empty group in non-JVM buffers.
+  evidence: lua/tetravim/plugins/ui-whichkey.lua:39 — `{ "<leader>t", group = "test runner", ... }` added unconditionally; keys live in `tools-test.lua` with `ft` gate.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-visual-test-runner-coverage.md`
+  summary: `coverage.summary()` "no report loaded" hint hardcodes `<leader>jcl`, which only exists after `jvm.setup_keymaps()` has run.
+  evidence: lua/tetravim/util/coverage.lua:125 — summary notification string references `<leader>jcl` unconditionally.

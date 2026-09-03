@@ -107,7 +107,25 @@ describe("Test Coverage Module (SPEC-1.3)", function()
     assert.is_string(err3)
   end)
 
-  it("should place signs and diagnostics on a matching buffer and support clear/toggle", function()
+  it("should place signs and virtual text on a matching buffer and support clear/toggle", function()
+    local cov_ns = vim.api.nvim_create_namespace("tetravim_coverage")
+    local function wait_applied()
+      vim.wait(2000, function()
+        return not coverage.is_loading
+      end, 10)
+    end
+    local function vt_count(buf)
+      local marks = vim.api.nvim_buf_get_extmarks(buf, cov_ns, 0, -1, { details = true })
+      local n, rows = 0, {}
+      for _, m in ipairs(marks) do
+        if m[4] and m[4].virt_text then
+          n = n + 1
+          rows[m[2] + 1] = true
+        end
+      end
+      return n, rows
+    end
+
     -- Create a temporary XML file
     local tmp_xml = vim.fn.tempname() .. ".xml"
     local f = io.open(tmp_xml, "w")
@@ -124,10 +142,11 @@ describe("Test Coverage Module (SPEC-1.3)", function()
     end
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 
-    -- Load coverage
+    -- Load coverage (overlay application is chunked/async)
     local ok, res = coverage.load(tmp_xml)
     assert.is_true(ok)
     assert.is_true(coverage.is_visible)
+    wait_applied()
 
     -- Check signs placed
     local placed = vim.fn.sign_getplaced(bufnr, { group = "tetravim_coverage_signs" })
@@ -141,9 +160,11 @@ describe("Test Coverage Module (SPEC-1.3)", function()
     assert.equals("TetraVimCoverageUncovered", sign_lines[12])
     assert.equals("TetraVimCoveragePartial", sign_lines[15])
 
-    -- Check diagnostics (missed & partial)
-    local diags = vim.diagnostic.get(bufnr, { namespace = vim.api.nvim_create_namespace("tetravim_coverage") })
-    assert.equals(2, #diags)
+    -- Check end-of-line virtual text (missed & partial lines only)
+    local vt_n, vt_rows = vt_count(bufnr)
+    assert.equals(2, vt_n)
+    assert.is_true(vt_rows[12])
+    assert.is_true(vt_rows[15])
 
     -- Summary API
     local s = coverage.summary()
@@ -159,6 +180,7 @@ describe("Test Coverage Module (SPEC-1.3)", function()
     -- Toggle coverage back on
     coverage.toggle()
     assert.is_true(coverage.is_visible)
+    wait_applied()
     local placed_restored = vim.fn.sign_getplaced(bufnr, { group = "tetravim_coverage_signs" })
     assert.equals(3, #placed_restored[1].signs)
 
@@ -168,6 +190,7 @@ describe("Test Coverage Module (SPEC-1.3)", function()
     assert.is_nil(coverage.last_coverage)
     local placed_after_clear = vim.fn.sign_getplaced(bufnr, { group = "tetravim_coverage_signs" })
     assert.equals(0, #placed_after_clear[1].signs)
+    assert.equals(0, (vt_count(bufnr)))
 
     -- Cleanup
     vim.api.nvim_buf_delete(bufnr, { force = true })
@@ -190,6 +213,9 @@ describe("Test Coverage Module (SPEC-1.3)", function()
     local ok = engine.view_coverage(tmp_xml)
     assert.is_true(ok)
     assert.is_true(coverage.is_visible)
+    vim.wait(2000, function()
+      return not coverage.is_loading
+    end, 10)
 
     coverage.clear(true)
     os.remove(tmp_xml)

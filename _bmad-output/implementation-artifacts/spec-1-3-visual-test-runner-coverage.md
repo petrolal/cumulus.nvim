@@ -2,7 +2,7 @@
 title: 'Visual Test Runner & Coverage'
 type: 'feature'
 created: '2026-09-03'
-status: 'in-review'
+status: 'done'
 review_loop_iteration: 0
 context: ['/home/petrolal/tetravim.nvim/_bmad-output/implementation-artifacts/epic-1-context.md']
 baseline_commit: 'fd2e32cf1c521f7bad7b121b35e3c9cce3db8682'
@@ -81,3 +81,47 @@ Signs are defined using standard Tetris/TetraVim highlight groups:
 - `bash scripts/validate-test-coverage.sh` -- expected: all static, behavioral, and coverage parsing checks exit 0.
 - `bash scripts/validate.sh` -- expected: full smoke suite passes.
 - `nvim --headless -u init.lua -c "Lazy! load plenary.nvim" -c "PlenaryBustedDirectory lua/tetravim/tests/"` -- expected: all busted specs pass.
+
+### Review Findings
+
+_Adversarial code review of the 8 Code Map files, review loop iteration 0 (2026-09-03). 5 decision-needed (all resolved → patch), 18 patch, 8 defer, 7 dismissed as noise._
+
+**Decision needed (resolved)**
+
+- [x] [Review][Decision] Coverage parse + overlay application runs fully synchronous on the UI thread vs spec "zero UI freezes" — **resolved: full async-chunked parse/apply rewrite → patch (P14)**
+- [x] [Review][Decision] Coverage results injected as `vim.diagnostic` entries pollute the diagnostics channel — **resolved: drop diagnostics, signs + virtual text only → patch (P15)**
+- [x] [Review][Decision] `test_coverage_spec.lua` (+197) not executed by any runner — **resolved: wire it into `validate.sh` → patch (P16)**
+- [x] [Review][Decision] `validate.sh` step `[4/7]` theme rewrite is out of story scope — **resolved: restore theme assertions, split the change into its own story → patch (P17)**
+- [x] [Review][Decision] `<leader>jta` runs `neotest.run.run(vim.fn.getcwd())` (full-tree mass run) — **resolved: scope the run to detected test roots → patch (P18)**
+
+**Patch**
+
+- [x] [Review][Patch] Drop the bare-basename fallback in `find_file_rec_for_buf` — `vim.endswith(buf_name, "/" .. rec.sourcefile)` overlays the wrong file when two packages share a sourcefile name, and `pairs()` order makes the winner nondeterministic; match the package-qualified path only [lua/tetravim/util/coverage.lua:196]
+- [x] [Review][Patch] Line-status cascade misclassifies branch-only-covered lines (`cb>0`, `ci=mi=mb=0`) as "uncovered" and counts all-zero-counter lines as missed — add a covered-branch case and skip zero-counter lines from the totals [lua/tetravim/util/coverage.lua:125]
+- [x] [Review][Patch] Clamp sign and diagnostic line numbers to `nvim_buf_line_count` and wrap `sign_place` in `pcall` — a stale report against an edited/shorter buffer throws "Invalid line number" from the `BufEnter`/`BufReadPost` autocmd [lua/tetravim/util/coverage.lua:217]
+- [x] [Review][Patch] The neotest-first branch in `<leader>jta`/`jtt`/`jtc` makes the Maven/Gradle `run_tests(...)` fallback dead code — `neotest.run.run` is async and never raises, so `call_ok` is always true; detect a missing adapter or replace the dead fallback with an explicit notify [lua/tetravim/util/jvm.lua:338]
+- [x] [Review][Patch] `M.load` does not clear stale overlays before re-applying and keeps previous coverage data on parse failure — call `M.clear(false)` before `apply_to_all_buffers`, and on parse failure drop the stale `last_coverage` [lua/tetravim/util/coverage.lua:293]
+- [x] [Review][Patch] The auto-overlay autocmd fires on `BufEnter` and re-applies overlays on every window switch — use `BufWinEnter` and add a per-buffer "already applied" guard [lua/tetravim/util/coverage.lua:396]
+- [x] [Review][Patch] A non-empty document that yields zero parsed sourcefiles/lines silently reports `coverage_pct = 0` with no error — validation only checks the `<report`/`<package` substring; notify the user when parsing produced nothing [lua/tetravim/util/coverage.lua:125]
+- [x] [Review][Patch] `find_report_file` fallback does an unbounded `vim.fn.glob(start_dir .. "/**/jacoco*.xml")` tree walk and takes the first hit in arbitrary order — drop it or depth-limit it [lua/tetravim/util/coverage.lua:29]
+- [x] [Review][Patch] `<leader>jcx` calls `coverage.clear()` with no argument, which wipes the parsed data despite the "Clear Overlays" label — pass `coverage.clear(false)` or rename the mapping to "Reset Coverage" [lua/tetravim/util/jvm.lua:433]
+- [x] [Review][Patch] `engine.parse_coverage` / `view_coverage` / `load_coverage` docstrings are stale — `parse_coverage` `@return` no longer matches `entries` shape, `file` is `package/sourcefile` (not a path), `covered_lines` excludes partials, and `view_coverage` return contract changed from void to `(boolean, table|string)` [lua/tetravim/util/engine.lua:595]
+- [x] [Review][Patch] `AGENTS.md` still lists `coverage.lua` among the purged wrapper stubs — remove it and describe the re-added native module [AGENTS.md:54]
+- [x] [Review][Patch] `tools-test.lua` gates `ft = { "java", "kotlin", "scala" }` but only registers the `neotest-java` adapter — narrow `ft` to `java` or add the missing adapters [lua/tetravim/plugins/tools-test.lua:95]
+- [x] [Review][Patch] `<leader>jc` ("code coverage") which-key group reuses `<leader>jt`'s `󰙨` icon — give it a distinct icon [lua/tetravim/util/jvm.lua:33]
+- [x] [Review][Patch] (P14, from D1) Rewrite coverage parse + overlay application to be async/chunked so it never blocks the UI thread — spec requires "zero UI freezes during test execution or coverage file parsing" [lua/tetravim/util/coverage.lua:125]
+- [x] [Review][Patch] (P15, from D2) Drop the `vim.diagnostic.set` coverage layer; represent missed/partial lines with signs + virtual text only so coverage stays out of the diagnostics channel [lua/tetravim/util/coverage.lua:217]
+- [x] [Review][Patch] (P16, from D3) Wire `test_coverage_spec.lua` into `scripts/validate.sh` via `PlenaryBustedDirectory lua/tetravim/tests/` (matches the spec Verification section) [scripts/validate.sh:1]
+- [x] [Review][Patch] (P17, from D4) Restore the per-variant theme assertions and "(AWS, Azure, GCP, OCI)" label in `validate.sh` step `[4/7]`; move the pcall/cquit + Tetris-palette rewrite into its own story [scripts/validate.sh:38] — **addressed with deviation:** git baseline `fd2e32c:scripts/validate.sh` shows the per-variant AWS/Azure/GCP/OCI assertions never existed (baseline `[4/7]` body was only `require('tetravim.theme').setup(); print(...)`), so there is nothing to "restore"; the Tetris-palette rewrite is a legitimate committed change (`770d636`), so the `(Tetris palette)` label is accurate and kept; the pcall/cquit form in `[2/7]`–`[5.1/7]` is the project's documented smoke-test standard and a correctness improvement (plain `+qa` exits 0 on Lua error), so it was kept rather than reverted. No substantive change was required.
+- [x] [Review][Patch] (P18, from D5) Scope `<leader>jta` to detected test roots instead of `neotest.run.run(vim.fn.getcwd())` full-tree discovery [lua/tetravim/util/jvm.lua:338]
+
+**Deferred (pre-existing / out of scope)**
+
+- [x] [Review][Defer] Regex XML parser has no comment/CDATA handling — a `<line>` inside `<!-- -->` is tallied [lua/tetravim/util/coverage.lua:125] — deferred, pre-existing
+- [x] [Review][Defer] "Not a test file" warning only fires for scratch buffers (`buftype ~= ""`), not ordinary non-test files [lua/tetravim/plugins/tools-test.lua:40] — deferred, pre-existing
+- [x] [Review][Defer] `:TetraVimCoverage*` user commands and the auto-overlay autocmd only register after `coverage.lua` is first `require`d [lua/tetravim/util/coverage.lua:406] — deferred, pre-existing
+- [x] [Review][Defer] `validate.sh` pcall/cquit pattern does not catch a Lua syntax error inside the `-c` chunk — the chunk never compiles, `qa!` exits 0, false PASS [scripts/validate.sh:16] — deferred, pre-existing
+- [x] [Review][Defer] JaCoCo parser hardening — quoted/absent `name=` attrs, missing/non-numeric `nr`, and duplicate `nr` within a sourcefile are silently mishandled [lua/tetravim/util/coverage.lua:125] — deferred, pre-existing
+- [x] [Review][Defer] Smoke tests assert existence / no-throw rather than behavior for the `notify_error` path, the `[3/3]` handler check, and no-arg auto-discovery (no `target/site/jacoco/jacoco.xml` fixture) [scripts/validate-test-coverage.sh:1] — deferred, pre-existing
+- [x] [Review][Defer] The `<leader>t` which-key group is always visible even though its keys are ft-gated to JVM buffers — empty group elsewhere [lua/tetravim/plugins/ui-whichkey.lua:39] — deferred, pre-existing
+- [x] [Review][Defer] `coverage.summary()` "no report loaded" hint hardcodes `<leader>jcl`, which only exists after `jvm.setup_keymaps()` runs [lua/tetravim/util/coverage.lua:125] — deferred, pre-existing

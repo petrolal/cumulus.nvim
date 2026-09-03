@@ -592,9 +592,19 @@ function M.parse_checkstyle(xml_content)
   return call_engine_command({ "parse-checkstyle" }, xml_content, "parse-checkstyle")
 end
 
---- Parse JaCoCo coverage XML file using native Lua coverage parser
----@param file_path string
----@return table[]|nil Array of { file = string, covered_lines = number[], missed_lines = number[] }
+--- Parse a JaCoCo coverage XML report using the native Lua coverage parser.
+--- Returns the per-sourcefile entry list (`parsed.entries`), not the summary.
+---@param file_path string Path to a JaCoCo `jacoco.xml` report
+---@return table[]|nil entries Array of {
+---   package = string,           -- slash-separated package ("com/example")
+---   sourcefile = string,        -- bare file name ("Foo.java")
+---   file = string,              -- package-qualified path ("com/example/Foo.java"); NOT a resolvable filesystem path
+---   lines = table<number,"covered"|"uncovered"|"partial">,
+---   covered_lines = number[],   -- fully covered line numbers (excludes partials)
+---   missed_lines = number[],    -- uncovered line numbers
+---   partial_lines = number[],   -- partially covered line numbers
+---   lines_total|lines_covered|lines_missed|lines_partial = number,
+--- } -- nil on read/parse failure
 function M.parse_coverage(file_path)
   local cov = require("tetravim.util.coverage")
   local parsed = cov.parse(file_path)
@@ -1158,12 +1168,19 @@ end
 -- Alias for spec compatibility
 M.resolve_conflicts = M.resolve_git_conflicts
 
---- Load JaCoCo code coverage report and populate diagnostics.
----@param xml_path? string
+--- Load a JaCoCo code coverage report and apply the buffer overlay
+--- (coverage signs + end-of-line virtual text; no vim.diagnostic entries).
+--- Overlay application is chunked asynchronously across buffers; callers
+--- that must observe it synchronously can wait on
+--- `require("tetravim.util.coverage").is_loading`.
+---@param xml_path? string Report path; auto-discovered under target/build when omitted
+---@return boolean success
+---@return table|string result Parsed coverage table on success, error message on failure
 function M.view_coverage(xml_path)
   local cov = require("tetravim.util.coverage")
   return cov.load(xml_path)
 end
+--- Alias for spec compatibility; identical contract to `view_coverage`.
 M.load_coverage = M.view_coverage
 
 --- Index log content in current buffer and show interactive jump picker for ERROR/WARN lines.
