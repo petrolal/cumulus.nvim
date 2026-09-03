@@ -177,16 +177,6 @@ This plan breaks down the migration into actionable Epics:
 - [ ] Healthcheck outputs machine-readable JSON for compliance validation.
 - [ ] Optional telemetry/logs export for troubleshooting IDE issues in isolated corporate environments.
 
-## Story 5.3: Global Visual Identity & Dotfile Sync
-**As a** developer  
-**I want to** have a consistent visual identity that shares the `tetravim.dotfile` theme  
-**So that** my entire development environment, from terminal to editor, feels unified  
-
-**Acceptance Criteria:**
-- [ ] Extract existing color palettes to align with `tetravim.dotfile`.
-- [ ] Create a shared theme bridge or sync mechanism to consume external color configurations.
-- [ ] Ensure all UI primitives (lualine, telescope, etc.) respect the dotfile theme.
-
 ---
 
 # EPIC 6: Code Quality & Security
