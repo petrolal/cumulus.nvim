@@ -288,7 +288,7 @@ function M.cfn_validate()
     local cwd = root or vim.fs.normalize(vim.fn.fnamemodify(file, ":h"))
     if vim.fn.executable("aws") == 1 then
       M.run_term(
-        "aws cloudformation validate-template --template-body file://" .. vim.fn.shellescape(file),
+        "aws cloudformation validate-template --template-body " .. vim.fn.shellescape("file://" .. file),
         { cwd = cwd }
       )
     elseif vim.fn.executable("cfn-lint") == 1 then

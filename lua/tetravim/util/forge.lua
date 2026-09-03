@@ -119,6 +119,10 @@ function M.list_and_review_prs()
     return
   end
   select_pr(function(pr, cli, root)
+    if not pr.base or pr.base == "" or not pr.ref or pr.ref == "" then
+      ui.notify_err("PR is missing branch metadata (base or ref) — cannot open review.")
+      return
+    end
     ui.notify_info("Fetching PR " .. pr.number .. " branches...")
 
     vim.system(
@@ -198,7 +202,13 @@ function M.add_comment()
   local buf = vim.api.nvim_get_current_buf()
   vim.bo[buf].buftype = "acwrite"
   vim.bo[buf].bufhidden = "wipe"
-  vim.api.nvim_buf_set_name(buf, "PR_COMMENT_" .. session.number)
+  local buf_name = "PR_COMMENT_" .. session.number
+  local ok_name = pcall(vim.api.nvim_buf_set_name, buf, buf_name)
+  if not ok_name then
+    -- Another buffer with the same name exists (previous comment still open);
+    -- append the buffer number to disambiguate.
+    pcall(vim.api.nvim_buf_set_name, buf, buf_name .. "_" .. buf)
+  end
 
   local header = "<!-- Enter comment. Save (:w) to submit. -->"
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { header, "" })
@@ -231,6 +241,9 @@ function M.add_comment()
             pcall(function()
               ui.notify_info("Comment added to PR " .. session.number)
             end)
+            -- Clear modified flag only after a confirmed successful submit,
+            -- so the user isn't left with a dirty buffer they can't close.
+            vim.bo[buf].modified = false
             pcall(vim.api.nvim_buf_delete, buf, { force = true })
           else
             ui.notify_err("Comment failed: " .. (res.stderr or ""))
@@ -238,8 +251,6 @@ function M.add_comment()
           end
         end)
       )
-
-      vim.bo[buf].modified = false
     end,
   })
 end

@@ -24,7 +24,8 @@ echo "[1/3] Verifying Static Specs..."
 nvim --headless -u init.lua -c "lua require('plenary.busted')" -c "PlenaryBustedDirectory lua/tetravim/tests/forge_review_spec.lua" -c "qa"
 
 echo "[2/3] Verifying vim.system usage in forge.lua..."
-nvim --headless -u init.lua "+lua 
+nvim --headless -u init.lua -c "lua
+local ok, err = pcall(function()
   local forge = require('tetravim.util.forge')
   local system_calls = {}
   local orig_system = vim.system
@@ -94,13 +95,24 @@ nvim --headless -u init.lua "+lua
   assert(has_pr_comment, 'Missing gh pr comment')
   assert(has_pr_view, 'Missing gh pr view')
   print('✔ vim.system mocked and validated successfully')
-" +qa
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+end
+" -c "qa!"
 
 echo "[3/3] Verifying Healthcheck Section..."
-nvim --headless -u init.lua "+lua 
+nvim --headless -u init.lua -c "lua
+local ok, err = pcall(function()
   require('tetravim.health').check()
   print('✔ Healthcheck executes.')
-" +qa
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+end
+" -c "qa!"
 
 echo "=========================================="
 echo " ALL 4.2 VALIDATIONS PASSED SUCCESSFULLY!"

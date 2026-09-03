@@ -990,7 +990,9 @@ function M.find_endpoints(root, cb)
 
     local has_kotlin = false
     for _, f in ipairs(files) do
-      if f:match("%.kts?$") then
+      -- Exclude Gradle DSL build scripts: they are not Kotlin source files
+      -- and should not trigger the Kotlin parser requirement check.
+      if f:match("%.kts?$") and not f:match("build%.gradle%.kts$") then
         has_kotlin = true
         break
       end

@@ -36,6 +36,11 @@ function M.drill_down_at_line()
     return
   end
 
+  if not symbol.file_path or symbol.file_path == "" or not symbol.line or symbol.line < 1 then
+    vim.notify("Resolved symbol has an invalid file path or line number", vim.log.levels.WARN)
+    return
+  end
+
   -- Open the file and jump to line
   vim.cmd("edit " .. vim.fn.fnameescape(symbol.file_path))
   vim.api.nvim_win_set_cursor(0, { symbol.line, 0 })

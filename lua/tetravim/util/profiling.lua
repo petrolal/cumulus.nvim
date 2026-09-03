@@ -104,6 +104,7 @@ function M.stop()
             { title = "TetraVim Profiler" }
           )
         else
+          M.active_pid = nil
           vim.notify("Failed to generate flamegraph", vim.log.levels.ERROR, { title = "TetraVim Profiler" })
         end
       end,
@@ -120,6 +121,7 @@ function M.stop()
             { title = "TetraVim Profiler" }
           )
         else
+          M.active_pid = nil
           vim.notify(
             "Failed to stop profiler or missing flamegraph: " .. (out.stderr or out.stdout or ""),
             vim.log.levels.ERROR,

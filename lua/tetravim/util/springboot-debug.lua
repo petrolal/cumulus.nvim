@@ -43,6 +43,7 @@ function M.launch_debug()
       return
     end
 
+    dap.configurations = dap.configurations or {}
     if not dap.configurations.java then
       dap.configurations.java = {}
     end

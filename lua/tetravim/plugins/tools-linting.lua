@@ -36,7 +36,11 @@ return {
               local name = type(linter) == "table" and linter.cmd or linter
               local linter_obj = lint.linters[name]
               local cmd = (linter_obj and linter_obj.cmd) or name
-              if vim.fn.executable(cmd) == 1 then
+              -- cmd may be a resolver function (some nvim-lint linters use this)
+              if type(cmd) == "function" then
+                cmd = cmd()
+              end
+              if type(cmd) == "string" and vim.fn.executable(cmd) == 1 then
                 table.insert(valid_linters, linter)
               end
             end

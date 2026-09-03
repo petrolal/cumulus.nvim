@@ -14,47 +14,69 @@ else
 fi
 
 echo "[2/7] Verifying Neovim Loading & Startup..."
-if nvim -u init.lua --headless "+lua print('✔ Core init.lua loads without error')" +qa; then
-  echo "✔ Headless core init.lua PASSED."
-else
-  echo "✖ Headless core init.lua FAILED."
-  exit 1
-fi
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  print('✔ Core init.lua loads without error')
+end)
+if not ok then io.stderr:write(tostring(err) .. '\n'); vim.cmd('cquit 1') end
+" -c "qa!"
+echo "✔ Headless core init.lua PASSED."
 
 echo "[3/7] Verifying Core Modules (Options, Keymaps, Autocmds, Health)..."
-if nvim -u init.lua --headless "+lua require('tetravim.core.options'); require('tetravim.core.keymaps'); require('tetravim.core.autocmds'); require('tetravim.health'); print('✔ Core modules loaded successfully')" +qa; then
-  echo "✔ Core modules PASSED."
-else
-  echo "✖ Core modules FAILED."
-  exit 1
-fi
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  require('tetravim.core.options')
+  require('tetravim.core.keymaps')
+  require('tetravim.core.autocmds')
+  require('tetravim.health')
+  print('✔ Core modules loaded successfully')
+end)
+if not ok then io.stderr:write(tostring(err) .. '\n'); vim.cmd('cquit 1') end
+" -c "qa!"
+echo "✔ Core modules PASSED."
 
-echo "[4/7] Verifying Theme System (AWS, Azure, GCP, OCI)..."
-if nvim -u init.lua --headless "+lua require('tetravim.theme').setup(); print('✔ Theme system initialized')" +qa; then
-  echo "✔ Theme system PASSED."
-else
-  echo "✖ Theme system FAILED."
-  exit 1
-fi
+echo "[4/7] Verifying Theme System (Tetris palette)..."
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  require('tetravim.theme').setup()
+  print('✔ Theme system initialized')
+end)
+if not ok then io.stderr:write(tostring(err) .. '\n'); vim.cmd('cquit 1') end
+" -c "qa!"
+echo "✔ Theme system PASSED."
 
 echo "[5/7] Verifying LSP, Completion & UI Specs..."
-if nvim -u init.lua --headless "+lua assert(pcall(require, 'cmp')); assert(pcall(require, 'lspconfig')); assert(pcall(require, 'render-markdown')); assert(pcall(require, 'persistence')); print('✔ Plugins and UI specs verified')" +qa; then
-  echo "✔ Plugins and UI specs PASSED."
-else
-  echo "✖ Plugins and UI specs FAILED."
-  exit 1
-fi
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  assert(pcall(require, 'cmp'), 'cmp not available')
+  assert(pcall(require, 'lspconfig'), 'lspconfig not available')
+  assert(pcall(require, 'render-markdown'), 'render-markdown not available')
+  assert(pcall(require, 'persistence'), 'persistence not available')
+  print('✔ Plugins and UI specs verified')
+end)
+if not ok then io.stderr:write(tostring(err) .. '\n'); vim.cmd('cquit 1') end
+" -c "qa!"
+echo "✔ Plugins and UI specs PASSED."
 
 echo "[5.1/7] Verifying File Explorer (oil.nvim)..."
-if nvim -u init.lua --headless "+lua assert(pcall(require, 'oil'), 'oil module not found'); local maps = vim.api.nvim_get_keymap('n'); local found = false; for _, m in ipairs(maps) do if (m.lhs == '<Space>e' or m.lhs == ' e' or m.lhs == '<leader>e') then found = true; break end end; assert(found, '<leader>e keymap not found'); print('✔ oil.nvim and keymaps verified')" +qa; then
-  echo "✔ File Explorer PASSED."
-else
-  echo "✖ File Explorer FAILED."
-  exit 1
-fi
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
+  assert(pcall(require, 'oil'), 'oil module not found')
+  local maps = vim.api.nvim_get_keymap('n')
+  local found = false
+  for _, m in ipairs(maps) do
+    if (m.lhs == '<Space>e' or m.lhs == ' e' or m.lhs == '<leader>e') then found = true; break end
+  end
+  assert(found, '<leader>e keymap not found')
+  print('✔ oil.nvim and keymaps verified')
+end)
+if not ok then io.stderr:write(tostring(err) .. '\n'); vim.cmd('cquit 1') end
+" -c "qa!"
+echo "✔ File Explorer PASSED."
 
 echo "[6/7] Verifying Engine Bridge & DevOps Suite (Terraform, CloudFormation, Ansible, WhichKey, Mason & Scoped Buffers)..."
-if nvim -u init.lua --headless "+lua
+nvim -u init.lua --headless -c "lua
+local ok, err = pcall(function()
   local e = require('tetravim.util.engine')
   assert(type(e.detect_platform) == 'function', 'detect_platform not found')
   assert(type(e.install) == 'function', 'install not found')
@@ -462,13 +484,13 @@ if nvim -u init.lua --headless "+lua
   local plat = e.detect_platform() or 'unknown'
   assert(vim.fn.exists(':TetraVimInstallEngine') == 2, ':TetraVimInstallEngine not registered')
   print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling, Workspace Root Discovery, Global Root Execution with Warning Toasts & JVM Debugger DAP (Scala/Metals) verified (' .. plat .. ')')
-
-" +qa; then
-  echo "✔ Engine bridge & DevOps suite PASSED."
-else
-  echo "✖ Engine bridge & DevOps suite FAILED."
-  exit 1
-fi
+end)
+if not ok then
+  io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
+  vim.cmd('cquit 1')
+end
+" -c "qa!"
+echo "✔ Engine bridge & DevOps suite PASSED."
 
 echo "[7/7] Verifying Visual Test Runner & JaCoCo Coverage (SPEC-1.3)..."
 if bash scripts/validate-test-coverage.sh; then

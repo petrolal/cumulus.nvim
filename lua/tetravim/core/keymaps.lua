@@ -261,12 +261,15 @@ end, { desc = "Toggle Autoformat (Global)" })
 
 -- Universal File Operations: Save, Save All, Save As (Epic 33)
 local function save_current_file()
-  vim.cmd("update")
-  local name = vim.fn.expand("%:t")
+  local name = vim.api.nvim_buf_get_name(0)
   if name == "" then
-    name = "[No Name]"
+    -- Unnamed/scratch buffer: prompt for a file name instead of crashing with E32
+    vim.notify("Buffer has no file name — use :saveas or :w <filename>", vim.log.levels.WARN)
+    return
   end
-  vim.notify("Saved " .. name, vim.log.levels.INFO)
+  vim.cmd("update")
+  local short = vim.fn.fnamemodify(name, ":t")
+  vim.notify("Saved " .. short, vim.log.levels.INFO)
 end
 
 map({ "n", "i" }, "<C-s>", save_current_file, { desc = "Save Current File" })

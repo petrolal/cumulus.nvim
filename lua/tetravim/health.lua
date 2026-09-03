@@ -241,7 +241,10 @@ function M.check()
     )
   end
 
-  local sql_parser_ok = pcall(vim.treesitter.language.add, "sql")
+  -- vim.treesitter.language.add() does not throw when the parser is absent
+  -- (it returns nil, nil), so pcall always reports success. Use get_string_parser
+  -- which raises an error when the parser is not installed.
+  local sql_parser_ok = pcall(vim.treesitter.get_string_parser, "", "sql")
   if sql_parser_ok then
     vim.health.ok("sql Tree-sitter parser: installed (SQL buffer syntax highlighting available)")
   else

@@ -88,7 +88,7 @@ function M.setup()
         end
 
         if visible then
-          for _, k in ipairs(stack.keys) do
+          for _, k in ipairs(stack.keys or {}) do
             if not vim.api.nvim_buf_is_valid(buf) then
               break
             end
