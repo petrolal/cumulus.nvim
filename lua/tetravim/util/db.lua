@@ -24,9 +24,6 @@ local M = {}
 -- internals, dependency caches, or build output on large projects.
 local IGNORED_DIRS = {
   [".git"] = true,
-  [".hg"] = true,
-  [".svn"] = true,
-  [".idea"] = true,
   [".gradle"] = true,
   [".mvn"] = true,
   ["node_modules"] = true,
@@ -35,6 +32,15 @@ local IGNORED_DIRS = {
   ["dist"] = true,
   ["out"] = true,
   [".venv"] = true,
+  ["java"] = true,
+  ["kotlin"] = true,
+  ["scala"] = true,
+  ["groovy"] = true,
+  ["test"] = true,
+  [".idea"] = true,
+  [".vscode"] = true,
+  [".github"] = true,
+  [".ansible"] = true,
 }
 
 local MAX_DEPTH = 8
