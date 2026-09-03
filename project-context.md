@@ -24,7 +24,7 @@ Enterprise-ready Neovim distribution for JVM backend engineering. Lua, Lazy.nvim
 ## Running and verifying
 
 - Full smoke suite: `bash scripts/validate.sh`
-- Component smoke tests: `bash scripts/validate-2-3.sh` (Spring), `scripts/validate-refactor.sh` (Rename/Move), `scripts/validate-extract.sh` (Extraction), `scripts/validate-db.sh` (Dadbod / DB), `scripts/validate-http.sh` (HTTP / REST), `scripts/validate-4-1.sh` (Git Conflicts), `scripts/validate-4-2.sh` (Forge Reviews), `scripts/validate-dap-jvm.sh` (JVM Debugger)
+- Component smoke tests: `bash scripts/validate-2-3.sh` (Spring), `scripts/validate-refactor.sh` (Rename/Move), `scripts/validate-extract.sh` (Extraction), `scripts/validate-db.sh` (Dadbod / DB), `scripts/validate-http.sh` (HTTP / REST), `scripts/validate-4-1.sh` (Git Conflicts), `scripts/validate-4-2.sh` (Forge Reviews), `scripts/validate-dap-jvm.sh` (JVM Debugger), `scripts/validate-test-coverage.sh` (Test Runner & Coverage)
 - Busted unit specs: `nvim --headless -u init.lua -c "Lazy! load plenary.nvim" -c "PlenaryBustedDirectory lua/tetravim/tests/"`
 
 ## Conventions that differ from defaults
@@ -32,6 +32,7 @@ Enterprise-ready Neovim distribution for JVM backend engineering. Lua, Lazy.nvim
 - DevOps keymaps under `<leader>o` (e.g., `<leader>ot` Terraform, `<leader>oc` CloudFormation, `<leader>oy` Ansible, `<leader>od` Docker, `<leader>ok` Helm/K8s) and their validation counterparts (`<leader>otV`, `<leader>ocC`, `<leader>oyV`, `<leader>odV`, `<leader>okV`) are registered globally, not buffer-scoped.
 - Language keymaps under `<leader>c` and JVM refactoring (`<leader>cr`, `<leader>cm`, `<leader>cv`, `<leader>ci`) are registered buffer-locally per FileType (Java, Kotlin).
 - Spring Boot discovery keymaps are under `<leader>js`: `<leader>jse` (Endpoints), `<leader>jsb` (Beans), `<leader>jsd` (Detect App); bare `<leader>js` is a which-key group prefix.
+- Test runner and coverage keymaps are under `<leader>jt` (Tests) and `<leader>jc` (Coverage); global test runner keymaps are under `<leader>t`.
 - Theme system is strictly standardized on the canonical "Tetris" palette; dynamic cloud switching (`<leader>ct`) and external engine theme state are deprecated and removed.
 
 <!-- /bmad:context -->
@@ -39,7 +40,7 @@ Enterprise-ready Neovim distribution for JVM backend engineering. Lua, Lazy.nvim
 ## Commands
 
 - Full smoke suite: `bash scripts/validate.sh`
-- Component smoke suites: `bash scripts/validate-2-3.sh`, `bash scripts/validate-refactor.sh`, `bash scripts/validate-extract.sh`, `bash scripts/validate-db.sh`, `bash scripts/validate-http.sh`, `bash scripts/validate-4-1.sh`, `bash scripts/validate-4-2.sh`, `bash scripts/validate-dap-jvm.sh`
+- Component smoke suites: `bash scripts/validate-2-3.sh`, `bash scripts/validate-refactor.sh`, `bash scripts/validate-extract.sh`, `bash scripts/validate-db.sh`, `bash scripts/validate-http.sh`, `bash scripts/validate-4-1.sh`, `bash scripts/validate-4-2.sh`, `bash scripts/validate-dap-jvm.sh`, `bash scripts/validate-test-coverage.sh`
 - Lightweight dev setup (just symlinks `~/.config/nvim` and syncs plugins, no dependency checks): `bash scripts/dev-init.sh`
 - Format: `stylua lua/ ftplugin/ init.lua` (2-space indent, 120 col width — `stylua.toml`)
 - Reload config after editing `lua/` in a running instance (it's symlinked, changes are live): `:source init.lua`

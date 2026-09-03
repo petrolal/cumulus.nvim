@@ -5,8 +5,8 @@ set -e
 
 echo "=== TetraVim Neovim Distribution Smoke Test ==="
 
-echo "[1/7] Verifying Shell Scripts Syntax (bootstrap.sh, dev-init.sh, validate.sh)..."
-if bash -n bootstrap.sh && bash -n scripts/dev-init.sh && bash -n scripts/validate.sh; then
+echo "[1/7] Verifying Shell Scripts Syntax (bootstrap.sh, dev-init.sh, validate.sh, validate-test-coverage.sh)..."
+if bash -n bootstrap.sh && bash -n scripts/dev-init.sh && bash -n scripts/validate.sh && bash -n scripts/validate-test-coverage.sh; then
   echo "✔ Shell scripts syntax PASSED."
 else
   echo "✖ Shell scripts syntax FAILED."
@@ -104,7 +104,11 @@ if nvim -u init.lua --headless "+lua
   assert(not pcall(require, 'tetravim.util.k8s-validator'), 'k8s-validator.lua must be purged')
   assert(not pcall(require, 'tetravim.util.migrations'), 'migrations.lua must be purged')
   assert(not pcall(require, 'tetravim.util.conflicts'), 'conflicts.lua must be purged')
-  assert(not pcall(require, 'tetravim.util.coverage'), 'coverage.lua must be purged')
+  local cov = require('tetravim.util.coverage')
+  assert(type(cov.load) == 'function', 'coverage.load not found')
+  assert(type(cov.clear) == 'function', 'coverage.clear not found')
+  assert(type(cov.toggle) == 'function', 'coverage.toggle not found')
+  assert(type(cov.parse) == 'function', 'coverage.parse not found')
   assert(not pcall(require, 'tetravim.util.log-indexer'), 'log-indexer.lua must be purged')
   local devops = require('tetravim.core.devops')
   assert(type(devops.cfn_validate) == 'function')
@@ -435,12 +439,21 @@ if nvim -u init.lua --headless "+lua
     jvm_groups[item[1]] = item.group
   end
   assert(jvm_groups['<leader>jp'] == 'profiling', '<leader>jp missing in jvm whichkey_spec')
+  assert(jvm_groups['<leader>jc'] == 'code coverage', '<leader>jc missing in jvm whichkey_spec')
+  assert(jvm_groups['<leader>jt'] == 'test runner', '<leader>jt missing in jvm whichkey_spec')
 
   -- Verify actual keymap registration
   jvm.setup_keymaps()
   assert(vim.fn.maparg('<leader>jps', 'n') ~= '', '<leader>jps keymap not registered')
   assert(vim.fn.maparg('<leader>jpx', 'n') ~= '', '<leader>jpx keymap not registered')
   assert(vim.fn.maparg('<leader>jpv', 'n') ~= '', '<leader>jpv keymap not registered')
+  assert(vim.fn.maparg('<leader>jcl', 'n') ~= '', '<leader>jcl keymap not registered')
+  assert(vim.fn.maparg('<leader>jcx', 'n') ~= '', '<leader>jcx keymap not registered')
+  assert(vim.fn.maparg('<leader>jct', 'n') ~= '', '<leader>jct keymap not registered')
+  assert(vim.fn.maparg('<leader>jcs', 'n') ~= '', '<leader>jcs keymap not registered')
+  assert(vim.fn.maparg('<leader>jtt', 'n') ~= '', '<leader>jtt keymap not registered')
+  assert(vim.fn.maparg('<leader>jtc', 'n') ~= '', '<leader>jtc keymap not registered')
+  assert(vim.fn.maparg('<leader>jta', 'n') ~= '', '<leader>jta keymap not registered')
 
   -- Cleanup mock workspace
   vim.fn.delete(tmp_root, 'rf')
@@ -454,6 +467,14 @@ if nvim -u init.lua --headless "+lua
   echo "✔ Engine bridge & DevOps suite PASSED."
 else
   echo "✖ Engine bridge & DevOps suite FAILED."
+  exit 1
+fi
+
+echo "[7/7] Verifying Visual Test Runner & JaCoCo Coverage (SPEC-1.3)..."
+if bash scripts/validate-test-coverage.sh; then
+  echo "✔ Test runner & coverage suite PASSED."
+else
+  echo "✖ Test runner & coverage suite FAILED."
   exit 1
 fi
 

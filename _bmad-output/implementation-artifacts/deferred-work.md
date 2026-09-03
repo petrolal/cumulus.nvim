@@ -195,3 +195,14 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-3-native-spring-boot-discovery-legacy-engine-deprecation.md`
   summary: Explicit stereotype bean names are ignored. `@Service("customName")` / `@Component("x")` / `@Repository("y")` still key the picker rows and graph edges on the decapitalized class name, so beans wired by their explicit name and referenced that way elsewhere are mislabeled and their edges can fail to connect.
   evidence: bmad-review edge-case-hunter, 2026-09-02 (review iteration 1). Deferred: the frozen Design Notes fix the display name as "decapitalized type"; honoring the annotation's string argument is an additive change to `_beans_in_content`.
+
+## Deferred from: code review (2026-09-03)
+
+- source_spec: none
+  summary: Language-scoped keymap registry `stacks` in `lua/tetravim/core/lang-keymaps.lua` is never populated via `register()`.
+  evidence: Code review 2026-09-03. Search across the entire codebase revealed 0 callers of `lang_keymaps.register()`. `AGENTS.md` notes that language keymaps under `<leader>c` should be registered buffer-locally, but ftplugins and `jvm.lua` currently bypass it, leaving the dynamic WhichKey scoping infrastructure inactive.
+
+- source_spec: none
+  summary: Non-hierarchical JDBC URLs (`jdbc:h2:mem:...`, `jdbc:sqlite:...`) are dropped by `jdbc_to_dadbod_url` in `lua/tetravim/util/db.lua`.
+  evidence: Code review 2026-09-03. `jdbc_to_dadbod_url` matches `^([%w%+]+)://(.*)$`. URLs without `://` return nil, preventing embedded dev databases (such as in-memory H2 or SQLite) from being discovered.
+

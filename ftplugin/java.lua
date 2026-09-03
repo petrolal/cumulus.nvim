@@ -47,7 +47,10 @@ local root_dir = (opts.root_dir and opts.root_dir(fname))
   or (fname and fname ~= "" and vim.fs.dirname(fname))
   or vim.fn.getcwd()
 
-local project_name = vim.fn.fnamemodify(root_dir, ":p:h:t")
+local project_name = vim.fs.basename(root_dir)
+if not project_name or project_name == "" then
+  project_name = vim.fn.fnamemodify(root_dir, ":p:h:t")
+end
 local workspace_dir = vim.fn.stdpath("cache") .. "/jdtls/workspace/" .. project_name
 local has_data = false
 for _, arg in ipairs(cmd) do

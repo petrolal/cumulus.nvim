@@ -12,7 +12,12 @@ M.offline_mode = false
 
 -- Consistent notification helper for JVM operations
 local function notify_error(msg)
-  engine.notify_warn(msg, "TetraVim JVM")
+  local ok, engine = pcall(require, "tetravim.util.engine")
+  if ok and engine.notify_warn then
+    engine.notify_warn(msg, "TetraVim JVM")
+  else
+    vim.notify(msg, vim.log.levels.WARN, { title = "TetraVim JVM" })
+  end
 end
 
 local function notify_info(msg)
@@ -25,6 +30,7 @@ function M.whichkey_spec()
     { "<leader>j", group = "jvm platform", icon = "☕ " },
     { "<leader>jb", group = "build & tasks", icon = "󰒓 " },
     { "<leader>jt", group = "test runner", icon = "󰙨 " },
+    { "<leader>jc", group = "code coverage", icon = "󰙨 " },
     { "<leader>jr", group = "run & execute", icon = "󰐊 " },
     { "<leader>js", group = "spring & frameworks", icon = "󱎘 " },
     { "<leader>jx", group = "refactor & jdtls", icon = "󰨞 " },
@@ -330,16 +336,89 @@ function M.setup_keymaps()
 
   -- 2. Test Runner (<leader>jt)
   map("n", "<leader>jta", function()
+    local ok, neotest = pcall(require, "neotest")
+    if ok then
+      local call_ok, _ = pcall(function()
+        neotest.run.run(vim.fn.getcwd())
+      end)
+      if call_ok then
+        return
+      end
+    end
     run_tests("all")
   end, { desc = "Run All Tests in Workspace" })
 
   map("n", "<leader>jtt", function()
+    local ok, neotest = pcall(require, "neotest")
+    if ok then
+      local call_ok, _ = pcall(function()
+        neotest.run.run()
+      end)
+      if call_ok then
+        return
+      end
+    end
     run_tests("nearest")
   end, { desc = "Run Nearest Test Method" })
 
   map("n", "<leader>jtc", function()
+    local ok, neotest = pcall(require, "neotest")
+    if ok then
+      local file = vim.api.nvim_buf_get_name(0)
+      if not file or file == "" or vim.bo.buftype ~= "" then
+        engine.notify_warn("Current buffer is not a runnable file", "TetraVim Test")
+        return
+      end
+      local call_ok, _ = pcall(function()
+        neotest.run.run(file)
+      end)
+      if call_ok then
+        return
+      end
+    end
     run_tests("class")
-  end, { desc = "Run Current Test Class" })
+  end, { desc = "Run Current Test Class / File" })
+
+  map("n", "<leader>jts", function()
+    local ok, neotest = pcall(require, "neotest")
+    if ok then
+      pcall(function()
+        neotest.summary.toggle()
+      end)
+    else
+      engine.notify_warn("neotest is not available", "TetraVim Test")
+    end
+  end, { desc = "Toggle Test Summary Tree" })
+
+  map("n", "<leader>jto", function()
+    local ok, neotest = pcall(require, "neotest")
+    if ok then
+      pcall(function()
+        neotest.output_panel.toggle()
+      end)
+    else
+      engine.notify_warn("neotest is not available", "TetraVim Test")
+    end
+  end, { desc = "Toggle Test Output Panel" })
+
+  map("n", "<leader>jtd", function()
+    local ok, neotest = pcall(require, "neotest")
+    if not ok then
+      engine.notify_warn("neotest is not available", "TetraVim Test")
+      return
+    end
+    local dap_ok, _ = pcall(require, "dap")
+    if not dap_ok then
+      engine.notify_warn("DAP debugger is not configured", "TetraVim Test")
+      return
+    end
+    local call_ok, err = pcall(function()
+      neotest.run.run({ strategy = "dap" })
+    end)
+    if not call_ok then
+      engine.notify_warn("Failed to debug nearest test: " .. tostring(err), "TetraVim Test")
+    end
+  end, { desc = "Debug Nearest Test (DAP)" })
 
   map("n", "<leader>jtp", function()
     local ok, jdtls = pcall(require, "jdtls")
@@ -349,6 +428,23 @@ function M.setup_keymaps()
       notify_error("jdtls is not loaded")
     end
   end, { desc = "JDTLS: Pick & Run Test" })
+
+  -- Code Coverage (<leader>jc)
+  map("n", "<leader>jcl", function()
+    require("tetravim.util.coverage").load()
+  end, { desc = "Load JaCoCo Coverage Report" })
+
+  map("n", "<leader>jcx", function()
+    require("tetravim.util.coverage").clear()
+  end, { desc = "Clear Coverage Overlays" })
+
+  map("n", "<leader>jct", function()
+    require("tetravim.util.coverage").toggle()
+  end, { desc = "Toggle Coverage Display" })
+
+  map("n", "<leader>jcs", function()
+    require("tetravim.util.coverage").summary()
+  end, { desc = "Show Coverage Summary" })
 
   -- 3. Run & Execute (<leader>jr)
   -- NOTE: Framework detection (Spring Boot vs Quarkus) remains in Lua for fast local detection.

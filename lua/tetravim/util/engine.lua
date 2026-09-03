@@ -592,11 +592,16 @@ function M.parse_checkstyle(xml_content)
   return call_engine_command({ "parse-checkstyle" }, xml_content, "parse-checkstyle")
 end
 
---- Parse JaCoCo coverage XML file using Scala engine
+--- Parse JaCoCo coverage XML file using native Lua coverage parser
 ---@param file_path string
 ---@return table[]|nil Array of { file = string, covered_lines = number[], missed_lines = number[] }
 function M.parse_coverage(file_path)
-  return call_engine_command({ "parse-coverage", "--file", file_path }, nil, "parse-coverage")
+  local cov = require("tetravim.util.coverage")
+  local parsed = cov.parse(file_path)
+  if not parsed then
+    return nil
+  end
+  return parsed.entries
 end
 
 --- Validate Flyway migration scripts in directory using Scala engine
@@ -1155,37 +1160,9 @@ M.resolve_conflicts = M.resolve_git_conflicts
 
 --- Load JaCoCo code coverage report and populate diagnostics.
 ---@param xml_path? string
-local coverage_ns = vim.api.nvim_create_namespace("tetravim_coverage")
 function M.view_coverage(xml_path)
-  M.assert_available("jvm-build")
-  xml_path = xml_path or (vim.fn.getcwd() .. "/target/site/jacoco/jacoco.xml")
-
-  local entries = M.parse_coverage(xml_path)
-  if not entries or #entries == 0 then
-    vim.notify("No JaCoCo coverage report found at: " .. xml_path, vim.log.levels.WARN)
-    return
-  end
-
-  vim.diagnostic.clear(coverage_ns)
-
-  for _, entry in ipairs(entries) do
-    local bufnr = vim.fn.bufnr(entry.file, false)
-    if bufnr ~= -1 and vim.api.nvim_buf_is_valid(bufnr) then
-      local diags = {}
-      for _, lnr in ipairs(entry.missed_lines) do
-        table.insert(diags, {
-          lnum = math.max(0, lnr - 1),
-          col = 0,
-          message = "Uncovered line (JaCoCo)",
-          severity = vim.diagnostic.severity.WARN,
-          source = "JaCoCo",
-        })
-      end
-      vim.diagnostic.set(coverage_ns, bufnr, diags)
-    end
-  end
-
-  vim.notify("JaCoCo coverage loaded successfully", vim.log.levels.INFO)
+  local cov = require("tetravim.util.coverage")
+  return cov.load(xml_path)
 end
 M.load_coverage = M.view_coverage
 

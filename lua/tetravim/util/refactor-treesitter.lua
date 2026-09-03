@@ -64,7 +64,7 @@ end
 ---@return { col: integer, end_col: integer }[] 1-based, end exclusive
 function M._find_all_occurrences(line, symbol)
   local occurrences = {}
-  local pattern = "%f[%w]" .. vim.pesc(symbol) .. "%f[%W]"
+  local pattern = "%f[%w_]" .. vim.pesc(symbol) .. "%f[^%w_]"
   local init = 1
   while true do
     local s, e = line:find(pattern, init)
