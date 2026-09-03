@@ -139,11 +139,6 @@ end
 --- Setup load-time availability check and cache invalidation autocmds.
 ---@private
 local function setup_availability_check()
-  -- Initial check at module load
-  if not M.is_available() then
-    vim.notify("tetravim-engine: binary not found (will check on first use)", vim.log.levels.INFO)
-  end
-
   -- Register autocmds for workspace cache invalidation and binary re-detection
   local group = vim.api.nvim_create_augroup("tetravim_engine", { clear = true })
 
@@ -1026,20 +1021,55 @@ end
 -- ⭐ Consolidated UI Pickers & Actions (Story 13.1)
 -- ==============================================================================
 
---- Optimize Java/Kotlin imports in the current active buffer.
+--- Optimize Java/Kotlin imports in the current active buffer via standard JDTLS/LSP.
 function M.optimize_imports_buffer()
-  M.assert_available("jvm-build")
   local bufnr = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local content = table.concat(lines, "\n")
+  local ft = vim.bo[bufnr].filetype
 
-  local new_lines = M.optimize_imports(content)
-  if new_lines and #new_lines > 0 then
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
-    vim.notify("Imports optimized successfully", vim.log.levels.INFO)
-  else
-    vim.notify("Import optimization unchanged", vim.log.levels.INFO)
+  -- 1. Standard JDTLS organize imports for Java
+  if ft == "java" then
+    local ok_jdtls, jdtls = pcall(require, "jdtls")
+    if ok_jdtls and jdtls.organize_imports then
+      jdtls.organize_imports()
+      return
+    end
   end
+
+  -- 2. Standard Neovim LSP codeAction organizeImports
+  local params = vim.lsp.util.make_range_params()
+  params.context = { only = { "source.organizeImports" } }
+  local responses = vim.lsp.buf_request_sync(bufnr, "textDocument/codeAction", params, 1000)
+  if responses then
+    for _, resp in pairs(responses) do
+      for _, action in ipairs(resp.result or {}) do
+        if
+          action.kind == "source.organizeImports" or (action.title and action.title:lower():find("organize import"))
+        then
+          if action.edit then
+            vim.lsp.util.apply_workspace_edit(action.edit, "utf-8")
+          elseif action.command then
+            vim.lsp.buf.execute_command(action.command)
+          end
+          vim.notify("Imports organized via LSP", vim.log.levels.INFO)
+          return
+        end
+      end
+    end
+  end
+
+  -- 3. Fallback if engine is available
+  if M.is_available() then
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local content = table.concat(lines, "\n")
+    local new_lines = M.optimize_imports(content)
+    if new_lines and #new_lines > 0 then
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
+      vim.notify("Imports optimized successfully", vim.log.levels.INFO)
+      return
+    end
+  end
+
+  vim.notify("No LSP or organizer available to optimize imports", vim.log.levels.INFO)
 end
 
 --- Validate Kubernetes manifest in the current buffer and populate diagnostics.

@@ -5,8 +5,8 @@ set -e
 
 echo "=== TetraVim Neovim Distribution Smoke Test ==="
 
-echo "[1/7] Verifying Shell Scripts Syntax (bootstrap.sh, install.sh, validate.sh)..."
-if bash -n bootstrap.sh && bash -n scripts/install.sh && bash -n scripts/validate.sh; then
+echo "[1/7] Verifying Shell Scripts Syntax (bootstrap.sh, dev-init.sh, validate.sh)..."
+if bash -n bootstrap.sh && bash -n scripts/dev-init.sh && bash -n scripts/validate.sh; then
   echo "✔ Shell scripts syntax PASSED."
 else
   echo "✖ Shell scripts syntax FAILED."

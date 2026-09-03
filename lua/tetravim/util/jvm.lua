@@ -436,33 +436,22 @@ function M.setup_keymaps()
   end, { desc = "Spring: Detect Boot App" })
 
   map("n", "<leader>jsm", function()
-    require("tetravim.util.engine").validate_migrations_action()
-  end, { desc = "Flyway: Validate Migrations" })
+    vim.notify("Use <leader>db to explore database schemas and migrations via Dadbod UI", vim.log.levels.INFO)
+  end, { desc = "Flyway: Database Explorer" })
 
   -- 5. Refactoring & JDTLS (<leader>jx)
   map("n", "<leader>jxo", function()
     require("tetravim.util.engine").optimize_imports_buffer()
-  end, { desc = "Optimize Java/Kotlin Imports" })
+  end, { desc = "Optimize Java/Kotlin Imports (JDTLS/LSP)" })
 
   map("n", "<leader>jxH", function()
-    local engine = require("tetravim.util.engine")
-    if not _G.tetravim_jdtls_start_time then
-      notify_error("JDTLS not started yet")
-      return
-    end
-    local cwd = vim.fn.getcwd()
-    local status = engine.check_jdtls_sync(cwd, _G.tetravim_jdtls_start_time)
-    if status and status.sync_needed then
-      vim.notify(
-        "JDTLS classpath is stale (modified: "
-          .. (status.modified_file or "unknown")
-          .. "). Run dependency sync and JdtRestart.",
-        vim.log.levels.WARN
-      )
+    local clients = vim.lsp.get_clients({ name = "jdtls" })
+    if #clients > 0 then
+      vim.notify("JDTLS is active and connected to project", vim.log.levels.INFO)
     else
-      vim.notify("JDTLS classpath is in sync", vim.log.levels.INFO)
+      vim.notify("JDTLS is not active for this buffer", vim.log.levels.WARN)
     end
-  end, { desc = "JDTLS: Check Classpath Sync" })
+  end, { desc = "JDTLS: Check Client Status" })
 
   -- 6. Profiling (<leader>jp)
   map("n", "<leader>jps", function()
@@ -479,35 +468,30 @@ function M.setup_keymaps()
 
   -- 7. Dependencies (<leader>jd)
   map("n", "<leader>jdu", function()
-    local filepath = vim.api.nvim_buf_get_name(0)
-    local engine = require("tetravim.util.engine")
-    if engine.is_available() then
-      local lenses = engine.check_dep_versions(filepath)
-      if lenses and #lenses > 0 then
-        vim.notify(string.format("Found %d dependencies to check", #lenses), vim.log.levels.INFO)
-      else
-        vim.notify("No dependencies found or already up-to-date", vim.log.levels.INFO)
-      end
-    end
+    vim.notify("Use <leader>jds to resync dependencies via Maven/Gradle", vim.log.levels.INFO)
   end, { desc = "Check Dependency Versions" })
 
   map("n", "<leader>jds", resync_dependencies, { desc = "Maven/Gradle: Resync Dependencies" })
 
-  -- 7. Engine & Diagnostics (<leader>ji)
+  -- 8. Environment & Diagnostics (<leader>ji)
   map("n", "<leader>jii", function()
-    local engine = require("tetravim.util.engine")
-    local p = engine.ping()
-    if p then
-      vim.notify(
-        string.format("TetraVim Engine Active\nVersion: %s\nScala: %s\nCommit: %s", p.version, p.scala, p.commit),
-        vim.log.levels.INFO
-      )
-    else
-      vim.notify("TetraVim Engine is not active", vim.log.levels.WARN)
+    local clients = vim.lsp.get_clients()
+    local client_names = {}
+    for _, c in ipairs(clients) do
+      table.insert(client_names, c.name)
     end
-  end, { desc = "TetraVim Engine: Status & Ping" })
+    local ver = vim.version()
+    local msg = string.format(
+      "TetraVim JVM Environment\nActive LSPs: %s\nNeovim: v%d.%d.%d",
+      #client_names > 0 and table.concat(client_names, ", ") or "None",
+      ver.major,
+      ver.minor,
+      ver.patch
+    )
+    vim.notify(msg, vim.log.levels.INFO)
+  end, { desc = "JVM Environment: LSP Status" })
 
-  map("n", "<leader>jid", "<cmd>TetraVimInstallEngine<cr>", { desc = "TetraVim Engine: Download Binary" })
+  map("n", "<leader>jid", "<cmd>Mason<cr>", { desc = "Mason Package Manager" })
   map("n", "<leader>jih", "<cmd>checkhealth tetravim<cr>", { desc = "TetraVim Health Check" })
 
   -- Dynamic WhichKey registration if already loaded

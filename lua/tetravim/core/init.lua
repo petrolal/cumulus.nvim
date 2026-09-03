@@ -3,7 +3,10 @@ require("tetravim.core.options")
 require("tetravim.core.keymaps")
 require("tetravim.core.autocmds")
 
--- Register :TetraVimInstallEngine command (Story 7.2)
+-- Legacy command compatibility shim
 vim.api.nvim_create_user_command("TetraVimInstallEngine", function()
-  require("tetravim.util.engine").install()
-end, { desc = "Download and install pre-built tetravim-engine binary" })
+  vim.notify(
+    "TetraVim engine binary is decommissioned. TetraVim now uses native Neovim LSPs and Mason tools (:Mason).",
+    vim.log.levels.INFO
+  )
+end, { desc = "Deprecated: engine is replaced by native LSPs and Mason" })

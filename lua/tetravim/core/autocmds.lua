@@ -186,92 +186,35 @@ vim.api.nvim_create_autocmd("BufNewFile", {
       return
     end
 
-    local engine = require("tetravim.util.engine")
-    local lines = nil
-    if engine.is_available() then
-      lines = engine.generate_java_header(filepath)
+    local package_path = filepath:match("src/[^/]+/java/(.+)%/" .. filename .. "%.java")
+      or filepath:match("src/(.+)%/" .. filename .. "%.java")
+
+    local lines = {}
+    if package_path then
+      local package_name = package_path:gsub("/", ".")
+      table.insert(lines, "package " .. package_name .. ";")
+      table.insert(lines, "")
     end
 
-    if not lines then
-      local package_path = filepath:match("src/[^/]+/java/(.+)%/" .. filename .. "%.java")
-        or filepath:match("src/(.+)%/" .. filename .. "%.java")
-
-      lines = {}
-      if package_path then
-        local package_name = package_path:gsub("/", ".")
-        table.insert(lines, "package " .. package_name .. ";")
-        table.insert(lines, "")
-      end
-
-      table.insert(lines, "public class " .. filename .. " {")
-      table.insert(lines, "    ")
-      table.insert(lines, "}")
-    end
+    table.insert(lines, "public class " .. filename .. " {")
+    table.insert(lines, "    ")
+    table.insert(lines, "}")
 
     vim.api.nvim_buf_set_lines(event.buf, 0, -1, false, lines)
     vim.api.nvim_win_set_cursor(0, { #lines - 1, 4 })
   end,
 })
 
--- Instant Java & Kotlin CodeLens rendering via Scala engine (SPEC-027)
-local codelens_ns = vim.api.nvim_create_namespace("tetravim_codelens")
-vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
-  group = augroup("instant_codelens"),
+-- Native LSP CodeLens auto-refresh for Java & Kotlin buffers
+vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
+  group = augroup("lsp_codelens"),
   pattern = { "*.java", "*.kt" },
   callback = function(event)
-    local engine = require("tetravim.util.engine")
-    if not engine.is_available() then
-      return
-    end
-
-    local filepath = vim.api.nvim_buf_get_name(event.buf)
-    if filepath == "" or vim.fn.filereadable(filepath) == 0 then
-      return
-    end
-
-    local items = engine.extract_codelens(filepath)
-    vim.api.nvim_buf_clear_namespace(event.buf, codelens_ns, 0, -1)
-
-    if items and #items > 0 then
-      for _, item in ipairs(items) do
-        local lnum = math.max(0, item.line - 1)
-        vim.api.nvim_buf_set_extmark(event.buf, codelens_ns, lnum, 0, {
-          virt_text = { { "  " .. item.title, "Comment" } },
-          virt_text_pos = "eol",
-        })
-      end
-    end
-  end,
-})
-
--- Dependency version hints in build files (SPEC-009)
-local dep_lens_ns = vim.api.nvim_create_namespace("tetravim_dep_lens")
-vim.api.nvim_create_autocmd({ "BufReadPost", "BufWritePost" }, {
-  group = augroup("dep_lens"),
-  pattern = { "pom.xml", "build.gradle", "build.gradle.kts", "libs.versions.toml" },
-  callback = function(event)
-    local engine = require("tetravim.util.engine")
-    if not engine.is_available() then
-      return
-    end
-
-    local filepath = vim.api.nvim_buf_get_name(event.buf)
-    if filepath == "" or vim.fn.filereadable(filepath) == 0 then
-      return
-    end
-
-    local lenses = engine.check_dep_versions(filepath)
-    vim.api.nvim_buf_clear_namespace(event.buf, dep_lens_ns, 0, -1)
-
-    if lenses and #lenses > 0 then
-      for _, lens in ipairs(lenses) do
-        local lnum = math.max(0, lens.line - 1)
-        local text =
-          string.format("Current: %s → Latest: %s [%s]", lens.current_version, lens.latest_version, lens.age_status)
-        vim.api.nvim_buf_set_extmark(event.buf, dep_lens_ns, lnum, 0, {
-          virt_text = { { text, "Comment" } },
-          virt_text_pos = "eol",
-        })
+    local clients = vim.lsp.get_clients({ bufnr = event.buf })
+    for _, client in ipairs(clients) do
+      if client.supports_method("textDocument/codeLens") then
+        pcall(vim.lsp.codelens.refresh, { bufnr = event.buf })
+        break
       end
     end
   end,
