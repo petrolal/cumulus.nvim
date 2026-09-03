@@ -259,6 +259,13 @@ map("n", "<leader>uF", function()
   require("tetravim.util.format").toggle(false)
 end, { desc = "Toggle Autoformat (Global)" })
 
+-- Background transparency toggle: blanks the editor / float surfaces so a
+-- translucent terminal shows through, restores the Tetris surfaces on the
+-- way back.
+map("n", "<leader>ut", function()
+  require("tetravim.util.transparency").toggle()
+end, { desc = "Toggle Transparency" })
+
 -- Universal File Operations: Save, Save All, Save As (Epic 33)
 local function save_current_file()
   local name = vim.api.nvim_buf_get_name(0)

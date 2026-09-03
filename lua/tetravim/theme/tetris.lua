@@ -204,6 +204,19 @@ function M.highlights()
     WinBar = { fg = p.fg, bg = p.bg },
     WinBarNC = { fg = p.gray, bg = p.bg },
 
+    -- dropbar.nvim breadcrumbs: dim path trail, I-piece cyan for the
+    -- symbol the cursor is currently inside, rounded surface menu.
+    DropBarIconUISeparator = { fg = p.gray },
+    DropBarIconUISeparatorMenu = { fg = p.gray },
+    DropBarIconUIPickPivot = { fg = p.yellow_pure, bold = true },
+    DropBarCurrentContext = { fg = p.cyan, bg = p.bg },
+    DropBarMenuNormalFloat = { fg = p.fg, bg = p.surface },
+    DropBarMenuFloatBorder = { fg = p.gray, bg = p.surface },
+    DropBarMenuCurrentContext = { bg = p.surface_hi },
+    DropBarMenuHoverEntry = { bg = p.surface_hi, bold = true },
+    DropBarMenuHoverIcon = { fg = p.cyan_pure, bg = p.surface_hi },
+    DropBarPreview = { bg = p.surface },
+
     -- Messages
     ErrorMsg = { fg = p.red, bold = true },
     WarningMsg = { fg = diag_warn },

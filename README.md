@@ -21,6 +21,25 @@ Previously, this project relied on a custom background Scala engine. We are acti
 
 ---
 
+## Requirements
+
+| Requirement | Notes |
+| --- | --- |
+| **Neovim ≥ 0.11** | Uses the native `vim.lsp.config`/`vim.lsp.enable` API, `vim.diagnostic.jump`, and `winborder`. |
+| **A Nerd Font (v3.0+)** | **Required.** The dashboard, statusline, bufferline, winbar breadcrumbs, which-key groups, file-tree and completion menus all render Nerd Font glyphs — without one you get tofu boxes (`􏿽`). Install any patched font from [nerdfonts.com](https://www.nerdfonts.com/font-downloads) (e.g. *JetBrainsMono Nerd Font*, *FiraCode Nerd Font*) and select it as your **terminal**'s font. `vim.g.have_nerd_font` is already set. |
+| **True-color terminal** | `termguicolors` is enabled; use a terminal with 24-bit colour (WezTerm, Kitty, Alacritty, Ghostty, modern iTerm2 / Windows Terminal). |
+| **`git`, `ripgrep`, `make`, a C compiler** | For `lazy.nvim`, Telescope live-grep, and `telescope-fzf-native` / treesitter parser builds. |
+
+### Appearance toggles
+
+| Keys | Action |
+| --- | --- |
+| `<leader>ut` | Toggle background transparency (lets a translucent terminal show through). |
+| `<leader>cb` | Open the winbar breadcrumb symbol picker. |
+| `[;` / `];` | Jump to / descend into the enclosing code context. |
+
+---
+
 ## Installation
 
 ### Quick Shell Bootstrap
