@@ -35,7 +35,7 @@ Bring the version-control and pull-request workflow fully inside the editor so a
 
 ## UX & Interaction Patterns
 
-- Keymaps slot into the existing mnemonic `<leader>` hierarchy (`<leader>c` Code, `<leader>j` Java/JVM, `<leader>o` DevOps, `<leader>d` Debug, `<leader>ct` Cloud Theme). Git has no reserved prefix yet — choose one consistent mnemonic and keep every command under it; do not introduce an ad-hoc scheme.
+- Keymaps slot into the established mnemonic `<leader>` hierarchy (`<leader>c` Code, `<leader>j` Java/JVM, `<leader>o` DevOps, `<leader>d` Debug, `<leader>g` Git & Collaboration, `<leader>db` Database, `<leader>H` HTTP). Git features live under `<leader>g`: `<leader>gc*` for conflict resolution and `<leader>gr*` for code reviews.
 - List-style choices (pick a PR, pick a conflicted file, jump to a review thread) use the standard fuzzy-searchable Telescope / Snacks picker with preview enabled.
 - In-flight operations show a spinner or Snacks notification; completion shows a toast. Success states stay quiet (a statusline flash / tick); errors must be visible, explicit, and never silently swallowed, and should say what happened and how to fix it.
 - The Lualine statusline already shows the current git branch on the left; conflict / review state can surface there.

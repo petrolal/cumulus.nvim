@@ -27,11 +27,13 @@ The interface is divided into functional zones:
 
 ## Keymap Hierarchy
 TetraVim strictly adheres to a mnemonic `<leader>`-based hierarchy to organize enterprise workflows:
-- `<leader>c`: **Code** operations (Rename, Code Action, Format)
-- `<leader>j`: **Java/JVM** specific operations (`<leader>jsb` for Spring Beans, `<leader>jt` for tests)
-- `<leader>o`: **DevOps / Operations** (Terraform, Ansible, Kubernetes)
+- `<leader>c`: **Code** operations (Rename `<leader>cr`, Extraction `<leader>cm`/`<leader>cv`/`<leader>ci`, Code Action, Format)
+- `<leader>j`: **Java/JVM** specific operations (`<leader>jsb` Spring Beans, `<leader>jse` Spring Endpoints, `<leader>jsd` Detect Boot App, `<leader>jt` tests)
+- `<leader>o`: **DevOps / Operations** (Terraform `<leader>ot`, Ansible `<leader>oy`, Docker `<leader>od`, Kubernetes `<leader>ok`, CloudFormation `<leader>oc`)
 - `<leader>d`: **Debug** (DAP interactions)
-- `<leader>ct`: **Cloud Theme** toggling
+- `<leader>g`: **Git / Collaboration** (Conflict resolution `<leader>gc*`, Forge reviews `<leader>gr*`)
+- `<leader>db`: **Database** exploration (Dadbod UI)
+- `<leader>H`: **HTTP / REST** testing (Kulala, OpenAPI)
 
 ## Pickers & Navigation
 When a user requests a list (Spring Beans, Endpoints, Files), the interface responds with a fuzzy-searchable Telescope or Snacks picker. 
@@ -56,7 +58,7 @@ Enterprise JVM builds and cloud deployments take time.
 # Accessibility Floor
 
 - **Keyboard First**: Every single action must be accessible without a mouse.
-- **Contrast**: Rely on highly legible, tested colorschemes (Catppuccin/Tokyonight) that meet WCAG AA for text.
+- **Contrast**: Rely on the canonical, high-contrast "Tetris" palette that meets WCAG AA for text.
 - **Screen Reader [ASSUMPTION]**: TUI environments are inherently challenging for screen readers, but keeping UI elements standard (quickfix lists instead of complex floating UIs for errors) aids compatibility.
 
 # Key Flows

@@ -39,16 +39,6 @@ So that I can navigate my project without relying on the legacy tetravim-engine.
 **Then** Tree-sitter parses the controller AST
 **And** a Telescope picker displays the endpoints.
 
-### Story 1.3: Dynamic Cloud Theming Overlays
-As a Cloud developer,
-I want the IDE accents to reflect my active cloud environment,
-So I always know which context I'm operating in.
-
-**Acceptance Criteria:**
-**Given** the IDE is running
-**When** I trigger `<leader>ct` and select AWS
-**Then** the UI borders and Lualine accents change to Amazon Orange.
-
 ### Story 1.4: Event-Driven Headless Builds
 As a backend engineer,
 I want Maven/Gradle to build headlessly in the background,

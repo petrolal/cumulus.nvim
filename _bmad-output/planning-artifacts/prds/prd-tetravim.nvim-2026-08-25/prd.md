@@ -25,8 +25,8 @@ updated: 2026-08-25
 ### 3.1. Language & Framework Intelligence
 - **[F-01] Java & Kotlin Support:** Full LSP-backed intelligence via `nvim-jdtls` and `kotlin-language-server`.
   - *AC:* Auto-completion, go-to-definition, and signature help respond in <200ms.
-- **[F-02] Spring Boot Integration:** Auto-discovery of REST endpoints and bean visualization via `spring-boot.nvim`.
-  - *AC:* User can trigger a telescope picker to search all mapped REST endpoints in the project.
+- **[F-02] Spring Boot Integration:** Pure Lua Tree-sitter discovery of REST endpoints, interactive bean graph visualization, and native DAP generation.
+  - *AC:* User can trigger a telescope picker (`<leader>jse`) to search all mapped REST endpoints, inspect bean dependencies (`<leader>jsb`), and detect application configuration (`<leader>jsd`) without legacy engine dependencies.
 
 ### 3.2. Build, Test, and Refactoring
 - **[F-03] Neovim-Native Project Generator:** A dedicated Telescope/UI layer to initialize new Maven and Gradle projects from scratch. Captures the essence of IntelliJ's generator (e.g., Spring Initializr integration, archetype selection) but tailored to Neovim's keyboard-centric philosophy.
@@ -49,8 +49,8 @@ updated: 2026-08-25
   - *AC:* Missing required K8s fields are highlighted as diagnostics in the buffer.
 - **[F-10] Database Tooling:** Embedded database exploration and Flyway script validation using `vim-dadbod` and `vim-dadbod-ui`.
   - *AC:* User can execute SQL queries against a live local Postgres database directly from a `.sql` buffer.
-- **[F-11] Thematic Cloud Workspaces:** Dynamic multi-cloud theme switching tailored to specific environments (AWS, Azure, GCP, OCI).
-  - *AC:* Executing a theme toggle command updates the global Neovim colorscheme immediately.
+- **[F-11] Thematic Visual Identity:** Canonical "Tetris" palette with 7 semantic tetromino token colors consistently applied across syntax highlighting, statusline, and UI chrome.
+  - *AC:* Color schemes and highlight overrides initialize predictably without external binary bridges.
 
 ## 4. Constraints & Non-Functional Requirements
 - **[NFR-01] Performance & Async UI:** The editor UI must remain completely unblocked. All LSP and background operations must be strictly asynchronous.

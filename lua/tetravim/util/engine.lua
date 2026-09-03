@@ -597,17 +597,6 @@ function M.parse_checkstyle(xml_content)
   return call_engine_command({ "parse-checkstyle" }, xml_content, "parse-checkstyle")
 end
 
---- Extract REST endpoints from directory using Scala engine
----@param dir_path string
----@return table[]|nil Array of { file = string, line = number, http_method = string, path = string, class_name = string, handler_name = string }
-function M.extract_endpoints(dir_path)
-  local res = call_engine_command({ "extract-endpoints", "--dir", dir_path }, nil, "extract-endpoints")
-  if not res then
-    return nil
-  end
-  return res.endpoints or res
-end
-
 --- Parse JaCoCo coverage XML file using Scala engine
 ---@param file_path string
 ---@return table[]|nil Array of { file = string, covered_lines = number[], missed_lines = number[] }
@@ -620,17 +609,6 @@ end
 ---@return table[]|nil Array of { file = string, line = number|nil, severity = string, message = string }
 function M.validate_migrations(dir_path)
   return call_engine_command({ "validate-migrations", "--dir", dir_path }, nil, "validate-migrations")
-end
-
---- Extract Spring Bean dependencies from directory using Scala engine
----@param dir_path string
----@return table[]|nil Array of { class_name = string, bean_name = string, file = string, line = number, injected_deps = string[] }
-function M.parse_spring_beans(dir_path)
-  local res = call_engine_command({ "parse-spring-beans", "--dir", dir_path }, nil, "parse-spring-beans")
-  if not res then
-    return nil
-  end
-  return res.beans or res
 end
 
 --- Index log content using Scala engine
@@ -738,13 +716,6 @@ end
 ---@return { success: boolean, cleaned_lines: number, total_lines: number }|nil
 function M.sanitize_session(file_path)
   return call_engine_command({ "session-sanitize", "--file", file_path }, nil, "session-sanitize")
-end
-
---- Detect Spring Boot application and generate debug configuration
----@param dir_path string Root project directory
----@return { main_class: string, project_name: string, build_tool: string, jvm_args: string, profiles: string[] }|nil
-function M.detect_springboot_app(dir_path)
-  return call_engine_command({ "detect-springboot-app", "--dir", dir_path }, nil, "detect-springboot-app")
 end
 
 --- Resolve stacktrace symbol to absolute file path
@@ -1051,66 +1022,9 @@ function M.discover_devops_roots(path, opts)
   return call_engine_command({ "discover-devops-roots", "--path", path }, nil, "discover-devops-roots", opts)
 end
 
---- Generate DAP debug configuration for Spring Boot or JVM project via Scala engine
----@param dir? string Root project directory (defaults to cwd)
----@param opts? { silent?: boolean }
----@return { launch: table, attach: table, configurations: table[] }|nil
-function M.generate_dap_config(dir, opts)
-  dir = dir or vim.fn.getcwd()
-  opts = vim.tbl_extend("force", { silent = true }, opts or {})
-  return call_engine_command({ "generate-dap-config", "--dir", dir }, nil, "generate-dap-config", opts)
-end
-
 -- ==============================================================================
 -- ⭐ Consolidated UI Pickers & Actions (Story 13.1)
 -- ==============================================================================
-
---- Select a Spring bean from the workspace dependency graph and navigate to its source.
-function M.select_bean()
-  M.assert_available("jvm-build")
-  local cwd = vim.fn.getcwd()
-  local beans = M.parse_spring_beans(cwd)
-  if not beans or #beans == 0 then
-    vim.notify("No Spring stereotypes (@Component, @Service, etc.) found", vim.log.levels.WARN)
-    return
-  end
-
-  vim.ui.select(beans, {
-    prompt = "Select Spring Bean:",
-    format_item = function(item)
-      local deps = #item.injected_deps > 0 and (" -> [" .. table.concat(item.injected_deps, ", ") .. "]") or ""
-      return string.format("%s (%s)%s", item.bean_name, item.class_name, deps)
-    end,
-  }, function(choice)
-    if choice and choice.file then
-      vim.cmd("edit " .. vim.fn.fnameescape(choice.file))
-      vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
-    end
-  end)
-end
-
---- Select a REST endpoint from the workspace and jump to its controller definition.
-function M.select_endpoint()
-  M.assert_available("jvm-build")
-  local cwd = vim.fn.getcwd()
-  local eps = M.extract_endpoints(cwd)
-  if not eps or #eps == 0 then
-    vim.notify("No Spring Boot / JAX-RS endpoints found in project", vim.log.levels.WARN)
-    return
-  end
-
-  vim.ui.select(eps, {
-    prompt = "Spring Boot REST Endpoints:",
-    format_item = function(item)
-      return string.format("[%s] %s (%s:%d)", item.http_method, item.path, item.class_name, item.line)
-    end,
-  }, function(choice)
-    if choice and choice.file then
-      vim.cmd("edit " .. vim.fn.fnameescape(choice.file))
-      vim.api.nvim_win_set_cursor(0, { choice.line, 0 })
-    end
-  end)
-end
 
 --- Optimize Java/Kotlin imports in the current active buffer.
 function M.optimize_imports_buffer()

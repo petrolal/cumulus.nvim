@@ -128,6 +128,37 @@ function M.check()
     )
   end
 
+  vim.health.start("TetraVim Spring Boot Discovery (Story 2.3)")
+  local spring = require("tetravim.util.spring")
+
+  if spring.has_parser("java") then
+    vim.health.ok("Tree-sitter java parser: installed")
+  else
+    vim.health.warn("Tree-sitter java parser: NOT installed (required for Spring Boot discovery)")
+  end
+
+  if vim.fn.executable("rg") == 1 then
+    vim.health.ok("rg (ripgrep): installed and executable (Spring candidate scan)")
+  elseif vim.fn.executable("grep") == 1 then
+    vim.health.ok("grep: installed and executable (fallback for Spring candidate scan)")
+  else
+    vim.health.warn("Neither 'rg' nor 'grep' found on $PATH (required for Spring discovery)")
+  end
+
+  local root_info = spring.detect_root()
+  if root_info then
+    vim.health.ok(
+      string.format(
+        "Spring Boot / JVM project root: %s (%s, %s)",
+        root_info.root,
+        root_info.build_tool,
+        root_info.project_name
+      )
+    )
+  else
+    vim.health.info("Spring Boot / JVM project root: not detected in current directory")
+  end
+
   vim.health.start("AWS CloudFormation & SAM DevOps Tooling (Story 8.2)")
 
   local cfn_tools = {

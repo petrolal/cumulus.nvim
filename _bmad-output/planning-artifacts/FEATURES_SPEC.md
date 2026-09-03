@@ -2,60 +2,105 @@
 
 This document outlines all core features that `tetravim.nvim` must maintain and support as it transitions from a custom Scala backend to a pure Neovim-plugin architecture. Any AI agents or developers contributing to this project must ensure these features are fully implemented using standard Lua plugins and Language Servers.
 
-## 1. Cloud Theme System
-- **Feature:** Multi-cloud theme provider that alters UI colors, highlighting, and icons based on the target cloud environment.
-- **Supported Themes:** `aws`, `azure`, `gcp`, `oci` (Oracle Cloud Infrastructure).
-- **Keymap:** `<leader>ct` to switch themes dynamically.
-- **Migration Strategy:** Implement a custom Lua module (`lua/tetravim/theme/init.lua`) that bridges with base color schemes (e.g., Catppuccin or Tokyonight) and applies specific highlight overrides (e.g., AWS orange, Azure blue).
-
-## 2. Spring Ecosystem Integration
+## 1. Spring Ecosystem Integration
 - **Feature:** Deep insight into Spring Boot applications.
 - **Capabilities:**
-  - Detect Spring Boot application roots.
-  - Interactive Spring Bean picker (visualize dependency graphs).
-  - REST endpoint extraction (discover `@GetMapping`, `@PostMapping`, JAX-RS) and interactive picker.
+  - Detect Spring Boot application roots and main class without blocking the UI.
+  - Interactive Spring Bean picker (`<leader>jsb`) with dependency graph preview (direct deps & dependents).
+  - REST endpoint extraction (discover `@GetMapping`, `@PostMapping`, `@PutMapping`, `@DeleteMapping`, `@PatchMapping`, `@RequestMapping`, and JAX-RS `@GET`/`@POST`/`@PUT`/`@DELETE`) with jump to mapping annotation (`<leader>jse`).
+  - Native Spring Boot DAP launch and attach configuration generation.
 - **Keymaps:**
-  - `<leader>jsb`: Select Spring Bean
-  - `<leader>jse`: Select REST Endpoint
-  - `<leader>js`: Detect Spring Boot app and debug configurations.
-- **Migration Strategy:** Integrate `spring-boot.nvim`, extending it where necessary using Tree-sitter queries for AST parsing of Java/Kotlin endpoints.
+  - `<leader>jsb`: Select Spring Bean (Telescope picker + dependency graph preview)
+  - `<leader>jse`: Select REST Endpoint (Telescope picker + code preview)
+  - `<leader>jsd`: Detect Spring Boot App
+  - `<leader>jrd`: Launch Spring Boot DAP debug session
+- **Implementation:** Pure Lua Tree-sitter AST queries (`lua/tetravim/util/spring.lua`), Telescope pickers (`lua/tetravim/util/spring-picker.lua`), and native DAP config generation (`lua/tetravim/util/springboot-debug.lua`). All 6 legacy engine Spring methods permanently purged from `engine.lua`.
 
-## 3. Build System Mastery (Maven / Gradle / SBT)
+## 2. Advanced Refactoring & Code Actions
+- **Feature:** Safe, project-wide refactorings and code extractions.
+- **Capabilities:**
+  - Project-wide safe rename and move for Java and Kotlin, updating references across code, Spring XML, and annotations.
+  - Interactive extraction: extract method (with automatic parameter resolution), extract variable, extract constant, extract interface, and inline variable/method.
+  - Shared concurrency lock (`action-lock.lua`) preventing race conditions during refactoring.
+  - Quickfix dry-run preview before applying changes.
+- **Keymaps:**
+  - `<leader>cr`: Project-wide rename (buffer-local for Java/Kotlin)
+  - `<leader>cm`: Extract Method
+  - `<leader>cv`: Extract Variable / Constant
+  - `<leader>ci`: Extract Interface / Inline
+- **Implementation:** Native LSP (`nvim-jdtls`, `kotlin-language-server`) combined with Tree-sitter candidate filtering and validation (`lua/tetravim/util/refactor.lua`, `lua/tetravim/util/refactor-treesitter.lua`, `lua/tetravim/util/extract.lua`).
+
+## 3. Database & Cloud Services Integration
+- **Feature:** Native database exploration and HTTP/REST client tools.
+- **Capabilities:**
+  - Embedded database explorer: schema browsing and SQL query execution directly in editor buffers.
+  - Automatic credential and datasource discovery from Spring Boot `application.properties`, `application.yml`, and `application.yaml` (with environment variable and `.env` interpolation).
+  - Native HTTP request execution for `.http` files.
+  - OpenAPI spec exploration and request template generation.
+  - `jq` response filtering directly into editor splits.
+- **Keymaps:**
+  - `<leader>db*`: Database explorer operations (`vim-dadbod-ui`)
+  - `<leader>Hr`: Run HTTP request under cursor (`kulala.nvim`)
+  - `<leader>Ho`: Generate `.http` file from OpenAPI specification
+  - `<leader>Hj`: Apply `jq` filter to JSON response
+- **Implementation:** `lua/tetravim/util/db.lua` (`vim-dadbod`, `vim-dadbod-ui`), `lua/tetravim/util/http.lua`, `lua/tetravim/util/openapi.lua`.
+
+## 4. Git Collaboration & Conflict Resolution
+- **Feature:** Advanced 3-way merge conflict resolution and forge code reviews.
+- **Capabilities:**
+  - 3-way visual merge conflict resolution (`diff4_mixed`) with region-picking keymaps.
+  - Pure Lua git worktree guards preventing hanging subprocesses.
+  - In-editor code reviews for GitHub (`gh`) and GitLab (`glab`): list PRs/MRs, view diffs, post line comments, and checkout branches.
+- **Keymaps:**
+  - `<leader>gco`: Open merge conflict resolver
+  - `<leader>gcq`: Close conflict view
+  - `<leader>gch`: Explore file history
+  - `<leader>gx*` / `<leader>gX*`: Pick conflict chunks / whole files
+  - `<leader>gro`: Open PR / MR code review
+  - `<leader>grc`: Add review comment
+- **Implementation:** `lua/tetravim/plugins/tools-diffview.lua`, `lua/tetravim/util/git.lua`, `lua/tetravim/util/forge.lua`.
+
+## 5. Build System Mastery (Maven / Gradle)
 - **Feature:** Intelligent build execution and dependency management.
 - **Capabilities:**
-  - Multi-module DAG topological build order computation.
-  - Parse build logs (Maven / Gradle) and populate Neovim diagnostics (with column precision).
-- **Keymap:** `<leader>jb` to build the project with error diagnostics.
-- **Migration Strategy:** Use `compiler.nvim` or `makeprg` coupled with `errorformat` tailored for Maven and Gradle. Utilize `nvim-jdtls` / `nvim-metals` for classpath sync checking.
+  - Headless build execution via `vim.system` without blocking UI.
+  - Parse build logs (Maven / Gradle) and populate Neovim diagnostics / quickfix.
+  - Dependency version checking and resyncing.
+- **Keymaps:**
+  - `<leader>jb`: Build project
+  - `<leader>jbS` / `<leader>jds`: Resync dependencies
+  - `<leader>jbo`: Toggle offline mode
+- **Implementation:** Event-driven background executors with quickfix population (`lua/tetravim/util/build-sync-state.lua`, `lua/tetravim/util/jvm.lua`).
 
-## 4. Diagnostics, Testing, and QA
+## 6. Diagnostics, Testing, and QA
 - **Feature:** First-class testing and code quality tools.
 - **Capabilities:**
-  - JUnit test output parser.
-  - Nearest test context detector.
-  - Stack trace symbol resolver (jump to file/line from logs).
+  - JUnit test execution and output parsing via `neotest`.
+  - Nearest test context detection.
+  - Continuous profiling via `async-profiler` integration (`lua/tetravim/util/profiling.lua`).
   - JaCoCo XML code coverage overlay.
-  - Checkstyle reporting.
-- **Keymap:** `<leader>jt` to run the nearest Java/Kotlin test under the cursor.
-- **Migration Strategy:** 
-  - Integrate `neotest` with `neotest-java` / `neotest-gradle` / `neotest-scala`.
-  - Use `nvim-coverage` mapped to parse JaCoCo reports.
-  - Use `efm-langserver` or `none-ls` for Checkstyle.
+- **Keymaps:**
+  - `<leader>jt`: Test runner operations
+  - `<leader>jpp` / `<leader>jps` / `<leader>jpf`: Profiler start, stop, flamegraph
+- **Implementation:** `neotest`, `lua/tetravim/util/profiling.lua`, `lua/tetravim/plugins/tools-test.lua`.
 
-## 5. DevOps & Cloud Native Tools
-- **Feature:** Validation and execution of infrastructure and database scripts.
+## 7. DevOps & Infrastructure Tooling
+- **Feature:** Validation and execution of infrastructure and configuration files.
 - **Capabilities:**
-  - Flyway migration validation.
-  - Kubernetes manifest checker.
-  - Interactive Git conflict resolver.
-- **Migration Strategy:** 
-  - Integrate `yamlls` (with kubernetes schemas) and `helm_ls` via `nvim-lspconfig`.
-  - Use `diffview.nvim` for advanced conflict resolution.
-  - Integrate `vim-dadbod` for database and Flyway exploration.
+  - Terraform, OpenTofu, CloudFormation, SAM, Ansible, Docker, and Helm validation and linting.
+  - Group-aligned keymap structure under `<leader>o`.
+- **Keymaps:**
+  - `<leader>ot` / `<leader>otV`: Terraform operations & validation
+  - `<leader>oc` / `<leader>ocC`: CloudFormation operations & validation
+  - `<leader>oy` / `<leader>oyV`: Ansible operations & validation
+  - `<leader>od` / `<leader>odV`: Docker operations & validation
+  - `<leader>ok` / `<leader>okV`: Helm / Kubernetes operations & validation
+- **Implementation:** `lua/tetravim/core/devops.lua`.
 
-## 6. Environment & Tooling
+## 8. Canonical Visual Identity (Tetris Theme)
+- **Feature:** Distinctive, distraction-free semantic highlight system.
 - **Capabilities:**
-  - Host JDK auto-discovery.
-  - Automated installation of LSP servers (JDTLS, Metals, Kotlin LS) via Mason.
-  - Terminal UI provided completely via Snacks (`folke/snacks.nvim`).
-- **Migration Strategy:** Ensure `mason.nvim` and `mason-lspconfig.nvim` are correctly configured to install and manage the underlying binaries.
+  - Fixed "Tetris" palette with 7 semantic tetromino token colors.
+  - Self-contained implementation without external engine dependencies.
+  - Cohesive integration across Lualine, Bufferline, Snacks, and syntax highlights.
+- **Implementation:** `lua/tetravim/theme/tetris.lua`, `lua/tetravim/theme/init.lua`, `lua/tetravim/util/theme_colors.lua`. (Legacy cloud theme switcher retired).

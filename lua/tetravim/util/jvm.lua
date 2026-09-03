@@ -424,12 +424,16 @@ function M.setup_keymaps()
 
   -- 4. Spring Boot & Frameworks (<leader>js)
   map("n", "<leader>jse", function()
-    require("tetravim.util.engine").select_endpoint()
+    require("tetravim.util.spring-picker").pick_endpoint()
   end, { desc = "Spring: Select REST Endpoint" })
 
   map("n", "<leader>jsb", function()
-    require("tetravim.util.engine").select_bean()
+    require("tetravim.util.spring-picker").pick_bean()
   end, { desc = "Spring: Select Bean Dependency" })
+
+  map("n", "<leader>jsd", function()
+    require("tetravim.util.spring-picker").detect_app()
+  end, { desc = "Spring: Detect Boot App" })
 
   map("n", "<leader>jsm", function()
     require("tetravim.util.engine").validate_migrations_action()

@@ -16,7 +16,7 @@ sources:
 TetraVim IDE needs to migrate from a custom Scala backend (`tetravim-engine`) to a pure Lua and LSP-based architecture to reduce execution overhead, eliminate JVM blocking, and align with native Neovim community standards.
 
 ## Capabilities
-- **CAP-1**: Cloud Theme System - Dynamically switch UI accents based on AWS, Azure, GCP, or OCI environments using native highlight overrides.
+- **CAP-1**: Canonical "Tetris" Visual Identity - Self-contained semantic highlight system based on seven tetromino colors bound to fixed token roles across all UI components.
 - **CAP-2**: Spring Ecosystem Integration - Pick and navigate to Spring Beans and REST endpoints via pure Lua Tree-sitter AST parsing.
 - **CAP-3**: Build System Mastery - Execute Maven/Gradle builds headlessly (`vim.system`) and populate inline error diagnostics via standard errorformats.
 - **CAP-4**: Buffer-based File Explorer - Navigate and mutate the file system strictly via `oil.nvim` buffers.

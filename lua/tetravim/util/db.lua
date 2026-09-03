@@ -501,7 +501,7 @@ function M.discover_datasources(root_dir)
   if type(root_dir) ~= "string" or root_dir == "" then
     return dbs
   end
-  
+
   -- Avoid scanning the entire home directory or system root. This prevents hitting
   -- the depth limit immediately and discovering nested projects' datasources incorrectly.
   local home = vim.fn.expand("~")

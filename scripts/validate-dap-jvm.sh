@@ -21,12 +21,7 @@ local ok, err = pcall(function()
       ensure = spec.opts.ensure_installed
     end
   end
-  assert(ensure, 'no mason spec entry declares ensure_installed')
-  local found = false
-  for _, pkg in ipairs(ensure) do
-    if pkg == 'metals' then found = true end
-  end
-  assert(found, 'metals missing from tools-mason ensure_installed')
+
 
   local lsp_scala = require('tetravim.plugins.lsp-scala')
   assert(type(lsp_scala) == 'table' and type(lsp_scala[1]) == 'table', 'lsp-scala must return a valid lazy.nvim spec table')

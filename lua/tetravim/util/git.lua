@@ -41,7 +41,7 @@ end
 ---@param bufnr? integer
 ---@return boolean
 function M.in_worktree(bufnr)
-  return M.repo_root(bufnr) ~= nil
+  return vim.fn.executable("git") == 1 and M.repo_root(bufnr) ~= nil
 end
 
 --- Whether `root` has at least one commit (a born HEAD). Used only by the
