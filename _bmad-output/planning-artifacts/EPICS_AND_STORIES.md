@@ -18,6 +18,7 @@ This plan breaks down the migration into actionable Epics:
 - ✅ **Epic 3: Database & Cloud Services Integration (The ecosystem parity)**
 - ✅ **Epic 4: Git, ALM, and Team Collaboration (The workflow parity)**
 - ✅ **Epic 5: Stability, Telemetry & Performance (The enterprise SLA)**
+- **Epic 6: Code Quality & Security (The compliance parity)**
 
 ---
 
@@ -45,6 +46,16 @@ This plan breaks down the migration into actionable Epics:
 - [ ] Generate and view Flamegraphs directly inside Neovim (or rendered via a fast local webview).
 - [ ] Memory leak detection surface warnings via diagnostics.
 
+## Story 1.3: Visual Test Runner & Coverage
+**As a** JVM engineer  
+**I want to** run and debug unit and integration tests directly with visual status and code coverage  
+**So that** I can rapidly verify application changes without switching to external terminals  
+
+**Acceptance Criteria:**
+- [ ] Integration with `neotest` for JUnit 5 / JUnit 4 test execution.
+- [ ] Test status discovery and nearest test context execution.
+- [ ] JaCoCo XML code coverage overlay support in active buffers.
+
 ---
 
 # EPIC 2: Advanced Refactoring & Code Actions
@@ -70,6 +81,17 @@ This plan breaks down the migration into actionable Epics:
 - [ ] "Extract Interface" from an existing concrete Java/Kotlin class.
 - [ ] "Inline Variable/Method" support.
 
+## Story 2.3: Native Spring Boot Discovery & Legacy Engine Deprecation
+**As a** Spring Boot developer  
+**I want to** discover beans, REST endpoints, and debug configurations natively via Tree-sitter  
+**So that** I do not depend on the legacy Scala engine binary  
+
+**Acceptance Criteria:**
+- [ ] Tree-sitter AST parsing for Spring Boot controllers, endpoints, and beans.
+- [ ] Telescope pickers for Beans (`<leader>jsb`) and Endpoints (`<leader>jse`).
+- [ ] Native Spring Boot DAP debug configuration generation (`<leader>jrd`).
+- [ ] Complete retirement and purge of legacy engine Spring methods.
+
 ---
 
 # EPIC 3: Database & Cloud Services Integration
@@ -94,6 +116,16 @@ This plan breaks down the migration into actionable Epics:
 - [ ] `.http` file support for executing requests.
 - [ ] Extract OpenAPI specs and auto-generate request templates.
 - [ ] View formatted JSON/XML responses in a split buffer with jq filtering support.
+
+## Story 3.4: gRPC & Protobufs Integration
+**As a** microservices backend developer  
+**I want to** navigate protobuf schemas, inspect RPC services, and craft test RPC calls  
+**So that** I can develop gRPC services without external GUI tools  
+
+**Acceptance Criteria:**
+- [ ] Protobuf syntax highlighting, formatting, and LSP navigation (`buf` / `protols`).
+- [ ] gRPC reflection / schema inspection and service method discovery.
+- [ ] Interactive RPC execution and structured JSON request payload generation.
 
 ---
 
@@ -154,4 +186,29 @@ This plan breaks down the migration into actionable Epics:
 - [ ] Extract existing color palettes to align with `tetravim.dotfile`.
 - [ ] Create a shared theme bridge or sync mechanism to consume external color configurations.
 - [ ] Ensure all UI primitives (lualine, telescope, etc.) respect the dotfile theme.
+
+---
+
+# EPIC 6: Code Quality & Security
+**Goal:** Integrate automated static analysis, code quality standards, and vulnerability scanning directly into the developer workflow.
+
+## Story 6.1: SonarQube & SonarLint Integration
+**As an** enterprise engineer  
+**I want to** receive immediate code quality and security feedback in my editor matching our corporate SonarQube rules  
+**So that** I resolve quality gate violations before submitting pull requests  
+
+**Acceptance Criteria:**
+- [ ] Connect with SonarLint language server for Java, Kotlin, and Scala rules.
+- [ ] In-editor diagnostics and issue rule descriptions.
+- [ ] Support binding project-specific quality profiles.
+
+## Story 6.2: Vulnerability Scanning & CVEs
+**As a** security-conscious developer  
+**I want to** detect known CVEs and security vulnerabilities in declared Maven/Gradle dependencies  
+**So that** vulnerable libraries are identified during development  
+
+**Acceptance Criteria:**
+- [ ] Dependency CVE scanning integration with advisory feeds.
+- [ ] Diagnostic warnings surfaced on vulnerable dependency coordinates in build files.
+- [ ] Actionable remediation recommendations and version upgrade hints.
 

@@ -38,7 +38,7 @@ else
 fi
 
 echo "[5/7] Verifying LSP, Completion & UI Specs..."
-if nvim -u init.lua --headless "+lua assert(pcall(require, 'cmp')); assert(pcall(require, 'nvim-lspconfig')); assert(pcall(require, 'render-markdown')); assert(pcall(require, 'persistence')); print('✔ Plugins and UI specs verified')" +qa; then
+if nvim -u init.lua --headless "+lua assert(pcall(require, 'cmp')); assert(pcall(require, 'lspconfig')); assert(pcall(require, 'render-markdown')); assert(pcall(require, 'persistence')); print('✔ Plugins and UI specs verified')" +qa; then
   echo "✔ Plugins and UI specs PASSED."
 else
   echo "✖ Plugins and UI specs FAILED."

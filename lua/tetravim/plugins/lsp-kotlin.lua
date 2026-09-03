@@ -1,19 +1,4 @@
-local function find_java21_home()
-  local patterns = {
-    "/usr/lib/jvm/java-21-openjdk*",
-    "/usr/lib/jvm/java-21*",
-    "/usr/lib/jvm/jdk-21*",
-    vim.fn.expand("~/.sdkman/candidates/java/21*"),
-    "/usr/lib/jvm/default-java",
-  }
-  for _, pat in ipairs(patterns) do
-    local candidates = vim.fn.glob(pat, false, true)
-    if #candidates > 0 and vim.fn.isdirectory(candidates[1]) == 1 then
-      return candidates[1]
-    end
-  end
-  return nil
-end
+local jvm = require("tetravim.util.jvm")
 
 local storage_path = vim.fn.stdpath("cache") .. "/kotlin-language-server"
 vim.fn.mkdir(storage_path, "p")
@@ -37,12 +22,29 @@ return {
             storagePath = storage_path,
           },
           cmd_env = (function()
-            local java21_home = find_java21_home()
+            local java21_home = jvm.find_java21_home()
             if not java21_home then
               return nil
             end
             return { JAVA_HOME = java21_home }
           end)(),
+          root_dir = function(fname_or_buf, on_dir)
+            local fname = type(fname_or_buf) == "number" and vim.api.nvim_buf_get_name(fname_or_buf) or fname_or_buf
+            local util = require("lspconfig.util")
+            local root = util.root_pattern(
+              "settings.gradle",
+              "settings.gradle.kts",
+              "build.gradle",
+              "build.gradle.kts",
+              "pom.xml",
+              ".git"
+            )(fname)
+            local resolved = root or (fname and fname ~= "" and vim.fs.dirname(fname)) or vim.fn.getcwd()
+            if on_dir then
+              on_dir(resolved)
+            end
+            return resolved
+          end,
           on_attach = function(client, bufnr)
             client.server_capabilities.documentHighlightProvider = false
 
@@ -59,40 +61,8 @@ return {
             -- not re-bound here.
 
             -- SPEC-2.2: Intelligent Extraction
-            vim.keymap.set("n", "<leader>ce", function()
-              require("tetravim.util.extract").extract_interface()
-            end, { buffer = bufnr, desc = "Extract Interface (Kotlin)" })
-            vim.keymap.set("v", "<leader>ce", function()
-              require("tetravim.util.extract").extract_interface(true)
-            end, { buffer = bufnr, desc = "Extract Interface (Kotlin)" })
-
-            vim.keymap.set("n", "<leader>ci", function()
-              require("tetravim.util.extract").inline()
-            end, { buffer = bufnr, desc = "Inline (Kotlin)" })
-            vim.keymap.set("v", "<leader>ci", function()
-              require("tetravim.util.extract").inline(true)
-            end, { buffer = bufnr, desc = "Inline (Kotlin)" })
-
-            vim.keymap.set("n", "<leader>cm", function()
-              require("tetravim.util.extract").extract_method()
-            end, { buffer = bufnr, desc = "Extract Method (Kotlin)" })
-            vim.keymap.set("v", "<leader>cm", function()
-              require("tetravim.util.extract").extract_method(true)
-            end, { buffer = bufnr, desc = "Extract Method (Kotlin)" })
-
-            vim.keymap.set("n", "<leader>cv", function()
-              require("tetravim.util.extract").extract_variable()
-            end, { buffer = bufnr, desc = "Extract Variable (Kotlin)" })
-            vim.keymap.set("v", "<leader>cv", function()
-              require("tetravim.util.extract").extract_variable(true)
-            end, { buffer = bufnr, desc = "Extract Variable (Kotlin)" })
-
-            vim.keymap.set("n", "<leader>cc", function()
-              require("tetravim.util.extract").extract_constant()
-            end, { buffer = bufnr, desc = "Extract Constant (Kotlin)" })
-            vim.keymap.set("v", "<leader>cc", function()
-              require("tetravim.util.extract").extract_constant(true)
-            end, { buffer = bufnr, desc = "Extract Constant (Kotlin)" })
+            -- Wires up: extract_interface, inline, extract_method, extract_variable, extract_constant
+            require("tetravim.util.extract").setup_keymaps(bufnr, "Kotlin")
           end,
           settings = {
             kotlin = {

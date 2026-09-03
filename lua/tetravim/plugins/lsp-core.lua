@@ -10,6 +10,7 @@
 -- time each one attaches.
 local attach_messages = {
   jdtls = "JDTLS attached -- test runner & refactor keymaps are ready",
+  kotlin_language_server = "Kotlin Language Server attached",
 }
 
 return {
@@ -23,12 +24,24 @@ return {
       servers = {},
     },
     config = function(_, opts)
-      local configs = require("lspconfig.configs")
-      if opts.servers then
-        for server, server_opts in pairs(opts.servers) do
-          if configs[server] then
-            configs[server].setup(server_opts or {})
+      if vim.lsp.config and vim.lsp.enable then
+        for server, server_opts in pairs(opts.servers or {}) do
+          vim.lsp.config(server, server_opts or {})
+          vim.lsp.enable(server)
+        end
+      else
+        local lspconfig = require("lspconfig")
+        for server, server_opts in pairs(opts.servers or {}) do
+          if lspconfig[server] then
+            lspconfig[server].setup(server_opts or {})
           end
+        end
+      end
+
+      -- If buffers are already opened, trigger FileType so their LSP attaches immediately
+      for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].buftype == "" and vim.bo[bufnr].filetype ~= "" then
+          vim.api.nvim_exec_autocmds("FileType", { buffer = bufnr })
         end
       end
 

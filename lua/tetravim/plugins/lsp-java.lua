@@ -42,27 +42,22 @@ return {
       local orig_root_dir = opts.root_dir
       opts.root_dir = function(fname)
         local root = orig_root_dir and orig_root_dir(fname)
-        return root or vim.fs.dirname(fname) or vim.fn.getcwd()
-      end
-
-      local function find_java21_home()
-        local patterns = {
-          "/usr/lib/jvm/java-21-openjdk*",
-          "/usr/lib/jvm/java-21*",
-          "/usr/lib/jvm/jdk-21*",
-          vim.fn.expand("~/.sdkman/candidates/java/21*"),
-          "/usr/lib/jvm/default-java",
-        }
-        for _, pat in ipairs(patterns) do
-          local candidates = vim.fn.glob(pat, false, true)
-          if #candidates > 0 and vim.fn.isdirectory(candidates[1]) == 1 then
-            return candidates[1]
+        if root and root ~= "" then
+          return root
+        end
+        local ok, jdtls = pcall(require, "jdtls")
+        if ok and jdtls.setup and jdtls.setup.find_root then
+          root =
+            jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle", "build.gradle.kts" }, fname)
+          if root and root ~= "" then
+            return root
           end
         end
-        return nil
+        return (fname and fname ~= "" and vim.fs.dirname(fname)) or vim.fn.getcwd()
       end
 
-      local java21_path = find_java21_home()
+      local jvm = require("tetravim.util.jvm")
+      local java21_path = jvm.find_java21_home()
       local runtimes = {}
       if java21_path then
         table.insert(runtimes, {

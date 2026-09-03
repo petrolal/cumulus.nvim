@@ -501,4 +501,40 @@ function M.setup_keymaps()
   end
 end
 
+--- Locate Java 21 JDK installation path across common system locations and SDKMAN
+---@return string|nil java21_home Path to Java 21 installation or nil if not found
+function M.find_java21_home()
+  local patterns = {
+    "/usr/lib/jvm/java-21-openjdk*",
+    "/usr/lib/jvm/java-21*",
+    "/usr/lib/jvm/jdk-21*",
+    vim.fn.expand("~/.sdkman/candidates/java/21*"),
+    "/usr/lib/jvm/default-java",
+  }
+  for _, pat in ipairs(patterns) do
+    local candidates = vim.fn.glob(pat, false, true)
+    if #candidates > 0 and vim.fn.isdirectory(candidates[1]) == 1 then
+      return candidates[1]
+    end
+  end
+  return nil
+end
+
+--- Check if a given directory is a JVM project (Maven, Gradle, or SBT)
+---@param root string|number|nil Directory to check (defaults to cwd)
+---@return boolean
+function M.is_jvm_project(root)
+  if type(root) == "number" then
+    return false
+  end
+  root = root or vim.fn.getcwd()
+  if type(root) ~= "string" or root == "" then
+    return false
+  end
+  return vim.fn.glob(root .. "/pom.xml") ~= ""
+    or vim.fn.glob(root .. "/build.gradle") ~= ""
+    or vim.fn.glob(root .. "/build.gradle.kts") ~= ""
+    or vim.fn.glob(root .. "/build.sbt") ~= ""
+end
+
 return M

@@ -348,4 +348,49 @@ function M.extract_constant(is_visual)
   do_action("Extract constant", "refactor.extract", "Extract to constant", is_visual)
 end
 
+--- Register buffer-local intelligent extraction keymaps (<leader>ce, <leader>ci, <leader>cm, <leader>cv, <leader>cc)
+---@param bufnr integer Buffer number to attach keymaps to
+---@param lang_label string Language label for descriptions, e.g. "Java" or "Kotlin"
+function M.setup_keymaps(bufnr, lang_label)
+  lang_label = lang_label or "Java"
+  local function map(mode, lhs, fn, desc)
+    vim.keymap.set(mode, lhs, fn, { buffer = bufnr, desc = desc .. " (" .. lang_label .. ")" })
+  end
+
+  map("n", "<leader>ce", function()
+    require("tetravim.util.extract").extract_interface()
+  end, "Extract Interface")
+  map("v", "<leader>ce", function()
+    require("tetravim.util.extract").extract_interface(true)
+  end, "Extract Interface")
+
+  map("n", "<leader>ci", function()
+    require("tetravim.util.extract").inline()
+  end, "Inline")
+  map("v", "<leader>ci", function()
+    require("tetravim.util.extract").inline(true)
+  end, "Inline")
+
+  map("n", "<leader>cm", function()
+    require("tetravim.util.extract").extract_method()
+  end, "Extract Method")
+  map("v", "<leader>cm", function()
+    require("tetravim.util.extract").extract_method(true)
+  end, "Extract Method")
+
+  map("n", "<leader>cv", function()
+    require("tetravim.util.extract").extract_variable()
+  end, "Extract Variable")
+  map("v", "<leader>cv", function()
+    require("tetravim.util.extract").extract_variable(true)
+  end, "Extract Variable")
+
+  map("n", "<leader>cc", function()
+    require("tetravim.util.extract").extract_constant()
+  end, "Extract Constant")
+  map("v", "<leader>cc", function()
+    require("tetravim.util.extract").extract_constant(true)
+  end, "Extract Constant")
+end
+
 return M

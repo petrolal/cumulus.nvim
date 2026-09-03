@@ -43,7 +43,23 @@ end
 local fname = vim.api.nvim_buf_get_name(0)
 local cmd = opts.full_cmd and opts.full_cmd({ "jdtls" }) or { "jdtls" }
 local root_dir = (opts.root_dir and opts.root_dir(fname))
-  or jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" })
+  or jdtls.setup.find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle", "build.gradle.kts" }, fname)
+  or (fname and fname ~= "" and vim.fs.dirname(fname))
+  or vim.fn.getcwd()
+
+local project_name = vim.fn.fnamemodify(root_dir, ":p:h:t")
+local workspace_dir = vim.fn.stdpath("cache") .. "/jdtls/workspace/" .. project_name
+local has_data = false
+for _, arg in ipairs(cmd) do
+  if type(arg) == "string" and (arg == "-data" or arg:find("^-data")) then
+    has_data = true
+    break
+  end
+end
+if not has_data then
+  table.insert(cmd, "-data")
+  table.insert(cmd, workspace_dir)
+end
 
 local config = {
   cmd = cmd,
@@ -74,40 +90,8 @@ local config = {
     -- re-bound here.
 
     -- SPEC-2.2: Intelligent Extraction
-    vim.keymap.set("n", "<leader>ce", function()
-      require("tetravim.util.extract").extract_interface()
-    end, { buffer = bufnr, desc = "Extract Interface (Java)" })
-    vim.keymap.set("v", "<leader>ce", function()
-      require("tetravim.util.extract").extract_interface(true)
-    end, { buffer = bufnr, desc = "Extract Interface (Java)" })
-
-    vim.keymap.set("n", "<leader>ci", function()
-      require("tetravim.util.extract").inline()
-    end, { buffer = bufnr, desc = "Inline (Java)" })
-    vim.keymap.set("v", "<leader>ci", function()
-      require("tetravim.util.extract").inline(true)
-    end, { buffer = bufnr, desc = "Inline (Java)" })
-
-    vim.keymap.set("n", "<leader>cm", function()
-      require("tetravim.util.extract").extract_method()
-    end, { buffer = bufnr, desc = "Extract Method (Java)" })
-    vim.keymap.set("v", "<leader>cm", function()
-      require("tetravim.util.extract").extract_method(true)
-    end, { buffer = bufnr, desc = "Extract Method (Java)" })
-
-    vim.keymap.set("n", "<leader>cv", function()
-      require("tetravim.util.extract").extract_variable()
-    end, { buffer = bufnr, desc = "Extract Variable (Java)" })
-    vim.keymap.set("v", "<leader>cv", function()
-      require("tetravim.util.extract").extract_variable(true)
-    end, { buffer = bufnr, desc = "Extract Variable (Java)" })
-
-    vim.keymap.set("n", "<leader>cc", function()
-      require("tetravim.util.extract").extract_constant()
-    end, { buffer = bufnr, desc = "Extract Constant (Java)" })
-    vim.keymap.set("v", "<leader>cc", function()
-      require("tetravim.util.extract").extract_constant(true)
-    end, { buffer = bufnr, desc = "Extract Constant (Java)" })
+    -- Wires up: extract_interface, inline, extract_method, extract_variable, extract_constant
+    require("tetravim.util.extract").setup_keymaps(bufnr, "Java")
   end,
 }
 

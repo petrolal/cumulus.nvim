@@ -12,7 +12,7 @@
 
 describe("JVM Debugger (SPEC-1.1)", function()
   describe("Mason + lsp-scala registration", function()
-    it("should register metals in Mason's ensure_installed", function()
+    it("should register JVM tools in Mason's ensure_installed", function()
       local mason = require("tetravim.plugins.tools-mason")
       local ensure = nil
       for _, spec in ipairs(mason) do
@@ -21,13 +21,16 @@ describe("JVM Debugger (SPEC-1.1)", function()
         end
       end
       assert.is_not_nil(ensure)
-      local found = false
+      local found_jdtls, found_dap = false, false
       for _, pkg in ipairs(ensure) do
-        if pkg == "metals" then
-          found = true
+        if pkg == "jdtls" then
+          found_jdtls = true
+        elseif pkg == "java-debug-adapter" then
+          found_dap = true
         end
       end
-      assert.is_true(found)
+      assert.is_true(found_jdtls)
+      assert.is_true(found_dap)
     end)
 
     it("should declare a valid scalameta/nvim-metals lazy spec ft-gated on scala and sbt", function()
