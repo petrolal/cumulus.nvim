@@ -5,6 +5,10 @@
 -- duplicate palette data. Colours come from the canonical TetraVim
 -- "Tetris" highlight map (`tetravim.theme.tetris`); `M.DEFAULT_COLORS`
 -- mirrors that palette as a literal fallback if the module fails to load.
+--
+-- lualine mode badges and the bufferline indicator are *chrome*, so they
+-- take the vivid `*_pure` tetromino hexes from the palette rather than the
+-- desaturated on-background text tints used inside the buffer.
 
 local M = {}
 
@@ -18,18 +22,18 @@ local M = {}
 M.DEFAULT_COLORS = {
   bg = "#111216", -- Background
   fg = "#BCBEC4", -- Foreground
-  fg_dim = "#5C6370", -- Muted gray (comments / inactive statusline text)
+  fg_dim = "#6B7688", -- Comment gray (inactive statusline text)
   bg_cursorline = "#1E1F26", -- Surface
   statusline_bg = "#1E1F26", -- Surface
   primary_color = "#00F0F0", -- I-piece cyan — default accent (CursorLineNr)
   secondary = "#00F000", -- S-piece green — insert-mode statusline accent
-  purple = "#A000F0", -- T-piece — keywords
+  purple = "#A000F0", -- T-piece — visual-mode badge
   cyan = "#00F0F0", -- I-piece
-  yellow = "#F0F000", -- O-piece — functions
-  green = "#00F000", -- S-piece — annotations
-  orange = "#FF7F00", -- L-piece — strings
-  blue = "#5B8CFF", -- J-piece (AA-readable tint) — constants
-  error = "#F00000", -- Z-piece — diagnostics
+  yellow = "#F0F000", -- O-piece
+  green = "#00F000", -- S-piece
+  orange = "#FF7F00", -- L-piece
+  blue = "#5B8CFF", -- J-piece (badge-readable tint)
+  error = "#F00000", -- Z-piece — replace-mode badge
 }
 
 -- Cache stores the current theme colors
@@ -40,48 +44,50 @@ M.cache = vim.deepcopy(M.DEFAULT_COLORS)
 -- ============================================================================
 
 --- Recompute the cached UI colours from the active highlight groups.
+--- Structural colours are scraped from the applied highlights; the vivid
+--- accent hexes come straight from `tetris.palette` (`*_pure` keys).
 --- Falls back to the Tetris highlight map, then to `M.DEFAULT_COLORS`.
 ---@return nil
 function M.init_theme_colors()
   local highlights = _G._tetravim_current_highlights or {}
 
-  if vim.tbl_isempty(highlights) then
-    -- Fall back to the canonical Tetris highlight map before giving up.
-    local ok, tetris = pcall(require, "tetravim.theme.tetris")
-    if ok then
+  local palette
+  local ok, tetris = pcall(require, "tetravim.theme.tetris")
+  if ok then
+    palette = tetris.palette
+    if vim.tbl_isempty(highlights) then
+      -- Fall back to the canonical Tetris highlight map before giving up.
       highlights = tetris.highlights()
     end
   end
 
   if vim.tbl_isempty(highlights) then
     M.cache = vim.deepcopy(M.DEFAULT_COLORS)
-    return
   end
 
-  -- Extract colors from highlights with safe fallback logic
-  M.cache.bg = (highlights.Normal and highlights.Normal.bg) or M.DEFAULT_COLORS.bg
-  M.cache.fg = (highlights.Normal and highlights.Normal.fg) or M.DEFAULT_COLORS.fg
-  M.cache.fg_dim = (highlights.Comment and highlights.Comment.fg) or M.DEFAULT_COLORS.fg_dim
-  M.cache.bg_cursorline = (highlights.CursorLine and highlights.CursorLine.bg) or M.DEFAULT_COLORS.bg_cursorline
-  M.cache.statusline_bg = (highlights.StatusLine and highlights.StatusLine.bg) or M.DEFAULT_COLORS.statusline_bg
+  palette = palette or {}
+  local d = M.DEFAULT_COLORS
 
-  -- Primary accent (active line number, statusline mode badge, bufferline indicator)
+  -- Structural colours — read from the live highlight groups.
+  M.cache.bg = (highlights.Normal and highlights.Normal.bg) or d.bg
+  M.cache.fg = (highlights.Normal and highlights.Normal.fg) or d.fg
+  M.cache.fg_dim = (highlights.Comment and highlights.Comment.fg) or d.fg_dim
+  M.cache.bg_cursorline = (highlights.CursorLine and highlights.CursorLine.bg) or d.bg_cursorline
+  M.cache.statusline_bg = (highlights.StatusLine and highlights.StatusLine.bg) or d.statusline_bg
+
+  -- Accent colours — vivid `*_pure` tetromino hexes for lualine / bufferline
+  -- chrome. `CursorLineNr` already uses `cyan_pure`, so scraping it is safe;
+  -- the rest come directly from the palette so badges never desaturate.
   local cursor_line_nr_fg = highlights.CursorLineNr and highlights.CursorLineNr.fg
-  M.cache.primary_color = cursor_line_nr_fg or M.DEFAULT_COLORS.primary_color
-
-  -- Extract secondary, purple, error with safe access
-  M.cache.secondary = (highlights.DiagnosticHint and highlights.DiagnosticHint.fg) or M.DEFAULT_COLORS.secondary
-  M.cache.purple = (highlights.Keyword and highlights.Keyword.fg) or M.DEFAULT_COLORS.purple
-  M.cache.error = (highlights.Error and highlights.Error.fg) or M.DEFAULT_COLORS.error
-
-  -- Piece colours for UI plugins (bufferline / lualine accents).
-  M.cache.cyan = (highlights.Type and highlights.Type.fg) or M.DEFAULT_COLORS.cyan
-  M.cache.yellow = (highlights["@function"] and highlights["@function"].fg)
-    or (highlights.Function and highlights.Function.fg)
-    or M.DEFAULT_COLORS.yellow
-  M.cache.green = (highlights["@attribute"] and highlights["@attribute"].fg) or M.DEFAULT_COLORS.green
-  M.cache.orange = (highlights.String and highlights.String.fg) or M.DEFAULT_COLORS.orange
-  M.cache.blue = (highlights.Constant and highlights.Constant.fg) or M.DEFAULT_COLORS.blue
+  M.cache.primary_color = cursor_line_nr_fg or palette.cyan_pure or d.primary_color
+  M.cache.secondary = palette.green_pure or d.secondary
+  M.cache.purple = palette.purple_pure or d.purple
+  M.cache.error = palette.red_pure or d.error
+  M.cache.cyan = palette.cyan_pure or d.cyan
+  M.cache.yellow = palette.yellow_pure or d.yellow
+  M.cache.green = palette.green_pure or d.green
+  M.cache.orange = palette.orange_pure or d.orange
+  M.cache.blue = palette.blue or d.blue
 end
 
 --- Refresh the cached UI colours from the active highlights.

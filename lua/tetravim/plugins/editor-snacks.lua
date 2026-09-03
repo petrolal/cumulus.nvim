@@ -36,6 +36,30 @@ return {
       opts.image.enabled = true
       opts.image.doc = { inline = true }
 
+      -- Indent guides + an animated highlight of the scope the cursor is
+      -- currently inside, so nesting is readable at a glance.
+      opts.indent = vim.tbl_deep_extend("force", opts.indent or {}, {
+        enabled = true,
+        char = "│",
+        only_scope = false,
+        only_current = false,
+        scope = {
+          enabled = true,
+          char = "│",
+          underline = false,
+          hl = "SnacksIndentScope",
+        },
+        animate = {
+          enabled = true,
+          duration = { step = 15, total = 300 },
+        },
+      })
+
+      -- Smooth cursor-relative scrolling and a rounded `vim.ui.input` prompt
+      -- that matches the rest of the floating-window chrome.
+      opts.scroll = vim.tbl_deep_extend("force", opts.scroll or {}, { enabled = true })
+      opts.input = vim.tbl_deep_extend("force", opts.input or {}, { enabled = true })
+
       opts.dashboard = opts.dashboard or {}
       local opened_dir = false
       for _, arg in

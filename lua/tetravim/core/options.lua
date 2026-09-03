@@ -11,6 +11,33 @@ vim.opt.termguicolors = true
 -- Sync yank/paste with the OS clipboard (fixes y/p not reaching system clipboard)
 vim.opt.clipboard = "unnamedplus"
 
+-- Visual polish -------------------------------------------------------------
+-- One consistent rounded frame around every plugin-agnostic floating window
+-- (LSP hover / signature help, `vim.diagnostic.open_float`, `vim.ui`
+-- prompts, `:checkhealth` popups...). Plugins that draw their own borders
+-- (telescope, which-key's "helix" preset, noice) are unaffected. Native
+-- since Neovim 0.11.
+if vim.fn.exists("&winborder") == 1 then
+  vim.opt.winborder = "rounded"
+end
+
+-- Highlight the line the cursor sits on -- the "Tetris" theme already ships
+-- a dedicated CursorLine surface colour for it.
+vim.opt.cursorline = true
+
+-- Keep a little breathing room around the cursor while scrolling.
+vim.opt.scrolloff = 6
+vim.opt.sidescrolloff = 8
+
+-- Cleaner chrome: drop the "~" end-of-buffer tildes and give folds /
+-- vertical splits softer glyphs than the default ASCII.
+vim.opt.fillchars = {
+  eob = " ",
+  fold = " ",
+  foldsep = " ",
+  diff = "╱",
+}
+
 -- Apply the canonical TetraVim "Tetris" colour scheme
 vim.schedule(function()
   require("tetravim.theme").load_saved_theme()

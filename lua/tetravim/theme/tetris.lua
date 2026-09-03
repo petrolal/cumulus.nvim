@@ -12,19 +12,33 @@
 -- populated explicitly because that is what drives IntelliJ-grade
 -- colouring for jdtls, kotlin-language-server and Metals.
 --
---   Interfaces / Types / Primitives ...... Cyan   (#00F0F0, I-piece)
---   Keywords / Control flow / Modifiers .. Purple (#A000F0, T-piece)
---   Functions / Methods / Declarations ... Yellow (#F0F000, O-piece)
---   Annotations / Decorators ............. Green  (#00F000, S-piece)
---   Strings / Characters ................. Orange (#FF7F00, L-piece)
---   Constants / Enum members / Numbers ... Blue   (J-piece)
---   Diagnostics / Errors ................. Red    (#F00000, Z-piece)
+--   Interfaces / Types / Primitives ...... Cyan   (I-piece,  #00F0F0)
+--   Keywords / Control flow / Modifiers .. Purple (T-piece,  #A000F0)
+--   Functions / Methods / Declarations ... Yellow (O-piece,  #F0F000)
+--   Annotations / Decorators ............. Green  (S-piece,  #00F000)
+--   Strings / Characters ................. Orange (L-piece,  #FF7F00)
+--   Constants / Enum members / Numbers ... Blue   (J-piece,  #0000F0)
+--   Diagnostics / Errors ................. Red    (Z-piece,  #F00000)
 --
--- Contrast note: pure J-piece blue `#0000F0` on the `#111216` ground
--- measures ~2.0:1 — far below WCAG AA and illegible as body text. For
--- on-background *text* roles we therefore use `blue` = a luminance-lifted
--- J-piece tint (`#5B8CFF`, ~5.6:1). The pure tetromino hex is preserved
--- as `blue_pure` for piece/accent use where it is not read as text.
+-- Pure vs. tint — the readability model
+-- -------------------------------------
+-- The pure tetromino hexes are vivid, fully-saturated primaries. On the
+-- `#111216` ground several of them measure well below WCAG AA and are
+-- fatiguing to read as body text for hours (pure J-piece `#0000F0`
+-- is ~2.0:1; pure O-piece `#F0F000` shimmers).
+--
+-- So every piece exists twice:
+--   * `<piece>_pure` — the exact spec hex. Used for UI *chrome* and
+--     transient accents that are glanced, not read: titles, the active
+--     line number, selected-tab text, MatchParen, search backgrounds,
+--     breakpoint signs, dashboard header, `:terminal` ANSI slots.
+--   * `<piece>`      — a same-hue, chroma-reduced tint tuned to ~5:1+ on
+--     the ground. Used for all on-background *code* text (Tree-sitter
+--     captures, LSP semantic tokens, legacy syntax groups).
+--
+-- The Tetris identity is therefore fully preserved — the canonical seven
+-- primaries still paint the frame of the editor — while the code buffer
+-- stays legible across a long session.
 
 local M = {}
 
@@ -34,30 +48,87 @@ M.palette = {
   bg = "#111216", -- Background
   surface = "#1E1F26", -- Surface / Statusline / Floats / CursorLine
   fg = "#BCBEC4", -- Foreground
-  gray = "#5C6370", -- Muted Gray (comments, line numbers, borders)
+  gray = "#5C6370", -- Muted Gray (line numbers, borders, non-text)
+  comment = "#6B7688", -- Comments — gray lifted to ~4.6:1 (was #5C6370, 3.6:1)
+  member = "#A9B2C3", -- Fields / properties — cool dim tint, still scannable
+  sel = "#33364A", -- Visual selection — reads over syntax colour
 
-  -- Tetromino pieces (spec)
-  cyan = "#00F0F0", -- I-piece  — types / interfaces / primitives
-  purple = "#A000F0", -- T-piece  — keywords / control flow / modifiers
-  yellow = "#F0F000", -- O-piece  — functions / methods / declarations
-  green = "#00F000", -- S-piece  — annotations / decorators
-  red = "#F00000", -- Z-piece  — diagnostics / errors
-  orange = "#FF7F00", -- L-piece  — strings / characters
-  blue = "#5B8CFF", -- J-piece  — constants / enums (AA-readable tint)
-  blue_pure = "#0000F0", -- J-piece  — exact spec hex, accent/piece use only
+  -- Tetromino pieces — readable on-background text tints (spec hues)
+  cyan = "#4EC9D9", -- I-piece  — types / interfaces / primitives
+  purple = "#C792EA", -- T-piece  — keywords / control flow
+  purple_dim = "#9A7FC7", -- T-piece  — recessive: modifiers / imports / qualifiers
+  yellow = "#E0C878", -- O-piece  — functions / methods / declarations
+  green = "#98C379", -- S-piece  — annotations / decorators
+  red = "#E06C75", -- Z-piece  — diagnostics / errors (text)
+  orange = "#E0965B", -- L-piece  — strings / characters
+  blue = "#6D9EF0", -- J-piece  — constants / enums
+  warn = "#E5C07B", -- Warning scale — distinct from function gold
+
+  -- Tetromino pieces — exact spec hexes, chrome / accent / ANSI use only
+  cyan_pure = "#00F0F0", -- I-piece
+  purple_pure = "#A000F0", -- T-piece
+  yellow_pure = "#F0F000", -- O-piece
+  green_pure = "#00F000", -- S-piece
+  red_pure = "#F00000", -- Z-piece
+  orange_pure = "#FF7F00", -- L-piece
+  blue_pure = "#0000F0", -- J-piece
 
   -- Derived neutrals (kept minimal; not part of the spec surface)
   bg_dark = "#0C0D10", -- EndOfBuffer / dark float border
-  surface_hi = "#2A2C36", -- Visual / PmenuSel / active line alt
+  surface_hi = "#2A2C36", -- Pmenu selection / reference highlight
   fg_dim = "#8A8D94", -- punctuation, inlay hints, unnecessary code
 }
 
 -- Convenience aliases used only by the diagnostic scale (outside the
 -- 7-role spec — chosen from the piece palette and flagged in the audit).
 local p = M.palette
-local diag_warn = p.yellow
+local diag_warn = p.warn
 local diag_info = p.blue
 local diag_hint = p.green
+
+--- Map a `#rrggbb` string to the nearest xterm-256 colour index, so the
+--- scheme degrades sanely on a terminal without `termguicolors`.
+---@param hex string|nil
+---@return integer|nil
+local function hex_to_cterm(hex)
+  if type(hex) ~= "string" then
+    return nil
+  end
+  local rs, gs, bs = hex:match("^#(%x%x)(%x%x)(%x%x)$")
+  if not rs then
+    return nil
+  end
+  local r, g, b = tonumber(rs, 16), tonumber(gs, 16), tonumber(bs, 16)
+
+  local levels = { 0, 95, 135, 175, 215, 255 }
+  local function nearest(v)
+    local best, best_d = 1, math.huge
+    for i = 1, #levels do
+      local d = math.abs(levels[i] - v)
+      if d < best_d then
+        best, best_d = i, d
+      end
+    end
+    return best
+  end
+
+  local ri, gi, bi = nearest(r), nearest(g), nearest(b)
+  local cube = 16 + 36 * (ri - 1) + 6 * (gi - 1) + (bi - 1)
+  local cube_d = (levels[ri] - r) ^ 2 + (levels[gi] - g) ^ 2 + (levels[bi] - b) ^ 2
+
+  local avg = (r + g + b) / 3
+  local gi2 = math.floor((avg - 8) / 10 + 0.5)
+  gi2 = math.max(0, math.min(23, gi2))
+  local gray_val = 8 + gi2 * 10
+  local gray_d = 3 * (gray_val - avg) ^ 2
+
+  if gray_d < cube_d then
+    return 232 + gi2
+  end
+  return cube
+end
+
+M.hex_to_cterm = hex_to_cterm
 
 --- The full highlight map. Values are nvim_set_hl() option tables, or
 --- `{ link = "Group" }`.
@@ -71,7 +142,7 @@ function M.highlights()
     NormalNC = { fg = p.fg, bg = p.bg },
     NormalFloat = { fg = p.fg, bg = p.surface },
     FloatBorder = { fg = p.gray, bg = p.surface },
-    FloatTitle = { fg = p.cyan, bg = p.surface, bold = true },
+    FloatTitle = { fg = p.cyan_pure, bg = p.surface, bold = true },
     FloatFooter = { fg = p.gray, bg = p.surface },
     ColorColumn = { bg = p.surface },
     Conceal = { fg = p.gray },
@@ -80,7 +151,7 @@ function M.highlights()
     CursorIM = { fg = p.bg, bg = p.fg },
     CursorColumn = { bg = p.surface },
     CursorLine = { bg = p.surface },
-    CursorLineNr = { fg = p.cyan, bg = p.surface, bold = true },
+    CursorLineNr = { fg = p.cyan_pure, bg = p.surface, bold = true },
     LineNr = { fg = p.gray },
     LineNrAbove = { fg = p.gray },
     LineNrBelow = { fg = p.gray },
@@ -91,7 +162,7 @@ function M.highlights()
     EndOfBuffer = { fg = p.bg_dark },
     VertSplit = { fg = p.surface, bg = p.bg },
     WinSeparator = { fg = p.surface, bg = p.bg },
-    MatchParen = { fg = p.yellow, bold = true, underline = true },
+    MatchParen = { fg = p.yellow_pure, bold = true, underline = true },
     ModeMsg = { fg = p.fg, bold = true },
     MsgArea = { fg = p.fg, bg = p.bg },
     MsgSeparator = { fg = p.surface, bg = p.bg },
@@ -100,18 +171,18 @@ function M.highlights()
     NonText = { fg = p.gray },
     SpecialKey = { fg = p.gray },
     Whitespace = { fg = p.surface_hi },
-    Title = { fg = p.cyan, bold = true },
+    Title = { fg = p.cyan_pure, bold = true },
     Underlined = { underline = true },
     Ignore = { fg = p.gray },
     QuickFixLine = { bg = p.surface_hi, bold = true },
 
     -- Search / selection
-    Search = { fg = p.bg, bg = p.yellow },
-    IncSearch = { fg = p.bg, bg = p.orange, bold = true },
-    CurSearch = { fg = p.bg, bg = p.orange, bold = true },
-    Substitute = { fg = p.bg, bg = p.red },
-    Visual = { bg = p.surface_hi },
-    VisualNOS = { bg = p.surface_hi },
+    Search = { fg = p.bg, bg = p.yellow_pure },
+    IncSearch = { fg = p.bg, bg = p.orange_pure, bold = true },
+    CurSearch = { fg = p.bg, bg = p.orange_pure, bold = true },
+    Substitute = { fg = p.bg, bg = p.red_pure },
+    Visual = { bg = p.sel },
+    VisualNOS = { bg = p.sel },
 
     -- Popup menu
     Pmenu = { fg = p.fg, bg = p.surface },
@@ -122,14 +193,14 @@ function M.highlights()
     PmenuExtraSel = { fg = p.gray, bg = p.surface_hi },
     PmenuSbar = { bg = p.surface },
     PmenuThumb = { bg = p.gray },
-    WildMenu = { fg = p.bg, bg = p.cyan },
+    WildMenu = { fg = p.bg, bg = p.cyan_pure },
 
     -- Status / tab / winbar
     StatusLine = { fg = p.fg, bg = p.surface },
     StatusLineNC = { fg = p.gray, bg = p.surface },
     TabLine = { fg = p.gray, bg = p.surface },
     TabLineFill = { bg = p.bg },
-    TabLineSel = { fg = p.cyan, bg = p.bg, bold = true },
+    TabLineSel = { fg = p.cyan_pure, bg = p.bg, bold = true },
     WinBar = { fg = p.fg, bg = p.bg },
     WinBarNC = { fg = p.gray, bg = p.bg },
 
@@ -160,7 +231,7 @@ function M.highlights()
     ------------------------------------------------------------------
     -- Legacy syntax groups (regex highlighting / no-LSP fallback)
     ------------------------------------------------------------------
-    Comment = { fg = p.gray, italic = true },
+    Comment = { fg = p.comment, italic = true },
 
     Constant = { fg = p.blue },
     String = { fg = p.orange },
@@ -187,7 +258,7 @@ function M.highlights()
     PreCondit = { fg = p.purple },
 
     Type = { fg = p.cyan },
-    StorageClass = { fg = p.purple },
+    StorageClass = { fg = p.purple_dim },
     Structure = { fg = p.cyan },
     Typedef = { fg = p.cyan },
 
@@ -199,17 +270,17 @@ function M.highlights()
     Debug = { fg = p.red },
 
     Error = { fg = p.red, bold = true },
-    Todo = { fg = p.bg, bg = p.yellow, bold = true },
+    Todo = { fg = p.bg, bg = p.yellow_pure, bold = true },
 
     ------------------------------------------------------------------
     -- Tree-sitter captures (`:h treesitter-highlight-groups`)
     ------------------------------------------------------------------
     ["@comment"] = { link = "Comment" },
-    ["@comment.documentation"] = { fg = p.gray, italic = true },
-    ["@comment.error"] = { fg = p.bg, bg = p.red, bold = true },
+    ["@comment.documentation"] = { fg = p.comment, italic = true },
+    ["@comment.error"] = { fg = p.bg, bg = p.red_pure, bold = true },
     ["@comment.warning"] = { fg = p.bg, bg = diag_warn, bold = true },
-    ["@comment.todo"] = { fg = p.bg, bg = p.yellow, bold = true },
-    ["@comment.note"] = { fg = p.bg, bg = p.cyan, bold = true },
+    ["@comment.todo"] = { fg = p.bg, bg = p.yellow_pure, bold = true },
+    ["@comment.note"] = { fg = p.bg, bg = p.cyan_pure, bold = true },
 
     ["@string"] = { fg = p.orange },
     ["@string.documentation"] = { fg = p.orange },
@@ -232,9 +303,9 @@ function M.highlights()
     ["@keyword.coroutine"] = { fg = p.purple },
     ["@keyword.function"] = { fg = p.purple }, -- fun / def / void
     ["@keyword.operator"] = { fg = p.purple }, -- instanceof / in / is
-    ["@keyword.import"] = { fg = p.purple }, -- import / package
+    ["@keyword.import"] = { fg = p.purple_dim }, -- import / package
     ["@keyword.type"] = { fg = p.purple }, -- class / interface / enum
-    ["@keyword.modifier"] = { fg = p.purple }, -- public / static / final
+    ["@keyword.modifier"] = { fg = p.purple_dim }, -- public / static / final
     ["@keyword.repeat"] = { fg = p.purple },
     ["@keyword.return"] = { fg = p.purple },
     ["@keyword.debug"] = { fg = p.red },
@@ -265,15 +336,15 @@ function M.highlights()
     ["@variable.builtin"] = { fg = p.purple, italic = true }, -- this / super
     ["@variable.parameter"] = { fg = p.fg },
     ["@variable.parameter.builtin"] = { fg = p.fg, italic = true },
-    ["@variable.member"] = { fg = p.fg }, -- field access
-    ["@property"] = { fg = p.fg },
-    ["@field"] = { fg = p.fg },
+    ["@variable.member"] = { fg = p.member }, -- field access
+    ["@property"] = { fg = p.member },
+    ["@field"] = { fg = p.member },
 
     ["@type"] = { fg = p.cyan },
     ["@type.builtin"] = { fg = p.cyan }, -- int / boolean / char …
     ["@type.definition"] = { fg = p.cyan },
-    ["@type.qualifier"] = { fg = p.purple }, -- final / sealed
-    ["@storageclass"] = { fg = p.purple },
+    ["@type.qualifier"] = { fg = p.purple_dim }, -- final / sealed
+    ["@storageclass"] = { fg = p.purple_dim },
     ["@attribute"] = { fg = p.green }, -- @Override / @Service …
     ["@attribute.builtin"] = { fg = p.green },
     ["@annotation"] = { fg = p.green },
@@ -325,15 +396,15 @@ function M.highlights()
     ["@lsp.type.typeAlias"] = { fg = p.cyan },
     ["@lsp.type.parameter"] = { fg = p.fg },
     ["@lsp.type.variable"] = { fg = p.fg },
-    ["@lsp.type.property"] = { fg = p.fg },
-    ["@lsp.type.field"] = { fg = p.fg },
+    ["@lsp.type.property"] = { fg = p.member },
+    ["@lsp.type.field"] = { fg = p.member },
     ["@lsp.type.enumMember"] = { fg = p.blue }, -- enum *constants*
     ["@lsp.type.event"] = { fg = p.fg },
     ["@lsp.type.function"] = { fg = p.yellow },
     ["@lsp.type.method"] = { fg = p.yellow },
     ["@lsp.type.macro"] = { fg = p.purple },
     ["@lsp.type.keyword"] = { fg = p.purple },
-    ["@lsp.type.modifier"] = { fg = p.purple },
+    ["@lsp.type.modifier"] = { fg = p.purple_dim },
     ["@lsp.type.comment"] = { link = "Comment" },
     ["@lsp.type.string"] = { fg = p.orange },
     ["@lsp.type.number"] = { fg = p.blue },
@@ -359,7 +430,7 @@ function M.highlights()
     ["@lsp.typemod.variable.readonly"] = { fg = p.blue }, -- final field → constant
     ["@lsp.typemod.variable.static.readonly"] = { fg = p.blue, bold = true },
     ["@lsp.typemod.property.readonly"] = { fg = p.blue },
-    ["@lsp.typemod.property.static"] = { fg = p.fg, italic = true },
+    ["@lsp.typemod.property.static"] = { fg = p.member, italic = true },
     ["@lsp.typemod.parameter.readonly"] = { fg = p.fg },
     ["@lsp.typemod.parameter.declaration"] = { fg = p.fg },
     ["@lsp.typemod.enumMember.readonly"] = { fg = p.blue },
@@ -402,7 +473,7 @@ function M.highlights()
     DiagnosticFloatingHint = { fg = diag_hint },
     DiagnosticFloatingOk = { fg = p.green },
 
-    DiagnosticSignError = { fg = p.red },
+    DiagnosticSignError = { fg = p.red_pure },
     DiagnosticSignWarn = { fg = diag_warn },
     DiagnosticSignInfo = { fg = diag_info },
     DiagnosticSignHint = { fg = diag_hint },
@@ -447,11 +518,11 @@ function M.highlights()
     TelescopeTitle = { fg = p.fg, bold = true },
     TelescopePromptNormal = { fg = p.fg, bg = p.surface_hi },
     TelescopePromptBorder = { fg = p.surface_hi, bg = p.surface_hi },
-    TelescopePromptTitle = { fg = p.bg, bg = p.purple, bold = true },
+    TelescopePromptTitle = { fg = p.bg, bg = p.purple_pure, bold = true },
     TelescopePromptPrefix = { fg = p.purple },
     TelescopePromptCounter = { fg = p.gray },
     TelescopeResultsTitle = { fg = p.surface, bg = p.surface },
-    TelescopePreviewTitle = { fg = p.bg, bg = p.green, bold = true },
+    TelescopePreviewTitle = { fg = p.bg, bg = p.green_pure, bold = true },
     TelescopeSelection = { bg = p.surface_hi, bold = true },
     TelescopeSelectionCaret = { fg = p.purple, bg = p.surface_hi },
     TelescopeMatching = { fg = p.yellow, bold = true },
@@ -469,12 +540,12 @@ function M.highlights()
     CmpItemKindMethod = { fg = p.yellow },
     CmpItemKindFunction = { fg = p.yellow },
     CmpItemKindConstructor = { fg = p.cyan },
-    CmpItemKindField = { fg = p.fg },
+    CmpItemKindField = { fg = p.member },
     CmpItemKindVariable = { fg = p.fg },
     CmpItemKindClass = { fg = p.cyan },
     CmpItemKindInterface = { fg = p.cyan },
     CmpItemKindModule = { fg = p.fg_dim },
-    CmpItemKindProperty = { fg = p.fg },
+    CmpItemKindProperty = { fg = p.member },
     CmpItemKindUnit = { fg = p.blue },
     CmpItemKindValue = { fg = p.blue },
     CmpItemKindEnum = { fg = p.cyan },
@@ -498,7 +569,7 @@ function M.highlights()
     WhichKeyValue = { fg = p.gray },
     WhichKeyFloat = { bg = p.surface },
     WhichKeyBorder = { fg = p.gray, bg = p.surface },
-    WhichKeyTitle = { fg = p.cyan, bg = p.surface, bold = true },
+    WhichKeyTitle = { fg = p.cyan_pure, bg = p.surface, bold = true },
 
     -- oil.nvim
     OilDir = { fg = p.cyan },
@@ -533,7 +604,7 @@ function M.highlights()
     NoiceCmdline = { fg = p.fg, bg = p.surface },
     NoiceCmdlinePopup = { fg = p.fg, bg = p.surface },
     NoiceCmdlinePopupBorder = { fg = p.gray, bg = p.surface },
-    NoiceCmdlinePopupTitle = { fg = p.cyan, bold = true },
+    NoiceCmdlinePopupTitle = { fg = p.cyan_pure, bold = true },
     NoiceCmdlineIcon = { fg = p.purple },
     NoiceCmdlineIconSearch = { fg = p.yellow },
     NoiceConfirm = { fg = p.fg, bg = p.surface },
@@ -548,17 +619,19 @@ function M.highlights()
     -- snacks.nvim
     SnacksNormal = { fg = p.fg, bg = p.surface },
     SnacksBackdrop = { bg = p.bg_dark },
-    SnacksWinBar = { fg = p.cyan, bg = p.surface, bold = true },
+    SnacksWinBar = { fg = p.cyan_pure, bg = p.surface, bold = true },
     SnacksWinBarNC = { fg = p.gray, bg = p.surface },
-    SnacksDashboardHeader = { fg = p.cyan, bold = true },
+    SnacksDashboardHeader = { fg = p.cyan_pure, bold = true },
     SnacksDashboardTitle = { fg = p.purple },
     SnacksDashboardDesc = { fg = p.fg },
     SnacksDashboardKey = { fg = p.yellow },
     SnacksDashboardIcon = { fg = p.green },
     SnacksDashboardFooter = { fg = p.gray, italic = true },
     SnacksDashboardSpecial = { fg = p.purple },
-    SnacksIndent = { fg = p.surface },
-    SnacksIndentScope = { fg = p.gray },
+    -- Quiet indent guides; the scope the cursor is inside gets the I-piece
+    -- cyan tint so the active nesting level reads without shouting.
+    SnacksIndent = { fg = p.surface_hi },
+    SnacksIndentScope = { fg = p.cyan },
     SnacksNotifierInfo = { fg = diag_info, bg = p.surface },
     SnacksNotifierWarn = { fg = diag_warn, bg = p.surface },
     SnacksNotifierError = { fg = p.red, bg = p.surface },
@@ -575,7 +648,7 @@ function M.highlights()
     RenderMarkdownHint = { fg = diag_hint },
     RenderMarkdownWarn = { fg = diag_warn },
     RenderMarkdownError = { fg = p.red },
-    RenderMarkdownH1 = { fg = p.cyan, bold = true },
+    RenderMarkdownH1 = { fg = p.cyan_pure, bold = true },
     RenderMarkdownH2 = { fg = p.purple, bold = true },
     RenderMarkdownH3 = { fg = p.yellow, bold = true },
     RenderMarkdownH4 = { fg = p.green, bold = true },
@@ -592,17 +665,17 @@ function M.highlights()
     RenderMarkdownUnchecked = { fg = p.gray },
 
     -- mason.nvim
-    MasonHeader = { fg = p.bg, bg = p.purple, bold = true },
-    MasonHeaderSecondary = { fg = p.bg, bg = p.cyan, bold = true },
+    MasonHeader = { fg = p.bg, bg = p.purple_pure, bold = true },
+    MasonHeaderSecondary = { fg = p.bg, bg = p.cyan_pure, bold = true },
     MasonHighlight = { fg = p.cyan },
-    MasonHighlightBlock = { fg = p.bg, bg = p.cyan },
-    MasonHighlightBlockBold = { fg = p.bg, bg = p.cyan, bold = true },
+    MasonHighlightBlock = { fg = p.bg, bg = p.cyan_pure },
+    MasonHighlightBlockBold = { fg = p.bg, bg = p.cyan_pure, bold = true },
     MasonMuted = { fg = p.gray },
     MasonMutedBlock = { fg = p.fg, bg = p.surface_hi },
     MasonError = { fg = p.red },
 
     -- nvim-dap / nvim-dap-ui / virtual text
-    DapBreakpoint = { fg = p.red },
+    DapBreakpoint = { fg = p.red_pure },
     DapBreakpointCondition = { fg = p.orange },
     DapBreakpointRejected = { fg = p.gray },
     DapLogPoint = { fg = diag_info },
@@ -631,7 +704,7 @@ function M.highlights()
     DapUIBreakpointsInfo = { fg = p.green },
     DapUIBreakpointsCurrentLine = { fg = p.yellow, bold = true },
     DapUIBreakpointsDisabledLine = { fg = p.gray },
-    DapUIButton = { fg = p.bg, bg = p.cyan },
+    DapUIButton = { fg = p.bg, bg = p.cyan_pure },
     DapUIPlayPause = { fg = p.green, bg = p.surface },
     DapUIRestart = { fg = p.green, bg = p.surface },
     DapUIStop = { fg = p.red, bg = p.surface },
@@ -643,7 +716,7 @@ function M.highlights()
 
     -- diffview.nvim
     DiffviewNormal = { link = "Normal" },
-    DiffviewFilePanelTitle = { fg = p.cyan, bold = true },
+    DiffviewFilePanelTitle = { fg = p.cyan_pure, bold = true },
     DiffviewFilePanelCounter = { fg = p.purple, bold = true },
     DiffviewFilePanelFileName = { fg = p.fg },
     DiffviewFilePanelPath = { fg = p.gray },
@@ -671,8 +744,8 @@ function M.highlights()
     BufferLineFill = { bg = p.bg_dark },
     BufferLineBackground = { fg = p.gray, bg = p.surface },
     BufferLineBufferVisible = { fg = p.fg_dim, bg = p.surface },
-    BufferLineBufferSelected = { fg = p.cyan, bg = p.bg, bold = true },
-    BufferLineIndicatorSelected = { fg = p.cyan, bg = p.bg },
+    BufferLineBufferSelected = { fg = p.cyan_pure, bg = p.bg, bold = true },
+    BufferLineIndicatorSelected = { fg = p.cyan_pure, bg = p.bg },
     BufferLineSeparator = { fg = p.bg_dark, bg = p.surface },
     BufferLineSeparatorSelected = { fg = p.bg_dark, bg = p.bg },
     BufferLineCloseButton = { fg = p.gray, bg = p.surface },
@@ -700,25 +773,35 @@ function M.apply()
 
   local set_hl = vim.api.nvim_set_hl
   for group, spec in pairs(M.highlights()) do
+    if not spec.link then
+      -- 256-colour fallback so the scheme still reads without truecolor.
+      if spec.fg then
+        spec.ctermfg = hex_to_cterm(spec.fg)
+      end
+      if spec.bg then
+        spec.ctermbg = hex_to_cterm(spec.bg)
+      end
+    end
     set_hl(0, group, spec)
   end
 
-  -- Terminal ANSI colours — keep :terminal on-palette.
+  -- Terminal ANSI colours — :terminal keeps the *pure* tetromino hues so
+  -- shell output stays fully saturated (it is glanced, not read as code).
   vim.g.terminal_color_0 = p.surface
-  vim.g.terminal_color_1 = p.red
-  vim.g.terminal_color_2 = p.green
-  vim.g.terminal_color_3 = p.yellow
-  vim.g.terminal_color_4 = p.blue
-  vim.g.terminal_color_5 = p.purple
-  vim.g.terminal_color_6 = p.cyan
+  vim.g.terminal_color_1 = p.red_pure
+  vim.g.terminal_color_2 = p.green_pure
+  vim.g.terminal_color_3 = p.yellow_pure
+  vim.g.terminal_color_4 = p.blue_pure
+  vim.g.terminal_color_5 = p.purple_pure
+  vim.g.terminal_color_6 = p.cyan_pure
   vim.g.terminal_color_7 = p.fg
   vim.g.terminal_color_8 = p.gray
-  vim.g.terminal_color_9 = p.red
-  vim.g.terminal_color_10 = p.green
-  vim.g.terminal_color_11 = p.yellow
-  vim.g.terminal_color_12 = p.blue
-  vim.g.terminal_color_13 = p.purple
-  vim.g.terminal_color_14 = p.cyan
+  vim.g.terminal_color_9 = p.red_pure
+  vim.g.terminal_color_10 = p.green_pure
+  vim.g.terminal_color_11 = p.yellow_pure
+  vim.g.terminal_color_12 = p.blue_pure
+  vim.g.terminal_color_13 = p.purple_pure
+  vim.g.terminal_color_14 = p.cyan_pure
   vim.g.terminal_color_15 = "#FFFFFF"
 end
 

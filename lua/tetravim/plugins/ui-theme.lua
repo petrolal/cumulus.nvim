@@ -87,18 +87,47 @@ local function get_lualine_opts()
 end
 
 local function get_bufferline_opts()
+  local diag_icons = { error = "󰅚 ", warning = "󰀪 ", info = "󰋽 ", hint = "󰌶 " }
+
   return {
     options = {
       mode = "buffers",
       numbers = "ordinal",
       diagnostics = "nvim_lsp",
+      diagnostics_indicator = function(_, _, diag)
+        local parts = {}
+        for key, sym in pairs(diag_icons) do
+          if diag[key] then
+            parts[#parts + 1] = sym .. diag[key]
+          end
+        end
+        return table.concat(parts, " ")
+      end,
       show_buffer_close_icons = true,
-      show_close_icon = true,
+      show_close_icon = false,
       indicator = {
         icon = "▎",
         style = "icon",
       },
-      separator_style = "thin",
+      -- Slanted tabs with a soft fade between them -- the same powerline
+      -- geometry the lualine section separators use.
+      separator_style = "slant",
+      offsets = {
+        {
+          filetype = "oil",
+          text = "  Explorer",
+          highlight = "Directory",
+          text_align = "left",
+          separator = true,
+        },
+        {
+          filetype = "snacks_layout_box",
+          text = "  Explorer",
+          highlight = "Directory",
+          text_align = "left",
+          separator = true,
+        },
+      },
     },
     highlights = {
       buffer_selected = {

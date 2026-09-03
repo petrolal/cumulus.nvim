@@ -2,6 +2,7 @@
 require("tetravim.core.options")
 require("tetravim.core.keymaps")
 require("tetravim.core.autocmds")
+require("tetravim.core.diagnostics")
 
 -- Legacy command compatibility shim
 vim.api.nvim_create_user_command("TetraVimInstallEngine", function()

@@ -5,6 +5,14 @@ return {
     "folke/noice.nvim",
     event = "VeryLazy",
     opts = {
+      presets = {
+        -- Rounded border + padding on the LSP hover / signature popups so
+        -- they match `winborder`; route the search box to the bottom and
+        -- overly long :messages into a split instead of a wall of popups.
+        bottom_search = true,
+        long_message_to_split = true,
+        lsp_doc_border = true,
+      },
       cmdline = {
         enabled = true,
         view = "cmdline_popup",
