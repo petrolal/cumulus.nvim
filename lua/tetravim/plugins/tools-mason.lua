@@ -32,6 +32,8 @@ local ensure_installed = {
   "superhtml",
   "taplo",
   "checkstyle",
+  "buf",
+  "protols",
 }
 
 return {

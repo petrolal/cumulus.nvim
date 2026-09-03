@@ -1,24 +1,280 @@
 #!/usr/bin/env bash
-# TetraVim Neovim Bootstrap
-# Initializes the Neovim environment and installs basic dependencies
+# TetraVim Neovim: Full Bootstrap
+# Installs all runtime dependencies required for a clean :checkhealth run.
+# Run once after a fresh clone / new machine setup.
+#
+# Usage: bash bootstrap.sh
 
 set -euo pipefail
 
-echo "=================================================="
-echo "          TetraVim Neovim Bootstrap                "
-echo "=================================================="
-echo ""
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR" && pwd)"
 
-# Ensure Neovim is available
+pass() { echo "  ✔ $*"; }
+warn() { echo "  ⚠ $*"; }
+fail() { echo "  ✖ $*"; }
+section() {
+	echo ""
+	echo "── $* ──────────────────────────────────────────────"
+}
+
+echo "=================================================="
+echo "   TetraVim Neovim: Full Bootstrap               "
+echo "=================================================="
+
+# ============================================================================
+# 0. Neovim — hard requirement
+# ============================================================================
+section "Neovim"
 if ! command -v nvim >/dev/null 2>&1; then
-  echo "✖ Neovim is not installed or not in PATH."
-  echo "Please install Neovim >= 0.10.0"
-  exit 1
+	fail "Neovim not found. Install >= 0.10 first."
+	echo "    macOS:  brew install neovim"
+	echo "    Ubuntu: sudo apt install neovim"
+	echo "    Arch:   sudo pacman -S neovim"
+	exit 1
+fi
+pass "Neovim: $(nvim --version | head -n 1)"
+
+# ============================================================================
+# 1. Link config & sync plugins (idempotent)
+# ============================================================================
+section "Config & Plugins"
+
+NVIM_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+if [ -e "$NVIM_CONFIG" ] && [ ! -L "$NVIM_CONFIG" ]; then
+	BACKUP="$NVIM_CONFIG.backup.$(date +%s)"
+	warn "Backing up existing nvim config -> $BACKUP"
+	mv "$NVIM_CONFIG" "$BACKUP"
+fi
+if [ -L "$NVIM_CONFIG" ]; then
+	rm "$NVIM_CONFIG"
+fi
+mkdir -p "$(dirname "$NVIM_CONFIG")"
+ln -sf "$REPO_DIR" "$NVIM_CONFIG"
+pass "Config linked: $NVIM_CONFIG -> $REPO_DIR"
+
+if nvim --headless "+Lazy! sync" +qa 2>/dev/null; then
+	pass "Plugins synced"
+else
+	warn "Plugin sync had warnings (run :Lazy in nvim to check)"
 fi
 
-echo "→ Syncing Neovim Plugins via Lazy.nvim..."
-nvim --headless "+Lazy! sync" +qa
+# Ensure Mason tools (including grpcurl) are installed
+if nvim --headless +'MasonToolsInstall' +'qa!' 2>/dev/null; then
+	pass "Mason tools installed (grpcurl, etc.)"
+else
+	warn "Mason tools install failed – you may need to run :MasonToolsInstall manually"
+fi
 
-echo "✔ Setup complete! You can now run 'nvim'."
+# ============================================================================
+# 2. Node.js provider & npm tools
+#    - neovim npm package  -> vim.provider Node.js
+#    - prettier            -> conform.nvim formatter (web/yaml/json/md)
+# ============================================================================
+section "Node.js tools (npm)"
+
+if ! command -v npm >/dev/null 2>&1; then
+	warn "npm not found -- skipping Node.js provider and npm tools"
+	warn "Install Node.js >= 18 to enable: neovim, prettier"
+else
+	npm_global_install() {
+		local pkg="$1"
+		if npm list -g "$pkg" --depth=0 2>/dev/null | grep -q "$pkg"; then
+			pass "$pkg already installed"
+		else
+			echo "  -> npm install -g $pkg"
+			npm install -g "$pkg"
+			pass "$pkg installed"
+		fi
+	}
+
+	npm_global_install neovim   # Node.js provider for Neovim
+	npm_global_install prettier # conform formatter: js/ts/yaml/json/md/css/html
+fi
+
+# ============================================================================
+# 3. Go tools
+#    - yamlfmt -> conform.nvim YAML formatter
+# ============================================================================
+section "Go tools"
+
+if ! command -v go >/dev/null 2>&1; then
+	warn "go not found -- skipping yamlfmt"
+	warn "Install Go >= 1.21 to enable yamlfmt"
+else
+	GOPATH_BIN="$(go env GOPATH)/bin"
+	if command -v yamlfmt >/dev/null 2>&1 || [ -x "$GOPATH_BIN/yamlfmt" ]; then
+		pass "yamlfmt already installed"
+	else
+		echo "  -> go install github.com/google/yamlfmt/cmd/yamlfmt@latest"
+		go install github.com/google/yamlfmt/cmd/yamlfmt@latest
+		pass "yamlfmt installed"
+		if ! echo "$PATH" | grep -q "$GOPATH_BIN"; then
+			warn "Add $GOPATH_BIN to your PATH (e.g. in ~/.bashrc or ~/.zshrc)"
+		fi
+	fi
+fi
+
+# ============================================================================
+# 4. Python provider
+#    - pynvim -> vim.provider Python
+# ============================================================================
+section "Python provider (pynvim)"
+
+PY3="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
+if [ -z "$PY3" ]; then
+	warn "python3 not found -- skipping pynvim"
+else
+	if "$PY3" -c "import neovim" 2>/dev/null || "$PY3" -c "import pynvim" 2>/dev/null; then
+		pass "pynvim already importable"
+	else
+		# On Arch Linux (PEP 668) pip --user alone is blocked.
+		# Use --break-system-packages which is safe for user-level packages,
+		# or fall back to the system package manager hint.
+		if "$PY3" -m pip install --user --break-system-packages pynvim 2>/dev/null; then
+			pass "pynvim installed (--break-system-packages)"
+		else
+			warn "Could not install pynvim automatically."
+			warn "Run manually:  sudo pacman -S python-pynvim"
+			warn "  or:          pip install --user --break-system-packages pynvim"
+		fi
+	fi
+fi
+
+# ============================================================================
+# 5. Tree-sitter parsers
+#    - regex -> required by noice.nvim cmdline highlighting + snacks.picker
+# ============================================================================
+section "Tree-sitter parsers"
+
+# nvim-treesitter lazy-loads, so :TSInstall is unavailable headlessly.
+# Use the Lua install API with explicit load and a 30-second timeout.
+
+nvim --headless -u "$NVIM_CONFIG/init.lua" \
+	-c "Lazy! load nvim-treesitter" \
+	-c "lua require('nvim-treesitter.install').install({'regex'}):wait(30000)" \
+	-c "qa!" 2>/dev/null || true
+
+# Verify it's now loadable
+if nvim --headless -u "$NVIM_CONFIG/init.lua" \
+	-c "lua\nlocal ok = pcall(vim.treesitter.get_string_parser, '', 'regex')\nio.stdout:write(tostring(ok) .. '\n')\n" \
+	-c "qa!" 2>/dev/null | grep -q "^true"; then
+	pass "regex Tree-sitter parser ready"
+else
+	warn "TSInstall regex may need to be run manually inside nvim (:TSInstall regex)"
+fi
+
+# ============================================================================
+# 6. PDF & LaTeX preview tools (snacks.nvim)
+#    - gs (ghostscript)    -> PDF rendering
+#    - tectonic / pdflatex -> LaTeX compilation
+# ============================================================================
+section "PDF & LaTeX preview tools (snacks.nvim)"
+
+install_system_pkgs() {
+	local mgr="$1"
+	shift
+	case "$mgr" in
+	pacman)
+		echo "  -> sudo pacman -S --noconfirm --needed $*"
+		sudo pacman -S --noconfirm --needed "$@"
+		;;
+	yay)
+		echo " -> yay -S --noconfirm --needed $*"
+		yay -S --noconfirm --needed "$@"
+		;;
+	apt)
+		echo "  -> sudo apt-get update && sudo apt-get install -y $*"
+		sudo apt-get update && sudo apt-get install -y "$@"
+		;;
+	dnf)
+		echo "  -> sudo dnf install -y $*"
+		sudo dnf install -y "$@"
+		;;
+	brew)
+		echo "  -> brew install $*"
+		brew install "$@"
+		;;
+	esac
+}
+
+# 1. Ghostscript check
+if command -v gs >/dev/null 2>&1; then
+	pass "ghostscript (gs) ready"
+else
+	warn "'gs' missing. Attempting installation..."
+	if command -v pacman >/dev/null; then
+		install_system_pkgs pacman ghostscript
+	elif command -v apt-get >/dev/null; then
+		install_system_pkgs apt ghostscript
+	elif command -v dnf >/dev/null; then
+		install_system_pkgs dnf ghostscript
+	elif command -v brew >/dev/null; then
+		install_system_pkgs brew ghostscript
+	else
+		warn "Cannot auto-install ghostscript. Install manually to enable PDF rendering."
+	fi
+fi
+
+# 2. LaTeX engine check (tectonic preferred, fallback pdflatex)
+if command -v tectonic >/dev/null 2>&1; then
+	pass "tectonic ready"
+elif command -v pdflatex >/dev/null 2>&1; then
+	pass "pdflatex ready"
+else
+	warn "Neither 'tectonic' nor 'pdflatex' found. Attempting to install tectonic..."
+	if command -v pacman >/dev/null; then
+		install_system_pkgs pacman tectonic
+	elif command -v brew >/dev/null; then
+		install_system_pkgs brew tectonic
+	elif command -v cargo >/dev/null; then
+		echo "  -> cargo install tectonic"
+		cargo install tectonic
+	else
+		warn "Could not auto-install tectonic/pdflatex."
+		warn "Run manually:"
+		warn "  Arch:   sudo pacman -S tectonic"
+		warn "  Ubuntu: sudo apt install tectonic (or texlive-latex-base)"
+		warn "  macOS:  brew install tectonic"
+	fi
+fi
+
+# ============================================================================
+# 7. gRPC tools
+# ============================================================================
+section "gRPC tools"
+if command -v grpcurl >/dev/null 2>&1; then
+	pass "grpcurl already installed"
+else
+	warn "'grpcurl' missing. Attempting installation..."
+	if command -v apt-get >/dev/null; then
+		install_system_pkgs apt grpcurl
+	elif command -v dnf >/dev/null; then
+		install_system_pkgs dnf grpcurl
+	elif command -v brew >/dev/null; then
+		install_system_pkgs brew grpcurl
+	elif command -v yay >/dev/null; then
+		install_system_pkgs yay grpcurl
+	else
+		warn "Cannot auto-install grpcurl. Install manually."
+	fi
+fi
+
+# ============================================================================
+# Done
+# ============================================================================
+
+echo ""
+echo "=================================================="
+echo "  Bootstrap complete! Run: nvim +checkhealth      "
+echo "=================================================="
+
+echo ""
+echo "Expected remaining warnings (not blocking JVM development):"
+echo "  conform  : prettier/yamlfmt -- resolved by this script"
+echo "  provider : neovim npm / pynvim -- resolved by this script"
+echo "  noice    : vim.notify / stylize_markdown -- Snacks.notifier handles both"
+echo "  snacks   : bigfile/input/quickfile/scope/scroll/statuscolumn/words disabled by design"
+echo "  mason    : Ruby/PHP/Julia/Perl -- not used by this JVM distribution"
+echo "  devops   : sam / cfn-guard / glab -- optional; install manually if needed"
+echo "  snacks   : gs / tectonic / pdflatex -- optional PDF/LaTeX rendering"

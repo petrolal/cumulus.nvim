@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-25-2026 02:55
-last_updated: 09-03-2026 16:00
+last_updated: 09-03-2026 18:22
 project: tetravim.nvim
 project_key: tetravim
 tracking_system: local
@@ -50,7 +50,7 @@ development_status:
   epic-3: in-progress
   3-1-embedded-database-explorer: done
   3-2-http-client-rest-api-explorer: done
-  3-4-grpc-protobufs-integration: backlog
+  3-4-grpc-protobufs-integration: in-progress
   epic-3-retrospective: optional
 
   epic-4: done
@@ -59,7 +59,7 @@ development_status:
   epic-4-retrospective: optional
 
   epic-5: backlog
-  5-1-asynchronous-lsp-operations-resilience: backlog # 2026-09-03: legacy engine purged; async-LSP resilience folded into standard LSP config, no dedicated story planned
+  5-1-asynchronous-lsp-operations-resilience: backlog
   5-2-enterprise-headless-setup-telemetry: backlog
   epic-5-retrospective: optional
 

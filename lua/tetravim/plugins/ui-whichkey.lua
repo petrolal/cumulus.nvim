@@ -36,6 +36,7 @@ return {
         { "<leader>d", group = "debug/dap", icon = "󰃤 " },
         { "<leader>D", group = "database", icon = "󰆼 " },
         { "<leader>H", group = "http", icon = "󰖟 " },
+        { "<leader>G", group = "grpc/proto", icon = "󱅥 " },
         { "<leader>t", group = "test runner", icon = "󰙨 " },
         { "<leader>u", group = "ui/toggles", icon = "󰔡 " },
         { "<leader>q", group = "quit/session", icon = "󰗼 " },

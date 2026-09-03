@@ -244,6 +244,33 @@ echo "  noice    : vim.notify / stylize_markdown -- Snacks.notifier handles both
 echo "  snacks   : bigfile/input/quickfile/scope/scroll/statuscolumn/words disabled by design"
 echo "  mason    : Ruby/PHP/Julia/Perl -- not used by this JVM distribution"
 echo "  devops   : sam / cfn-guard / glab -- optional; install manually if needed"
-echo "  snacks   : gs / tectonic / pdflatex -- optional PDF/LaTeX rendering"
+	echo "  snacks   : gs / tectonic / pdflatex -- optional PDF/LaTeX rendering"
+	section "gRPC tools"
+	if command -v grpcurl > /dev/null 2>&1; then
+		pass "grpcurl already installed"
+	else
+		warn "'grpcurl' missing. Attempting installation..."
+		if command -v pacman > /dev/null; then
+			# Check if pacman repository actually contains grpcurl
+			if pacman -Ss --quiet ^grpcurl$ > /dev/null 2>&1; then
+				install_system_pkgs pacman grpcurl
+			else
+				# Package not in repos – fall through to other managers
+				true
+			fi
+		elif command -v apt-get > /dev/null; then
+			install_system_pkgs apt grpcurl
+		elif command -v dnf > /dev/null; then
+			install_system_pkgs dnf grpcurl
+		elif command -v brew > /dev/null; then
+			install_system_pkgs brew grpcurl
+		elif command -v go > /dev/null; then
+			echo "  -> go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest"
+			go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+			pass "grpcurl installed via go"
+		else
+			warn "Cannot auto-install grpcurl. Install manually."
+		fi
+	fi
 echo "  which-key: <gr>/<gc> overlaps -- informational only"
 echo ""

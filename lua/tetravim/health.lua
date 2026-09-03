@@ -255,6 +255,44 @@ function M.check()
     vim.health.warn("kulala.nvim: not resolvable -- open a .http file to lazy-load it, or run :Lazy sync")
   end
 
+  vim.health.start("TetraVim gRPC & Protobufs (Story 3.4)")
+
+  local grpc_tools = {
+    {
+      name = "grpcurl",
+      desc = "grpcurl (required for the <leader>G list/describe/invoke keymaps)",
+      install = "Install via :MasonInstall grpcurl / brew install grpcurl / "
+        .. "go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest",
+    },
+    {
+      name = "buf",
+      desc = "buf (the `proto` conform formatter -- <leader>Gf / format-on-save)",
+      install = "Install via :MasonInstall buf / brew install bufbuild/buf/buf",
+    },
+    {
+      name = "protols",
+      desc = "protols (Protocol Buffers language server -- .proto hover / go-to-definition)",
+      install = "Install via :MasonInstall protols / cargo install protols",
+    },
+  }
+
+  for _, tool in ipairs(grpc_tools) do
+    if vim.fn.executable(tool.name) == 1 then
+      vim.health.ok(string.format("%s: installed and executable", tool.name))
+    else
+      vim.health.info(string.format("%s: NOT found on $PATH (%s. Suggestion: %s)", tool.name, tool.desc, tool.install))
+    end
+  end
+
+  -- vim.treesitter.language.add() does not raise when the parser is absent,
+  -- so probe with get_string_parser which does (see the SQL section above).
+  local proto_parser_ok = pcall(vim.treesitter.get_string_parser, "", "proto")
+  if proto_parser_ok then
+    vim.health.ok("proto Tree-sitter parser: installed (.proto syntax highlighting available)")
+  else
+    vim.health.warn("proto Tree-sitter parser: NOT installed. Suggestion: :TSInstall proto")
+  end
+
   vim.health.start("TetraVim Advanced Git Conflict Resolution (Story 4.1)")
 
   if vim.fn.executable("git") == 1 then

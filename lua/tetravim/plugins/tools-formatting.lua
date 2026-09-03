@@ -14,6 +14,7 @@ return {
         java = { "google-java-format" },
         groovy = { "npm-groovy-lint" },
         html = { "superhtml" },
+        proto = { "buf" },
         toml = { "taplo" },
         lua = { "stylua" },
         sh = { "shfmt" },
