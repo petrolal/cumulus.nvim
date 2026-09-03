@@ -19,98 +19,72 @@ function M.check()
 
   vim.health.start("TetraVim System Dependencies")
 
-  local engine = require("tetravim.util.engine")
-  local health_response = engine.check_health()
-
-  if health_response and health_response.data then
-    local report = health_response.data
-
-    -- Display binary status
-    if report.binaries then
-      for _, binary in ipairs(report.binaries) do
-        if binary.status == "ok" then
-          if binary.version then
-            vim.health.ok(string.format("%s: installed (v%s)", binary.name, binary.version))
-          else
-            vim.health.ok(string.format("%s: installed", binary.name))
-          end
-        elseif binary.status == "missing" then
-          -- Determine if it's required or optional
-          local required_binaries = { rg = true, git = true }
-          if required_binaries[binary.name] then
-            vim.health.warn(string.format("%s: NOT found on $PATH (required)", binary.name))
-          else
-            vim.health.info(string.format("%s: NOT found on $PATH (optional)", binary.name))
-          end
-        elseif binary.status == "error" then
-          vim.health.warn(string.format("%s: error checking binary (%s)", binary.name, binary.path or "unknown"))
-        end
-      end
+  local binaries = {
+    { name = "rg", required = true, label = "ripgrep (fast project-wide search)" },
+    { name = "git", required = true, label = "git (VCS integration)" },
+    { name = "fd", required = false, label = "fd (file finder)" },
+    { name = "make", required = false, label = "make (native build steps)" },
+    { name = "node", required = false, label = "node (LSP servers, formatters)" },
+  }
+  for _, bin in ipairs(binaries) do
+    if vim.fn.executable(bin.name) == 1 then
+      vim.health.ok(string.format("%s: found on $PATH (%s)", bin.name, bin.label))
+    elseif bin.required then
+      vim.health.warn(string.format("%s: NOT found on $PATH -- %s", bin.name, bin.label))
+    else
+      vim.health.info(string.format("%s: NOT found on $PATH (optional -- %s)", bin.name, bin.label))
     end
-  else
-    vim.health.warn("TetraVim Scala Engine ('tetravim-engine'): check-health failed or not available")
   end
 
-  -- Engine availability
-  if engine.is_available() then
-    local info = engine.ping()
-    if info then
-      vim.health.ok(
-        string.format(
-          "TetraVim Scala Engine ('tetravim-engine'): active (%s, v%s, Scala %s, commit %s)",
-          engine.get_bin(),
-          info.version or "unknown",
-          info.scala or "3.x",
-          info.commit or "HEAD"
-        )
-      )
-    else
-      vim.health.ok(string.format("TetraVim Scala Engine ('tetravim-engine'): active (%s)", engine.get_bin()))
-    end
+  vim.health.start("Gradle Wrapper & Build Lock")
+
+  local uv = vim.uv or vim.loop
+  local cwd = vim.fn.getcwd()
+  local is_gradle = uv.fs_stat(cwd .. "/build.gradle") ~= nil
+    or uv.fs_stat(cwd .. "/build.gradle.kts") ~= nil
+    or uv.fs_stat(cwd .. "/settings.gradle") ~= nil
+    or uv.fs_stat(cwd .. "/settings.gradle.kts") ~= nil
+
+  if not is_gradle then
+    vim.health.info("Gradle project not detected in current directory")
   else
-    vim.health.warn(
-      "TetraVim Scala Engine ('tetravim-engine'): not compiled or not found. Build via 'cd engine && sbt nativeImage' or run ':TetraVimInstallEngine'"
-    )
-  end
-
-  vim.health.start("Gradle Wrapper & Build Lock (SPEC-012)")
-
-  if health_response and health_response.data then
-    if health_response.data.gradle_wrapper then
-      local gradle_info = health_response.data.gradle_wrapper
-
-      if gradle_info.local_version then
-        vim.health.ok(string.format("Local Gradle version: %s", gradle_info.local_version))
-      else
-        vim.health.warn("Local Gradle version: not found in gradle-wrapper.properties")
-      end
-
-      if gradle_info.ci_version then
-        vim.health.ok(string.format("CI Gradle version: %s", gradle_info.ci_version))
-      else
-        vim.health.info("CI Gradle version: not configured in CI workflows")
-      end
-
-      if gradle_info.sha256_configured then
-        vim.health.ok("SHA-256 checksum: configured")
-      else
-        vim.health.warn("SHA-256 checksum: NOT configured (security risk for supply chain)")
-      end
-
-      if gradle_info.issues and #gradle_info.issues > 0 then
-        for _, issue in ipairs(gradle_info.issues) do
-          vim.health.warn("Gradle Wrapper: " .. issue)
-        end
-      else
-        vim.health.ok("Gradle wrapper: no issues detected")
-      end
-    elseif health_response.data.build_tool == "gradle" then
-      vim.health.warn("Gradle project detected but wrapper verification failed")
+    if uv.fs_stat(cwd .. "/gradlew") then
+      vim.health.ok("Gradle wrapper script (gradlew): present")
     else
-      vim.health.info("Gradle project not detected")
+      vim.health.warn("Gradle wrapper script (gradlew): missing -- run 'gradle wrapper' to add it")
     end
-  else
-    vim.health.info("Engine health check failed or unavailable")
+
+    if uv.fs_stat(cwd .. "/gradle/wrapper/gradle-wrapper.jar") then
+      vim.health.ok("gradle-wrapper.jar: present")
+    else
+      vim.health.warn("gradle-wrapper.jar: missing under gradle/wrapper/")
+    end
+
+    local props = cwd .. "/gradle/wrapper/gradle-wrapper.properties"
+    if uv.fs_stat(props) then
+      local ok_read, lines = pcall(vim.fn.readfile, props)
+      local content = ok_read and table.concat(lines, "\n") or ""
+      local dist = content:match("distributionUrl=.-gradle%-([%d%.]+)%-")
+      if dist then
+        vim.health.ok(string.format("Gradle distribution pinned: %s", dist))
+      else
+        vim.health.info("gradle-wrapper.properties: present (distribution version not parsed)")
+      end
+      if content:match("distributionSha256Sum=") then
+        vim.health.ok("SHA-256 checksum: configured (distributionSha256Sum)")
+      else
+        vim.health.warn("SHA-256 checksum: NOT configured -- add distributionSha256Sum for supply-chain safety")
+      end
+    else
+      vim.health.warn("gradle-wrapper.properties: missing under gradle/wrapper/")
+    end
+
+    local locks = vim.fn.glob(cwd .. "/.gradle/*.lock", false, true)
+    if locks and #locks > 0 then
+      vim.health.warn(string.format("Stale Gradle build lock(s) present: %s", table.concat(locks, ", ")))
+    else
+      vim.health.ok("No stale Gradle build locks under .gradle/")
+    end
   end
 
   vim.health.start("TetraVim Project-Wide Safe Rename (SPEC-2.1)")

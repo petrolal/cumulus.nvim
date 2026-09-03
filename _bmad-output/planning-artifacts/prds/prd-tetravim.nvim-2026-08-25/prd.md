@@ -13,7 +13,7 @@ updated: 2026-08-25
 **Core Objectives:**
 - **Absolute Stability:** Serve as a reliable daily driver for a professional engineer. Zero tolerance for freezing or blocking the UI.
 - **Enterprise JVM Parity:** Provide essential enterprise development features for Java and Kotlin without the overhead of heavy Java-based IDEs, embracing a keyboard-driven Neovim philosophy.
-- **Native Ecosystem:** Shift entirely away from custom background engines and rely on community-standard LSPs and plugins.
+- **Native Ecosystem:** Rely entirely on community-standard LSPs and plugins — no custom background engine, backend, or bridge.
 
 ## 2. Target Audience & Stakes
 - **Primary User:** Solo enterprise backend developer.
@@ -26,7 +26,7 @@ updated: 2026-08-25
 - **[F-01] Java & Kotlin Support:** Full LSP-backed intelligence via `nvim-jdtls` and `kotlin-language-server`.
   - *AC:* Auto-completion, go-to-definition, and signature help respond in <200ms.
 - **[F-02] Spring Boot Integration:** Pure Lua Tree-sitter discovery of REST endpoints, interactive bean graph visualization, and native DAP generation.
-  - *AC:* User can trigger a telescope picker (`<leader>jse`) to search all mapped REST endpoints, inspect bean dependencies (`<leader>jsb`), and detect application configuration (`<leader>jsd`) without legacy engine dependencies.
+  - *AC:* User can trigger a telescope picker (`<leader>jse`) to search all mapped REST endpoints, inspect bean dependencies (`<leader>jsb`), and detect application configuration (`<leader>jsd`), all via native Lua/Tree-sitter with no external backend.
 
 ### 3.2. Build, Test, and Refactoring
 - **[F-03] Neovim-Native Project Generator:** A dedicated Telescope/UI layer to initialize new Maven and Gradle projects from scratch. Captures the essence of IntelliJ's generator (e.g., Spring Initializr integration, archetype selection) but tailored to Neovim's keyboard-centric philosophy.
@@ -60,7 +60,7 @@ updated: 2026-08-25
 - **[NFR-05] Installation:** Must support a 100% headless automated installation (`bootstrap.sh`) and headless validation (`validate.sh`).
 
 ## 5. Out of Scope
-- Building or maintaining custom backend language engines (the legacy Scala `tetravim-engine` is deprecated).
+- Building or maintaining any custom backend language engine, bridge, or daemon (there is no `tetravim-engine`; all intelligence comes from standard LSPs and Lua).
 - Scala or `sbt` support is strictly out of scope; focus is entirely on Java and Kotlin.
 - Complex multi-user collaborative features (focused strictly on single-operator efficiency).
 - Air-gapped/offline-first installations.

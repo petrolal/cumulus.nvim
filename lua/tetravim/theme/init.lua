@@ -6,11 +6,11 @@
 -- and the statusline integration (`plugins/ui-theme.lua`) call into.
 --
 -- History: this file was previously a multi-provider "Cloud Theme
--- Switcher" that delegated to an external `tetravim-engine` binary for
--- AWS / Azure / GCP / OCI accent palettes (read from
--- `~/.config/tetravim/theme/state` + `palette.json`). That system, its
--- provider tables and the `set_theme` / `select_theme` picker have been
--- removed -- TetraVim now standardises strictly on the Tetris palette.
+-- Switcher" that delegated to an external binary for AWS / Azure / GCP /
+-- OCI accent palettes (read from `~/.config/tetravim/theme/state` +
+-- `palette.json`). That system, its provider tables and the `set_theme` /
+-- `select_theme` picker have been removed -- TetraVim now standardises
+-- strictly on the Tetris palette.
 
 local M = {}
 

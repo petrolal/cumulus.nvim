@@ -129,3 +129,7 @@ baseline_commit: '096ecc2a6682b3c29bbcee642f52ba9c80775503'
 - `nvim --headless -c "PlenaryBustedDirectory lua/tetravim/tests/" -c qa` -- expected: `spring_spec.lua` green, no regressions in existing specs
 - `bash scripts/validate-2-3.sh` -- expected: exit 0 (script uses `cquit 1` on failure)
 - `grep -rn "generate_dap_config\|select_bean\|select_endpoint\|parse_spring_beans\|extract_endpoints\|detect_springboot_app" lua/` -- expected: zero matches
+
+## Post-story note
+
+Final removal completed 2026-09-03: the remaining `lua/tetravim/util/engine.lua` shim and the entire `tetravim-engine` binary dependency were purged from the codebase, tests, scripts, AI context, docs, and BMAD planning artifacts. Genuinely-native helpers were relocated to `lua/tetravim/util/notify.lua` and `lua/tetravim/util/term.lua`; `core/devops.lua` root discovery is now native `vim.fs` marker search. This story (Spring-only) is unchanged; the broader decommission was tracked separately in `deferred-work.md`.

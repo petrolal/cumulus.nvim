@@ -91,16 +91,16 @@ This plan breaks down the migration into actionable Epics:
 - [ ] "Extract Interface" from an existing concrete Java/Kotlin class.
 - [ ] "Inline Variable/Method" support.
 
-## Story 2.3: Native Spring Boot Discovery & Legacy Engine Deprecation
+## Story 2.3: Native Spring Boot Discovery
 **As a** Spring Boot developer  
 **I want to** discover beans, REST endpoints, and debug configurations natively via Tree-sitter  
-**So that** I do not depend on the legacy Scala engine binary  
+**So that** Spring Boot support is 100% native Neovim (Lua + Tree-sitter) with no external backend  
 
 **Acceptance Criteria:**
 - [ ] Tree-sitter AST parsing for Spring Boot controllers, endpoints, and beans.
 - [ ] Telescope pickers for Beans (`<leader>jsb`) and Endpoints (`<leader>jse`).
 - [ ] Native Spring Boot DAP debug configuration generation (`<leader>jrd`).
-- [ ] Complete retirement and purge of legacy engine Spring methods.
+- [ ] All Spring discovery implemented directly in Lua/Tree-sitter with no external backend dependency.
 
 ---
 
@@ -167,7 +167,7 @@ This plan breaks down the migration into actionable Epics:
 # EPIC 5: Stability, Telemetry & Enterprise SLA
 **Goal:** Ensure the IDE never crashes, handles massive monorepos gracefully, and provides clear diagnostics when things go wrong.
 
-## Story 5.1: Asynchronous Engine Operations & Resilience
+## Story 5.1: Asynchronous LSP Operations & Resilience
 **As an** enterprise user with a massive codebase  
 **I want to** ensure my editor never blocks or freezes during indexing  
 **So that** I can remain productive at all times  

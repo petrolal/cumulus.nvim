@@ -4,12 +4,12 @@
 
 ## tetravim.nvim
 
-Enterprise-ready Neovim distribution for JVM backend engineering. Lua, Lazy.nvim, Mason. Migrating strictly to native Neovim LSPs and plugins instead of a custom backend.
+Enterprise-ready Neovim distribution for JVM backend engineering. Lua, Lazy.nvim, Mason. Pure native Neovim — LSPs, Tree-sitter, Mason tools, and Lua utilities, with no custom backend.
 
 ## Policy
 
-- Never add Scala or `sbt` code; the custom `tetravim-engine` is deprecated and removed. Delegate heavy lifting to standard community LSPs.
-- The external `tetravim-engine` bridge is being decommissioned; all Spring Boot discovery (endpoints, beans, DAP) is native Lua + Tree-sitter. Never re-introduce engine methods for features migrated to native Lua.
+- Never add Scala or `sbt` code to this distribution. Delegate heavy lifting to standard community LSPs (`nvim-jdtls`, Kotlin LS, `nvim-metals` for user projects).
+- There is no `tetravim-engine`, no Scala backend, no bridge, and no `:TetraVimInstallEngine`. All Spring Boot discovery (endpoints, beans, DAP) is native Lua + Tree-sitter. Never introduce an external engine.
 
 ## Where things are
 
@@ -33,7 +33,7 @@ Enterprise-ready Neovim distribution for JVM backend engineering. Lua, Lazy.nvim
 - Language keymaps under `<leader>c` and JVM refactoring (`<leader>cr`, `<leader>cm`, `<leader>cv`, `<leader>ci`) are registered buffer-locally per FileType (Java, Kotlin).
 - Spring Boot discovery keymaps are under `<leader>js`: `<leader>jse` (Endpoints), `<leader>jsb` (Beans), `<leader>jsd` (Detect App); bare `<leader>js` is a which-key group prefix.
 - Test runner and coverage keymaps are under `<leader>jt` (Tests) and `<leader>jc` (Coverage); global test runner keymaps are under `<leader>t`.
-- Theme system is strictly standardized on the canonical "Tetris" palette; dynamic cloud switching (`<leader>ct`) and external engine theme state are deprecated and removed.
+- Theme system is strictly standardized on the canonical "Tetris" palette; dynamic cloud switching (`<leader>ct`) and any external theme state are removed. The palette is pure Lua with no external dependency.
 
 <!-- /bmad:context -->
 
@@ -49,11 +49,11 @@ Enterprise-ready Neovim distribution for JVM backend engineering. Lua, Lazy.nvim
 
 ## Architecture notes
 
-- Load order: `init.lua` → `tetravim.core` (options, keymaps, autocmds, registers `:TetraVimInstallEngine`) → `tetravim.core.lazy` (bootstraps lazy.nvim, loads every spec under `lua/tetravim/plugins/`).
+- Load order: `init.lua` → `tetravim.core` (options, keymaps, autocmds, diagnostics) → `tetravim.core.lazy` (bootstraps lazy.nvim, loads every spec under `lua/tetravim/plugins/`).
 - DevOps tooling lives at `lua/tetravim/core/devops.lua`.
 - `lua/tetravim/core/lang-keymaps.lua` registers **buffer-local**, FileType-scoped keymaps under `<leader>c` per language stack, so the which-key popup only shows e.g. Maven/Gradle commands while editing a matching buffer — this is the deliberate opposite of the global DevOps `<leader>o` keymaps noted above; don't "fix" the inconsistency without checking why (it's intentional, see the comment header in `lang-keymaps.lua`).
-- `lua/tetravim/util/engine.lua` (~1350 lines) is still a legacy bridge to an externally built/installed `tetravim-engine` native binary (GraalVM native-image, located via `$PATH`, a local build, `~/.local/share/nvim/tetravim/bin/`, or `:TetraVimInstallEngine`), but is actively being decommissioned. The Scala source tree (`engine/`) is permanently removed. The six Spring methods (`extract_endpoints`, `parse_spring_beans`, `detect_springboot_app`, `generate_dap_config`, `select_bean`, `select_endpoint`) and the cloud theme switcher have been completely purged from `engine.lua`. Spring discovery is now 100% native Lua/Tree-sitter (`lua/tetravim/util/spring.lua`, `lua/tetravim/util/spring-picker.lua`). Several older wrapper stubs were also purged (`rust.lua`, `beans.lua`, `endpoints.lua`, `import-optimizer.lua`, `k8s-validator.lua`, `migrations.lua`, `conflicts.lua`, `coverage.lua`, `log-indexer.lua`). Remaining engine callers (`core/devops.lua`, `health.lua`, `session.lua`) degrade gracefully when the binary is absent. New features must never add methods to `engine.lua`.
-- `core/devops.lua` root discovery has **no local fallback**: if `engine.discover_devops_roots()` finds nothing (or the engine binary is unavailable), the command notifies "No `<tool>` configuration found in workspace" and does not execute, rather than guessing a root. Preserve this contract when adding new DevOps commands.
+- There is no `lua/tetravim/util/engine.lua` and no `tetravim-engine` binary — the module and the Scala source tree (`engine/`) are permanently removed. Spring discovery is 100% native Lua/Tree-sitter (`lua/tetravim/util/spring.lua`, `lua/tetravim/util/spring-picker.lua`). The relocated helpers live at `lua/tetravim/util/notify.lua` (`vim.notify` wrappers) and `lua/tetravim/util/term.lua` (`run_term`). Code coverage is a self-contained native module (`lua/tetravim/util/coverage.lua`) — a pure-Lua JaCoCo XML parser plus a sign/virtual-text buffer overlay. Older wrapper stubs stay purged (`rust.lua`, `beans.lua`, `endpoints.lua`, `import-optimizer.lua`, `k8s-validator.lua`, `migrations.lua`, `conflicts.lua`, `log-indexer.lua`). Never introduce an external engine module.
+- `core/devops.lua` root discovery is native `vim.fs`-based marker search (`resolve_search_dir` + `create_root_finder`, upward from the buffer/path, stopping at `$HOME`): if no marker matches, the command notifies "No `<tool>` configuration found in workspace" and does not execute, rather than guessing a root. Preserve this contract when adding new DevOps commands.
 - `.agents/`, `_bmad/`, `_bmad-output/` are BMAD agent-skill scaffolding used to plan/track this project's own development, not runtime code for the distribution itself. `_bmad-output/planning-artifacts/` holds the current migration plan, feature spec, and architecture spine — useful for roadmap context, but treat as planning intent rather than ground truth when it conflicts with the code.
 
 ## BMAD Persona

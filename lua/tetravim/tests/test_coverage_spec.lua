@@ -1,7 +1,6 @@
 local coverage = require("tetravim.util.coverage")
-local engine = require("tetravim.util.engine")
 
-describe("Test Coverage Module (SPEC-1.3)", function()
+describe("Test Coverage Module", function()
   local sample_xml = [[<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
 <report name="demo-project">
@@ -194,30 +193,6 @@ describe("Test Coverage Module (SPEC-1.3)", function()
 
     -- Cleanup
     vim.api.nvim_buf_delete(bufnr, { force = true })
-    os.remove(tmp_xml)
-  end)
-
-  it("should delegate engine.parse_coverage and engine.view_coverage to coverage.lua", function()
-    local tmp_xml = vim.fn.tempname() .. ".xml"
-    local f = io.open(tmp_xml, "w")
-    f:write(sample_xml)
-    f:close()
-
-    local entries = engine.parse_coverage(tmp_xml)
-    assert.is_table(entries)
-    assert.equals(1, #entries)
-    assert.equals("com/example/demo/DemoService.java", entries[1].file)
-    assert.equals(1, #entries[1].covered_lines)
-    assert.equals(1, #entries[1].missed_lines)
-
-    local ok = engine.view_coverage(tmp_xml)
-    assert.is_true(ok)
-    assert.is_true(coverage.is_visible)
-    vim.wait(2000, function()
-      return not coverage.is_loading
-    end, 10)
-
-    coverage.clear(true)
     os.remove(tmp_xml)
   end)
 end)

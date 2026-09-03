@@ -73,13 +73,7 @@ JAVA
 echo "[1/4] Static: spring.lua / spring-picker.lua / engine purge assertions..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local engine = require('tetravim.util.engine')
-  assert(engine.extract_endpoints == nil, 'engine.extract_endpoints must be purged')
-  assert(engine.parse_spring_beans == nil, 'engine.parse_spring_beans must be purged')
-  assert(engine.detect_springboot_app == nil, 'engine.detect_springboot_app must be purged')
-  assert(engine.generate_dap_config == nil, 'engine.generate_dap_config must be purged')
-  assert(engine.select_bean == nil, 'engine.select_bean must be purged')
-  assert(engine.select_endpoint == nil, 'engine.select_endpoint must be purged')
+  assert(not pcall(require, 'tetravim.util.engine'), 'tetravim.util.engine must be removed entirely')
 
   local s = require('tetravim.util.spring')
   assert(type(s.detect_root) == 'function', 'spring.detect_root missing')

@@ -17,7 +17,7 @@ The constraints section relies on boilerplate expectations rather than product-s
 - **medium** NFR theater (§ 4. Constraints) — "The editor UI must remain completely unblocked" is a Neovim baseline expectation, not a product-specific NFR. "Hard memory limits" lacks specifics. *Fix:* Provide concrete thresholds (e.g., "JDTLS heap capped at 2GB").
 
 ## Strategic coherence — adequate
-The document maintains a unified arc focused on single-operator JVM enterprise development using native Neovim tooling. The deprecation of the custom backend engine aligns with this strategy.
+The document maintains a unified arc focused on single-operator JVM enterprise development using native Neovim tooling. The pure-native architecture (no custom backend, engine, or bridge) aligns with this strategy.
 
 ## Done-ness clarity — broken
 An engineer cannot build from this PRD because there are no testable consequences or acceptance criteria for any feature. Requirements are unbounded or rely on adjectives.
@@ -27,7 +27,7 @@ An engineer cannot build from this PRD because there are no testable consequence
 - **critical** Unbounded scope (§ 3.2. Build, Test, and Refactoring) — "achieving parity with IntelliJ's project generator" is an impossibly massive, unbounded requirement. *Fix:* Define exactly which project generation features are required for MVP.
 
 ## Scope honesty — adequate
-The Out of Scope section successfully does real work by explicitly excluding multi-user features, air-gapped environments, and the legacy Scala engine. 
+The Out of Scope section successfully does real work by explicitly excluding multi-user features, air-gapped environments, and any custom backend engine. 
 
 ### Findings
 - **high** Unacknowledged policy contradiction (§ 3.1. Language & Framework Intelligence) — The PRD includes "Scala Support (Secondary)", but the project policy explicitly states "Never add Scala or sbt code". *Fix:* Remove Scala support to align with project policy, or explicitly flag it as a tension needing resolution.

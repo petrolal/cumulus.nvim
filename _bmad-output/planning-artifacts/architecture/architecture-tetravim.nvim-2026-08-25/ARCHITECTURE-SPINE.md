@@ -43,7 +43,7 @@ updated: 2026-08-25
 ### AD-07: Strict Native Intelligence
 - **Rule:** New feature logic, AST parsing, and project discovery must be implemented in pure Lua (leveraging Tree-sitter) or delegated to standard LSPs.
 - **Binds:** All new feature development (e.g., Spring endpoint discovery).
-- **Prevents:** Adding any new surface area to the legacy Scala `tetravim-engine` or introducing external Bash/Python parsing scripts.
+- **Prevents:** Introducing any external backend, engine, or bridge (there is no `tetravim-engine`), or external Bash/Python parsing scripts.
 
 ## Structural Seed
 
@@ -80,4 +80,7 @@ graph TD
 ```
 
 ## Deferred Decisions
-- **Legacy Engine Cleanup:** The exact timeline and method for ripping out the remaining `engine.lua` facade is deferred to a future epic, provided AD-07 prevents it from growing.
+- _(none open)_
+
+## Resolved Decisions
+- **Legacy Engine Cleanup (resolved 2026-09-03):** `engine.lua` and every reference to the `tetravim-engine` binary have been removed. The genuinely-native helpers were relocated (`util/notify.lua`, `util/term.lua`, native `vim.fs` root discovery in `core/devops.lua`); binary-only features with no native path were dropped. AD-07 stands going forward.

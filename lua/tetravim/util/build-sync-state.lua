@@ -86,25 +86,15 @@ function M.run()
       sync_timer = nil
     end
   end)
-  local engine = require("tetravim.util.engine")
-
-  -- Check if engine is available before attempting discovery
-  if not engine.is_available() then
-    M.mark_ready()
-    return
-  end
-
   local cwd = vim.fn.getcwd()
-  local build_result = engine.discover_build_tool(cwd)
+  local tool = require("tetravim.util.build").detect(cwd)
 
-  if not build_result or not build_result.tool then
+  if not tool then
     -- Nothing to sync -- don't leave the gated java/kotlin/maven keymaps
     -- (lang-keymaps.lua) hidden forever waiting on a sync that will never run.
     M.mark_ready()
     return
   end
-
-  local tool = build_result.tool
   local sync_runner = require("tetravim.util.sync-runner")
 
   if tool == "maven" then

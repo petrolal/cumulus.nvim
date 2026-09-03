@@ -1,7 +1,6 @@
--- TetraVim Spring Datasource Credential Auto-Discovery (SPEC-3.1)
+-- TetraVim Spring Datasource Credential Auto-Discovery
 --
--- Pure-Lua file/string parsing only -- never shells out to the compiled
--- Scala tetravim-engine binary for this. Discovery is stateless: config files
+-- Pure-Lua file/string parsing only. Discovery is stateless: config files
 -- are read fresh from disk on every call, nothing is cached or persisted.
 --
 -- Precedence mirrors Spring Boot's own: if a project has BOTH

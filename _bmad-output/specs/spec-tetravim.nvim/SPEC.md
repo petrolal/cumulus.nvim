@@ -13,7 +13,7 @@ sources:
 # SPEC: TetraVim IDE Lua Migration
 
 ## Why
-TetraVim IDE needs to migrate from a custom Scala backend (`tetravim-engine`) to a pure Lua and LSP-based architecture to reduce execution overhead, eliminate JVM blocking, and align with native Neovim community standards.
+TetraVim IDE is built on a pure Lua and LSP-based architecture to minimize execution overhead, avoid JVM blocking, and align with native Neovim community standards. There is no custom backend of any kind.
 
 ## Capabilities
 - **CAP-1**: Canonical "Tetris" Visual Identity - Self-contained semantic highlight system based on seven tetromino colors bound to fixed token roles across all UI components.
@@ -22,7 +22,7 @@ TetraVim IDE needs to migrate from a custom Scala backend (`tetravim-engine`) to
 - **CAP-4**: Buffer-based File Explorer - Navigate and mutate the file system strictly via `oil.nvim` buffers.
 
 ## Constraints
-- **Legacy Boundary**: Must not add any new Scala or SBT code. The legacy `tetravim-engine` must not gain new surface area.
+- **Native Boundary**: Must not add any Scala or SBT code, and must not introduce an external backend, engine, or bridge. All heavy lifting goes through standard community LSPs and Lua.
 - **Event-Driven UI**: Core logic must remain UI-agnostic by emitting autocommands rather than calling UI render functions directly to prevent editor freezes.
 - **Stateless Context**: No global project state caches; context must be fetched on-the-fly from the disk or the language server.
 
@@ -32,4 +32,4 @@ TetraVim IDE needs to migrate from a custom Scala backend (`tetravim-engine`) to
 - Supporting non-JVM language ecosystems as first-class integration citizens in this migration.
 
 ## Success Signal
-A developer can debug a JVM application, discover Spring endpoints, and run builds without the legacy scala engine binary running on their machine, and without experiencing any editor UI freezes during background tasks.
+A developer can debug a JVM application, discover Spring endpoints, and run builds entirely through native Neovim and standard LSPs, without experiencing any editor UI freezes during background tasks.

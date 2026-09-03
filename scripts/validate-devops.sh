@@ -18,7 +18,7 @@
 # missing helper. That code fix already shipped (the file now declares
 # `resolve_search_dir` and `create_root_finder` before any `M.find_*_root`
 # assignment) -- this script is the missing regression test guarding it:
-# every finder must be CALLABLE without erroring, engine availability aside.
+# every finder must be CALLABLE without erroring.
 
 set -e
 
@@ -54,7 +54,7 @@ else
 end
 " -c "qa!"
 
-echo "[2/2] Behavioral: every M.find_*_root function is REAL-CALLABLE (unmocked engine) without erroring, regardless of whether the TetraVim engine binary is available in this environment..."
+echo "[2/2] Behavioral: every M.find_*_root function is REAL-CALLABLE without erroring, using native vim.fs marker discovery..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local devops = require('tetravim.core.devops')
@@ -70,10 +70,10 @@ local ok, err = pcall(function()
   vim.cmd('enew')
   local bufnr = vim.api.nvim_get_current_buf()
 
-  -- Suppress the 'TetraVim engine not found' ERROR notify this may fire in
-  -- an environment without the compiled engine binary -- this script only
-  -- cares that the CALL ITSELF doesn't throw a Lua error (the
-  -- declaration-order bug), not engine availability.
+  -- Suppress the graceful-degradation notify a finder may emit when no
+  -- matching marker exists in this environment -- this script only cares
+  -- that the CALL ITSELF doesn't throw a Lua error (the declaration-order
+  -- bug), not whether a root is actually found.
   local orig_notify = vim.notify
   vim.notify = function() end
 

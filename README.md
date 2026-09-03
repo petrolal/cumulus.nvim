@@ -10,7 +10,7 @@ Built entirely on the standard Neovim ecosystem (Lua, standard LSPs, Treesitter,
 
 **TetraVim** is designed to provide best-in-class JVM and Cloud intelligence directly within Neovim.
 
-Previously, this project relied on a custom background Scala engine. We are actively **migrating away** from that custom backend to embrace the standard Neovim plugin ecosystem. The goal is to provide parity with IntelliJ IDEA utilizing standard, stable, community-backed plugins.
+TetraVim is **pure native Neovim** — standard LSPs, Tree-sitter, Mason tools, and Lua utilities. There is no `tetravim-engine`, no Scala backend, and no bridge; the goal is parity with IntelliJ IDEA using standard, stable, community-backed plugins.
 
 ### Core Ecosystem:
 - **Build Systems**: Maven, Gradle, SBT integration via native language servers.

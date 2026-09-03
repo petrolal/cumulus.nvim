@@ -1,27 +1,102 @@
 -- TetraVim JVM Platform Keymap Suite
 --
--- Architecture: Pure keymap registration for JVM platform operations (Maven, Gradle, SBT).
--- Keymaps are registered unconditionally; error handling is delegated to the Scala engine
--- via engine APIs called on keypress. Build tool detection and goal/task extraction
--- are delegated entirely to the Scala engine.
+-- Pure keymap registration for JVM platform operations (Maven, Gradle). Build
+-- tool detection is native (tetravim.util.build); task/goal lists come from the
+-- build tool itself; terminals run through tetravim.util.term. Test running is
+-- delegated to neotest.
+
+local notify = require("tetravim.util.notify")
+local term = require("tetravim.util.term")
+local build = require("tetravim.util.build")
 
 local M = {}
 
 M.keymaps_registered = false
 M.offline_mode = false
 
--- Consistent notification helper for JVM operations
+-- Consistent notification helpers for JVM operations
 local function notify_error(msg)
-  local ok, engine = pcall(require, "tetravim.util.engine")
-  if ok and engine.notify_warn then
-    engine.notify_warn(msg, "TetraVim JVM")
-  else
-    vim.notify(msg, vim.log.levels.WARN, { title = "TetraVim JVM" })
-  end
+  notify.notify_warn(msg, "TetraVim JVM")
 end
 
 local function notify_info(msg)
-  vim.notify(msg, vim.log.levels.INFO, { title = "TetraVim JVM" })
+  notify.notify_info(msg, "TetraVim JVM")
+end
+
+--- Optimize Java/Kotlin imports in the current buffer via JDTLS / LSP.
+local function optimize_imports_buffer()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local ft = vim.bo[bufnr].filetype
+
+  if ft == "java" then
+    local ok_jdtls, jdtls = pcall(require, "jdtls")
+    if ok_jdtls and jdtls.organize_imports then
+      jdtls.organize_imports()
+      return
+    end
+  end
+
+  local params = vim.lsp.util.make_range_params()
+  params.context = { only = { "source.organizeImports" } }
+  local responses = vim.lsp.buf_request_sync(bufnr, "textDocument/codeAction", params, 1000)
+  if responses then
+    for _, resp in pairs(responses) do
+      for _, action in ipairs(resp.result or {}) do
+        if
+          action.kind == "source.organizeImports" or (action.title and action.title:lower():find("organize import"))
+        then
+          if action.edit then
+            vim.lsp.util.apply_workspace_edit(action.edit, "utf-8")
+          elseif action.command then
+            vim.lsp.buf.execute_command(action.command)
+          end
+          vim.notify("Imports organized via LSP", vim.log.levels.INFO)
+          return
+        end
+      end
+    end
+  end
+
+  vim.notify("No LSP or organizer available to optimize imports", vim.log.levels.INFO)
+end
+
+-- Common Maven lifecycle phases and plugin goals offered by <leader>jbm.
+local MAVEN_GOALS = {
+  "clean",
+  "compile",
+  "test-compile",
+  "test",
+  "package",
+  "verify",
+  "install",
+  "clean compile",
+  "clean test",
+  "clean package",
+  "clean install",
+  "dependency:tree",
+  "dependency:analyze",
+  "versions:display-dependency-updates",
+  "help:effective-pom",
+  "spring-boot:run",
+  "spring-boot:build-image",
+}
+
+--- Parse `gradle tasks --all` output into a sorted, de-duplicated task list.
+---@param output string
+---@return string[]
+local function parse_gradle_tasks(output)
+  local seen, tasks = {}, {}
+  for line in (output or ""):gmatch("[^\r\n]+") do
+    -- Task lines look like "  bootRun - Runs this project as a Spring Boot application."
+    -- or a bare "bootRun" under a group heading.
+    local name = line:match("^([%w:_%-]+) %- ") or line:match("^([%w:_%-]+)%s*$")
+    if name and not name:match("^%-+$") and not seen[name] then
+      seen[name] = true
+      tasks[#tasks + 1] = name
+    end
+  end
+  table.sort(tasks)
+  return tasks
 end
 
 --- WhichKey specification for the JVM platform keymap hierarchy
@@ -36,7 +111,7 @@ function M.whichkey_spec()
     { "<leader>jx", group = "refactor & jdtls", icon = "󰨞 " },
     { "<leader>jp", group = "profiling", icon = "⚡ " },
     { "<leader>jd", group = "dependencies", icon = "📦 " },
-    { "<leader>ji", group = "engine & info", icon = "ℹ " },
+    { "<leader>ji", group = "info", icon = "ℹ " },
   }
 end
 
@@ -48,18 +123,9 @@ function M.setup_keymaps()
   M.keymaps_registered = true
 
   local map = vim.keymap.set
-  local engine = require("tetravim.util.engine")
 
   -- Helper function to get the appropriate build command with offline flag
   local function get_build_cmd(base_cmd, offline)
-    -- Check network availability unless offline mode is already enabled
-    if not offline and engine.is_available() then
-      local network_ok = engine.check_network()
-      if network_ok == false then
-        offline = true
-      end
-    end
-
     if offline then
       if base_cmd:match("mvn") then
         return base_cmd .. " -o"
@@ -130,225 +196,72 @@ function M.setup_keymaps()
     return roots
   end
 
-  -- Helper function to run tests via engine APIs
-  ---@param mode "nearest"|"class"|"all"
-  local function run_tests(mode)
-    local cwd = vim.fn.getcwd()
-    local build_result = engine.discover_build_tool(cwd)
-
-    if not build_result or not build_result.tool then
-      engine.notify_warn("No Maven or Gradle project found in current directory", "TetraVim JVM")
-      return
-    end
-
-    local tool = build_result.tool
-    if tool ~= "maven" and tool ~= "gradle" then
-      engine.notify_warn("Unsupported build tool: " .. tostring(tool), "TetraVim JVM")
-      return
-    end
-
-    -- Detect test context from current buffer and cursor
-    local bufnr = vim.api.nvim_get_current_buf()
-    local file_path = vim.api.nvim_buf_get_name(bufnr)
-    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
-    local test_info = engine.detect_test_context(file_path, cursor_line)
-    if not test_info then
-      test_info = {}
-    end
-
-    -- Prepare command assembly options
-    local class_arg = (mode == "nearest" or mode == "class") and test_info.class_name or nil
-    local method_arg = (mode == "nearest") and test_info.method_name or nil
-    if class_arg then
-      class_arg = vim.fn.shellescape(class_arg)
-    end
-    if method_arg then
-      method_arg = vim.fn.shellescape(method_arg)
-    end
-
-    -- Assemble test command via engine
-    local assembled = engine.assemble_test_command({
-      tool = tool,
-      ["class"] = class_arg,
-      method = method_arg,
-      dir = cwd,
-    })
-
-    if not assembled or not assembled.command then
-      engine.notify_warn("Failed to assemble test command", "TetraVim JVM")
-      return
-    end
-
-    local cmd = assembled.command
-    engine.notify_info("Running tests: " .. cmd, "TetraVim Test")
-
-    -- Run command in terminal and capture output
-    local output_lines = {}
-    engine.run_term(cmd, {
-      title = "TetraVim Test",
-      on_error = function(error)
-        engine.notify_warn("Test execution failed: " .. (error or "unknown error"), "TetraVim Test")
-      end,
-      on_stdout = function(data)
-        for _, line in ipairs(data) do
-          if line ~= "" then
-            table.insert(output_lines, line)
-          end
-        end
-      end,
-      on_stderr = function(data)
-        for _, line in ipairs(data) do
-          if line ~= "" then
-            table.insert(output_lines, line)
-          end
-        end
-      end,
-      on_exit = function()
-        vim.schedule(function()
-          -- Safety check: verify Neovim is still running (callback may fire after quit)
-          if not vim.api.nvim_get_current_buf then
-            return
-          end
-
-          local log = table.concat(output_lines, "\n")
-          -- Parse test output and notify results
-          local entries = engine.parse_test_output(log)
-          if not entries or #entries == 0 then
-            return
-          end
-
-          local failures, passed = 0, 0
-          for _, entry in ipairs(entries) do
-            if entry.status == "FAILED" then
-              failures = failures + 1
-            elseif entry.status == "PASSED" then
-              passed = passed + 1
-            end
-          end
-
-          if failures > 0 then
-            vim.notify(
-              string.format("Test Suite: %d FAILED, %d PASSED", failures, passed),
-              vim.log.levels.ERROR,
-              { id = "tetravim_test_run" }
-            )
-          else
-            vim.notify(
-              string.format("Test Suite: All %d tests PASSED", passed),
-              vim.log.levels.INFO,
-              { id = "tetravim_test_run" }
-            )
-          end
-        end)
-      end,
-    })
-  end
-
   -- 1. Build & Tasks (<leader>jb)
   map("n", "<leader>jbc", function()
-    local cwd = vim.fn.getcwd()
-    local build_result = engine.discover_build_tool(cwd)
-
-    if not build_result or not build_result.tool then
-      engine.notify_warn("No Maven, Gradle, or SBT project found in current directory", "TetraVim JVM")
-      return
-    end
-
-    local tool = build_result.tool
+    local tool = build.detect(vim.fn.getcwd())
     if tool == "maven" then
       local base_cmd = get_build_cmd(get_mvn_cmd(), M.offline_mode)
-      engine.run_term(base_cmd .. " clean compile", { title = "TetraVim Maven" })
+      term.run_term(base_cmd .. " clean compile", { title = "TetraVim Maven" })
     elseif tool == "gradle" then
       local base_cmd = get_build_cmd(get_gradle_cmd(), M.offline_mode)
-      engine.run_term(base_cmd .. " clean compile", { title = "TetraVim Gradle" })
+      term.run_term(base_cmd .. " clean compile", { title = "TetraVim Gradle" })
     else
-      engine.notify_warn("Unknown build tool: " .. tostring(tool), "TetraVim JVM")
+      notify_error("No Maven or Gradle project found in current directory")
     end
   end, { desc = "Build: Clean Compile" })
 
   map("n", "<leader>jbg", function()
-    local cwd = vim.fn.getcwd()
-    local build_result = engine.discover_build_tool(cwd)
-
-    if not build_result or not build_result.tool or build_result.tool ~= "gradle" then
-      engine.notify_warn("No Gradle project found in current directory", "TetraVim JVM")
+    if build.detect(vim.fn.getcwd()) ~= "gradle" then
+      notify_error("No Gradle project found in current directory")
       return
     end
 
-    -- Run gradle tasks --all to get full task list
     local base_cmd = get_gradle_cmd()
-    local output = vim.fn.system(base_cmd .. " tasks --all")
-
-    if vim.v.shell_error ~= 0 or not output or output == "" then
-      engine.notify_warn("Failed to fetch Gradle tasks", "TetraVim JVM")
-      return
-    end
-
-    -- Parse tasks using engine
-    local tasks = engine.parse_gradle_tasks(output)
-    if not tasks or #tasks == 0 then
-      engine.notify_warn("No Gradle tasks found or parse failed", "TetraVim JVM")
-      return
-    end
-
-    vim.notify("Loading Gradle tasks...", vim.log.levels.INFO)
     local cmd_prefix = get_build_cmd(base_cmd, M.offline_mode)
+    notify_info("Loading Gradle tasks...")
 
-    vim.ui.select(tasks, {
-      prompt = "Select Gradle Task:",
-      format_item = function(item)
-        return cmd_prefix .. " " .. item
-      end,
-    }, function(choice)
-      if choice then
-        engine.run_term(cmd_prefix .. " " .. choice, { title = "TetraVim Gradle" })
-      end
-    end)
+    vim.system(
+      vim.list_extend(vim.split(base_cmd, " ", { trimempty = true }), { "tasks", "--all", "--console=plain" }),
+      { text = true, cwd = vim.fn.getcwd() },
+      vim.schedule_wrap(function(res)
+        if res.code ~= 0 then
+          notify_error("Failed to fetch Gradle tasks")
+          return
+        end
+        local tasks = parse_gradle_tasks(res.stdout)
+        if #tasks == 0 then
+          notify_error("No Gradle tasks found")
+          return
+        end
+        vim.ui.select(tasks, {
+          prompt = "Select Gradle Task:",
+          format_item = function(item)
+            return cmd_prefix .. " " .. item
+          end,
+        }, function(choice)
+          if choice then
+            term.run_term(cmd_prefix .. " " .. choice, { title = "TetraVim Gradle" })
+          end
+        end)
+      end)
+    )
   end, { desc = "Gradle: Select & Run Task" })
 
   map("n", "<leader>jbm", function()
-    local cwd = vim.fn.getcwd()
-    local build_result = engine.discover_build_tool(cwd)
-
-    if not build_result or not build_result.tool or build_result.tool ~= "maven" then
-      engine.notify_warn("No Maven project found in current directory", "TetraVim JVM")
+    if build.detect(vim.fn.getcwd()) ~= "maven" then
+      notify_error("No Maven project found in current directory")
       return
     end
 
-    -- Find pom.xml file
-    local pom_path = vim.fn.findfile("pom.xml", cwd .. ";")
-    if pom_path == "" then
-      local current_file = vim.fn.expand("%:p:h")
-      if current_file ~= "" then
-        pom_path = vim.fn.findfile("pom.xml", current_file .. ";")
-      end
-    end
-
-    if pom_path == "" then
-      engine.notify_warn("No pom.xml found in project", "TetraVim JVM")
-      return
-    end
-
-    -- Parse goals using engine
-    vim.notify("Loading Maven goals...", vim.log.levels.INFO)
-    local goals = engine.parse_pom_goals(vim.fn.fnamemodify(pom_path, ":p"))
-
-    if not goals or #goals == 0 then
-      engine.notify_warn("No Maven goals found or parse failed", "TetraVim JVM")
-      return
-    end
-
-    local base_cmd = get_mvn_cmd()
-    local cmd_prefix = get_build_cmd(base_cmd, M.offline_mode)
-
-    vim.ui.select(goals, {
+    local cmd_prefix = get_build_cmd(get_mvn_cmd(), M.offline_mode)
+    vim.ui.select(MAVEN_GOALS, {
       prompt = "Select Maven Goal:",
       format_item = function(item)
         return cmd_prefix .. " " .. item
       end,
     }, function(choice)
       if choice then
-        engine.run_term(cmd_prefix .. " " .. choice, { title = "TetraVim Maven" })
+        term.run_term(cmd_prefix .. " " .. choice, { title = "TetraVim Maven" })
       end
     end)
   end, { desc = "Maven: Select & Run Goal" })
@@ -372,14 +285,14 @@ function M.setup_keymaps()
   map("n", "<leader>jta", function()
     local ok, neotest = pcall(require, "neotest")
     if not ok then
-      run_tests("all")
+      notify_error("neotest is not available")
       return
     end
-    local cwd = vim.fn.getcwd()
-    local roots = detect_test_roots(cwd)
+    local roots = detect_test_roots(vim.fn.getcwd())
     if #roots == 0 then
-      engine.notify_warn("No test source roots detected; running the build tool's full test suite", "TetraVim Test")
-      run_tests("all")
+      pcall(function()
+        neotest.run.run(vim.fn.getcwd())
+      end)
       return
     end
     for _, root in ipairs(roots) do
@@ -392,7 +305,7 @@ function M.setup_keymaps()
   map("n", "<leader>jtt", function()
     local ok, neotest = pcall(require, "neotest")
     if not ok then
-      run_tests("nearest")
+      notify_error("neotest is not available")
       return
     end
     pcall(function()
@@ -403,12 +316,12 @@ function M.setup_keymaps()
   map("n", "<leader>jtc", function()
     local file = vim.api.nvim_buf_get_name(0)
     if not file or file == "" or vim.bo.buftype ~= "" then
-      engine.notify_warn("Current buffer is not a runnable file", "TetraVim Test")
+      notify.notify_warn("Current buffer is not a runnable file", "TetraVim Test")
       return
     end
     local ok, neotest = pcall(require, "neotest")
     if not ok then
-      run_tests("class")
+      notify.notify_warn("neotest is not available", "TetraVim Test")
       return
     end
     pcall(function()
@@ -423,7 +336,7 @@ function M.setup_keymaps()
         neotest.summary.toggle()
       end)
     else
-      engine.notify_warn("neotest is not available", "TetraVim Test")
+      notify.notify_warn("neotest is not available", "TetraVim Test")
     end
   end, { desc = "Toggle Test Summary Tree" })
 
@@ -434,26 +347,26 @@ function M.setup_keymaps()
         neotest.output_panel.toggle()
       end)
     else
-      engine.notify_warn("neotest is not available", "TetraVim Test")
+      notify.notify_warn("neotest is not available", "TetraVim Test")
     end
   end, { desc = "Toggle Test Output Panel" })
 
   map("n", "<leader>jtd", function()
     local ok, neotest = pcall(require, "neotest")
     if not ok then
-      engine.notify_warn("neotest is not available", "TetraVim Test")
+      notify.notify_warn("neotest is not available", "TetraVim Test")
       return
     end
     local dap_ok, _ = pcall(require, "dap")
     if not dap_ok then
-      engine.notify_warn("DAP debugger is not configured", "TetraVim Test")
+      notify.notify_warn("DAP debugger is not configured", "TetraVim Test")
       return
     end
     local call_ok, err = pcall(function()
       neotest.run.run({ strategy = "dap" })
     end)
     if not call_ok then
-      engine.notify_warn("Failed to debug nearest test: " .. tostring(err), "TetraVim Test")
+      notify.notify_warn("Failed to debug nearest test: " .. tostring(err), "TetraVim Test")
     end
   end, { desc = "Debug Nearest Test (DAP)" })
 
@@ -486,24 +399,12 @@ function M.setup_keymaps()
   end, { desc = "Show Coverage Summary" })
 
   -- 3. Run & Execute (<leader>jr)
-  -- NOTE: Framework detection (Spring Boot vs Quarkus) remains in Lua for fast local detection.
-  -- Test execution detection is delegated to engine via engine.assemble_test_command().
-  -- This split reflects a pragmatic optimization: framework detection is lightweight (pom.xml
-  -- scan), while test execution coordination is complex (multiple frameworks, runner options).
   map("n", "<leader>jrs", function()
-    local cwd = vim.fn.getcwd()
-    local build_result = engine.discover_build_tool(cwd)
-
-    if not build_result or not build_result.tool then
-      engine.notify_warn("No Maven or Gradle project found in current directory", "TetraVim JVM")
-      return
-    end
-
-    local tool = build_result.tool
+    local tool, root = build.detect(vim.fn.getcwd())
+    root = root or vim.fn.getcwd()
 
     if tool == "maven" then
-      -- Check if it's Quarkus or Spring Boot (lightweight local detection)
-      local pom_path = vim.fn.findfile("pom.xml", cwd .. ";")
+      local pom_path = vim.fn.findfile("pom.xml", root .. ";")
       if pom_path == "" then
         pom_path = vim.fn.findfile("pom.xml", vim.fn.expand("%:p:h") .. ";")
       end
@@ -512,45 +413,42 @@ function M.setup_keymaps()
       if pom_path ~= "" then
         local ok, lines = pcall(vim.fn.readfile, pom_path)
         if ok and lines then
-          local pom_content = table.concat(lines, "\n")
-          is_quarkus = pom_content:match("quarkus%-maven%-plugin") ~= nil
+          is_quarkus = table.concat(lines, "\n"):match("quarkus%-maven%-plugin") ~= nil
         end
       end
 
       local base_cmd = get_build_cmd(get_mvn_cmd(), M.offline_mode)
       local goal = is_quarkus and "quarkus:dev" or "spring-boot:run"
-      engine.run_term(base_cmd .. " " .. goal, { title = "TetraVim Maven" })
+      term.run_term(base_cmd .. " " .. goal, { title = "TetraVim Maven" })
     elseif tool == "gradle" then
-      -- Check if it's Quarkus or Spring Boot
-      local gradle_file = vim.fn.findfile("build.gradle", cwd .. ";")
-      local gradle_kts = vim.fn.findfile("build.gradle.kts", cwd .. ";")
+      local gradle_file = vim.fn.findfile("build.gradle", root .. ";")
+      local gradle_kts = vim.fn.findfile("build.gradle.kts", root .. ";")
       local g_path = gradle_file ~= "" and gradle_file or gradle_kts
 
       local is_quarkus = false
       if g_path ~= "" then
         local ok, lines = pcall(vim.fn.readfile, g_path)
         if ok and lines then
-          local g_content = table.concat(lines, "\n")
-          is_quarkus = g_content:match("quarkus") ~= nil
+          is_quarkus = table.concat(lines, "\n"):match("quarkus") ~= nil
         end
       end
 
       local base_cmd = get_build_cmd(get_gradle_cmd(), M.offline_mode)
       local task = is_quarkus and "quarkusDev" or "bootRun"
-      engine.run_term(base_cmd .. " " .. task, { title = "TetraVim Gradle" })
+      term.run_term(base_cmd .. " " .. task, { title = "TetraVim Gradle" })
     else
-      engine.notify_warn("Unsupported build tool: " .. tostring(tool), "TetraVim JVM")
+      notify_error("No Maven or Gradle project found in current directory")
     end
   end, { desc = "Run Spring Boot / Quarkus App" })
 
   map("n", "<leader>jrg", function()
     local file_path = vim.fn.expand("%:p")
     if not file_path or file_path == "" then
-      engine.notify_warn("Current buffer is not a file", "TetraVim JVM")
+      notify_error("Current buffer is not a file")
       return
     end
     vim.cmd("update")
-    engine.run_term("groovy " .. vim.fn.shellescape(file_path), { title = "TetraVim JVM" })
+    term.run_term("groovy " .. vim.fn.shellescape(file_path), { title = "TetraVim JVM" })
   end, { desc = "Groovy: Run Current Script" })
 
   map("n", "<leader>jrd", function()
@@ -575,9 +473,7 @@ function M.setup_keymaps()
   end, { desc = "Flyway: Database Explorer" })
 
   -- 5. Refactoring & JDTLS (<leader>jx)
-  map("n", "<leader>jxo", function()
-    require("tetravim.util.engine").optimize_imports_buffer()
-  end, { desc = "Optimize Java/Kotlin Imports (JDTLS/LSP)" })
+  map("n", "<leader>jxo", optimize_imports_buffer, { desc = "Optimize Java/Kotlin Imports (JDTLS/LSP)" })
 
   map("n", "<leader>jxH", function()
     local clients = vim.lsp.get_clients({ name = "jdtls" })

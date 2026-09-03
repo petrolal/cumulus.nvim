@@ -14,7 +14,7 @@ stories:
     description: "Implement pure Lua Tree-sitter parsing for Spring Beans/Endpoints and wire to Telescope."
     spec_checkpoint: "Review the Tree-sitter queries for Java/Kotlin annotations."
     done_checkpoint: "Can parse a Spring Controller and select an endpoint via Telescope picker."
-    invoke_dev_with: "No Scala engine calls. Use vim.treesitter.query.parse."
+    invoke_dev_with: "No external backend. Use vim.treesitter.query.parse."
     status: draft
     capabilities: ["CAP-2"]
     constraints: ["AD-06", "AD-07"]
@@ -23,7 +23,7 @@ stories:
     title: "Canonical Tetris Theme & Visual Identity"
     description: "Standardize on the self-contained Tetris palette and highlight rules across UI components."
     spec_checkpoint: "Verify the highlight groups map to the specific hex codes from DESIGN.md."
-    done_checkpoint: "Canonical palette loads reliably without external engine dependencies."
+    done_checkpoint: "Canonical palette loads reliably as pure Lua with no external dependency."
     invoke_dev_with: "Use tetravim.theme.tetris and tetravim.util.theme_colors."
     status: done
     capabilities: ["CAP-1"]

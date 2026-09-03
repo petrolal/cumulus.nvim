@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # TetraVim Neovim: Development Initialization
-# Lightweight setup for developers - just config + plugins, no deps/engine/validation
+# Lightweight setup for developers - just config + plugins, no deps/validation
 
 set -euo pipefail
 

@@ -74,20 +74,25 @@ if not ok then io.stderr:write(tostring(err) .. '\n'); vim.cmd('cquit 1') end
 " -c "qa!"
 echo "✔ File Explorer PASSED."
 
-echo "[6/7] Verifying Engine Bridge & DevOps Suite (Terraform, CloudFormation, Ansible, WhichKey, Mason & Scoped Buffers)..."
+echo "[6/7] Verifying Native DevOps Suite (Terraform, CloudFormation, Ansible, WhichKey, Mason & Scoped Buffers)..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
-  local e = require('tetravim.util.engine')
-  assert(type(e.detect_platform) == 'function', 'detect_platform not found')
-  assert(type(e.install) == 'function', 'install not found')
-  assert(type(e.run_command) == 'function', 'run_command not found')
-  assert(type(e.classify_workspace) == 'function', 'classify_workspace not found')
-  assert(type(e.discover_devops_roots) == 'function', 'discover_devops_roots not found')
-  assert(type(e.inspect_cfn_template) == 'function', 'inspect_cfn_template not found')
-  assert(type(e.validate_cfn_template) == 'function', 'validate_cfn_template not found')
-  assert(type(e.inspect_ansible_playbook) == 'function', 'inspect_ansible_playbook not found')
-  assert(type(e.validate_ansible_playbook) == 'function', 'validate_ansible_playbook not found')
-  assert(type(e.parse_ansible_inventory) == 'function', 'parse_ansible_inventory not found')
+  -- The Scala tetravim-engine bridge has been removed entirely.
+  assert(not pcall(require, 'tetravim.util.engine'), 'tetravim.util.engine must be removed')
+
+  local notify = require('tetravim.util.notify')
+  assert(type(notify.notify) == 'function', 'notify.notify not found')
+  assert(type(notify.notify_info) == 'function', 'notify.notify_info not found')
+  assert(type(notify.notify_warn) == 'function', 'notify.notify_warn not found')
+  assert(type(notify.notify_err) == 'function', 'notify.notify_err not found')
+  notify.notify('test notify', vim.log.levels.INFO, 'Test Title')
+  notify.notify_info('test info', 'Test Title')
+  notify.notify_warn('test warn', 'Test Title')
+  notify.notify_err('test err', 'Test Title')
+
+  local term = require('tetravim.util.term')
+  assert(type(term.run_term) == 'function', 'term.run_term not found')
+
   local s = require('tetravim.util.spring')
   local p = require('tetravim.util.spring-picker')
   assert(type(s.build_dap_config) == 'function', 'build_dap_config not found')
@@ -95,28 +100,6 @@ local ok, err = pcall(function()
   assert(type(s.find_endpoints) == 'function', 'find_endpoints not found')
   assert(type(p.pick_bean) == 'function', 'pick_bean not found')
   assert(type(p.pick_endpoint) == 'function', 'pick_endpoint not found')
-  -- Story 13.1: Consolidated UI picker and action functions
-  assert(type(e.optimize_imports_buffer) == 'function', 'optimize_imports_buffer not found')
-  assert(type(e.validate_k8s_manifest_buffer) == 'function', 'validate_k8s_manifest_buffer not found')
-  assert(type(e.validate_manifest) == 'function', 'validate_manifest not found')
-  assert(type(e.validate_migrations_action) == 'function', 'validate_migrations_action not found')
-  assert(type(e.resolve_git_conflicts) == 'function', 'resolve_git_conflicts not found')
-  assert(type(e.resolve_conflicts) == 'function', 'resolve_conflicts not found')
-  assert(type(e.view_coverage) == 'function', 'view_coverage not found')
-  assert(type(e.search_indexed_logs) == 'function', 'search_indexed_logs not found')
-
-  -- Story 13.2: Universal UI Terminal & Notification Bridge Standardization
-  assert(type(e.notify) == 'function', 'notify not found')
-  assert(type(e.notify_info) == 'function', 'notify_info not found')
-  assert(type(e.notify_warn) == 'function', 'notify_warn not found')
-  assert(type(e.notify_err) == 'function', 'notify_err not found')
-  assert(type(e.run_term) == 'function', 'run_term not found')
-
-  -- Test headless invocation of notification and terminal helpers
-  e.notify('test notify', vim.log.levels.INFO, 'Test Title')
-  e.notify_info('test info', 'Test Title')
-  e.notify_warn('test warn', 'Test Title')
-  e.notify_err('test err', 'Test Title')
 
   -- Verify purged stub and wrapper files do not exist
   assert(not pcall(require, 'tetravim.util.rust'), 'rust.lua must be purged')
@@ -240,24 +223,7 @@ local ok, err = pcall(function()
   assert(type(devops.find_docker_root) == 'function', 'find_docker_root not found')
   assert(type(devops.find_helm_root) == 'function', 'find_helm_root not found')
 
-  -- Mock workspace test setup
-  local orig_is_available = e.is_available
-  local orig_discover_devops_roots = e.discover_devops_roots
-  e.is_available = function() return true end
-  e.discover_devops_roots = function(path)
-    return {
-      terraform = { (path:match('(.*/modules/vpc)') or path:match('(.*/tf_proj/infra/terraform)') or (path:match('(.*/tf_proj)') and path:match('(.*/tf_proj)') .. '/infra/terraform')) },
-      sam = { path:match('(.*/cfn_proj)') },
-      ansible = { path:match('(.*/ansible_proj/playbooks)') or path:match('(.*/ans_proj/playbooks)') or path:match('(.*/ans_proj)') },
-      docker = { path:match('(.*/doc_proj)') },
-      helm = { (path:match('(.*/helm_proj/charts/web%-service)') or (path:match('(.*/helm_proj)') and path:match('(.*/helm_proj)') .. '/charts/web-service')) }
-    }
-  end
-  local orig_classify_workspace = e.classify_workspace
-  e.classify_workspace = function()
-    return { root = '/mock', primary_type = 'terraform' }
-  end
-
+  -- Native root discovery is exercised against a real temporary workspace tree.
   local tmp_root = vim.fs.normalize(vim.fn.tempname())
   vim.fn.mkdir(tmp_root, 'p')
 
@@ -325,27 +291,11 @@ local ok, err = pcall(function()
   assert(devops.find_helm_root(empty_proj) == nil, 'find_helm_root should be nil for empty workspace')
   assert(devops.find_tf_root(999999) == nil or type(devops.find_tf_root(999999)) == 'string', 'find_tf_root invalid buffer must not error')
 
-  e.is_available = orig_is_available
-  e.discover_devops_roots = orig_discover_devops_roots
-  e.classify_workspace = orig_classify_workspace
-
-  -- Story 11.3: Workspace Classification & DevOps Roots Engine Integration
+  -- JVM project detection (native vim.fs marker scan)
   local jvm = require('tetravim.util.jvm')
   local maven_util = require('tetravim.util.maven')
   local gradle_util = require('tetravim.util.gradle')
   assert(type(jvm.is_jvm_project) == 'function', 'jvm.is_jvm_project not found')
-
-  if e.is_available() then
-    local ws_topo = e.classify_workspace(tf_proj)
-    assert(type(ws_topo) == 'table', 'classify_workspace must return table topology')
-    assert(ws_topo.root ~= nil, 'classify_workspace root must not be nil')
-    assert(ws_topo.primary_type ~= nil, 'classify_workspace primary_type must not be nil')
-
-    local ws_devops = e.discover_devops_roots(tf_proj)
-    assert(type(ws_devops) == 'table', 'discover_devops_roots must return table')
-    assert(type(ws_devops.terraform) == 'table', 'discover_devops_roots terraform must be list')
-    assert(#ws_devops.terraform >= 1, 'discover_devops_roots should detect tf roots')
-  end
 
   local jvm_proj = tmp_root .. '/jvm_proj'
   vim.fn.mkdir(jvm_proj, 'p')
@@ -477,20 +427,17 @@ local ok, err = pcall(function()
   assert(vim.fn.maparg('<leader>jtc', 'n') ~= '', '<leader>jtc keymap not registered')
   assert(vim.fn.maparg('<leader>jta', 'n') ~= '', '<leader>jta keymap not registered')
 
-  -- Cleanup mock workspace
+  -- Cleanup temporary workspace
   vim.fn.delete(tmp_root, 'rf')
 
-
-  local plat = e.detect_platform() or 'unknown'
-  assert(vim.fn.exists(':TetraVimInstallEngine') == 2, ':TetraVimInstallEngine not registered')
-  print('✔ Engine bridge, DevOps WhichKey, scoped buffers, Mason tooling, Workspace Root Discovery, Global Root Execution with Warning Toasts & JVM Debugger DAP (Scala/Metals) verified (' .. plat .. ')')
+  print('✔ Native DevOps WhichKey, scoped buffers, Mason tooling, Workspace Root Discovery, Global Root Execution with Warning Toasts & JVM Debugger DAP (Scala/Metals) verified')
 end)
 if not ok then
   io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
   vim.cmd('cquit 1')
 end
 " -c "qa!"
-echo "✔ Engine bridge & DevOps suite PASSED."
+echo "✔ Native DevOps suite PASSED."
 
 echo "[6.1/7] Verifying Coverage Unit Specs (test_coverage_spec.lua)..."
 if nvim --headless -u init.lua \

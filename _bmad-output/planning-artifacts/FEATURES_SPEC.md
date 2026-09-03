@@ -1,6 +1,6 @@
 # TetraVim IDE - Feature Specifications
 
-This document outlines all core features that `tetravim.nvim` must maintain and support as it transitions from a custom Scala backend to a pure Neovim-plugin architecture. Any AI agents or developers contributing to this project must ensure these features are fully implemented using standard Lua plugins and Language Servers.
+This document outlines all core features that `tetravim.nvim` must maintain and support. The distribution is pure native Neovim — standard LSPs, Tree-sitter, Mason tools, and Lua utilities, with no custom backend. Any AI agents or developers contributing to this project must ensure these features are fully implemented using standard Lua plugins and Language Servers.
 
 ## 1. Spring Ecosystem Integration
 - **Feature:** Deep insight into Spring Boot applications.
@@ -14,7 +14,7 @@ This document outlines all core features that `tetravim.nvim` must maintain and 
   - `<leader>jse`: Select REST Endpoint (Telescope picker + code preview)
   - `<leader>jsd`: Detect Spring Boot App
   - `<leader>jrd`: Launch Spring Boot DAP debug session
-- **Implementation:** Pure Lua Tree-sitter AST queries (`lua/tetravim/util/spring.lua`), Telescope pickers (`lua/tetravim/util/spring-picker.lua`), and native DAP config generation (`lua/tetravim/util/springboot-debug.lua`). All 6 legacy engine Spring methods permanently purged from `engine.lua`.
+- **Implementation:** Pure Lua Tree-sitter AST queries (`lua/tetravim/util/spring.lua`), Telescope pickers (`lua/tetravim/util/spring-picker.lua`), and native DAP config generation (`lua/tetravim/util/springboot-debug.lua`). No external backend is involved at any point.
 
 ## 2. Advanced Refactoring & Code Actions
 - **Feature:** Safe, project-wide refactorings and code extractions.
@@ -101,6 +101,6 @@ This document outlines all core features that `tetravim.nvim` must maintain and 
 - **Feature:** Distinctive, distraction-free semantic highlight system.
 - **Capabilities:**
   - Fixed "Tetris" palette with 7 semantic tetromino token colors.
-  - Self-contained implementation without external engine dependencies.
+  - Self-contained pure-Lua implementation with no external dependencies.
   - Cohesive integration across Lualine, Bufferline, Snacks, and syntax highlights.
 - **Implementation:** `lua/tetravim/theme/tetris.lua`, `lua/tetravim/theme/init.lua`, `lua/tetravim/util/theme_colors.lua`. (Legacy cloud theme switcher retired).

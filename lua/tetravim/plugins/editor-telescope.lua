@@ -50,15 +50,30 @@ return {
       pcall(telescope.load_extension, "fzf")
       pcall(telescope.load_extension, "ui-select")
 
-      vim.api.nvim_create_user_command("TelescopeMavenModules", function()
-        local engine = require("tetravim.util.engine")
-        if not engine.is_available() then
-          vim.notify("tetravim-engine not available for module resolution", vim.log.levels.ERROR)
-          return
+      --- Discover build-file-bearing directories under `root` as modules.
+      ---@param root string
+      ---@param markers string[]
+      ---@return { name: string, path: string }[]
+      local function discover_modules(root, markers)
+        local seen, modules = {}, {}
+        for _, marker in ipairs(markers) do
+          for _, file in ipairs(vim.fs.find(marker, { type = "file", limit = math.huge, path = root })) do
+            local dir = vim.fs.dirname(file)
+            if not seen[dir] then
+              seen[dir] = true
+              modules[#modules + 1] = { name = vim.fs.basename(dir), path = dir }
+            end
+          end
         end
+        table.sort(modules, function(a, b)
+          return a.path < b.path
+        end)
+        return modules
+      end
 
-        local modules = engine.resolve_modules(vim.fn.getcwd())
-        if not modules or type(modules) ~= "table" or #modules == 0 then
+      vim.api.nvim_create_user_command("TelescopeMavenModules", function()
+        local modules = discover_modules(vim.fn.getcwd(), { "pom.xml" })
+        if #modules == 0 then
           vim.notify("No Maven modules found", vim.log.levels.WARN)
           return
         end
@@ -84,17 +99,11 @@ return {
             end
           end
         end)
-      end, { desc = "List and open Maven sub-modules (SPEC-008)" })
+      end, { desc = "List and open Maven sub-modules" })
 
       vim.api.nvim_create_user_command("TelescopeGradleModules", function()
-        local engine = require("tetravim.util.engine")
-        if not engine.is_available() then
-          vim.notify("tetravim-engine not available for module resolution", vim.log.levels.ERROR)
-          return
-        end
-
-        local modules = engine.resolve_modules(vim.fn.getcwd())
-        if not modules or type(modules) ~= "table" or #modules == 0 then
+        local modules = discover_modules(vim.fn.getcwd(), { "build.gradle", "build.gradle.kts" })
+        if #modules == 0 then
           vim.notify("No Gradle modules found", vim.log.levels.WARN)
           return
         end
@@ -123,7 +132,7 @@ return {
             end
           end
         end)
-      end, { desc = "List and open Gradle sub-modules (SPEC-008)" })
+      end, { desc = "List and open Gradle sub-modules" })
     end,
   },
 }

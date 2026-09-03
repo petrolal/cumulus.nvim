@@ -1,15 +1,9 @@
--- SPEC-2.3: Native Spring Boot Discovery & Legacy Engine Deprecation -- static shape & parse tests
+-- Native Spring Boot Discovery -- static shape & parse tests
 
-describe("Spring Boot Discovery (Story 2.3)", function()
-  describe("Legacy engine deprecation purge", function()
-    it("should have nil for all six retired Spring functions on tetravim.util.engine", function()
-      local engine = require("tetravim.util.engine")
-      assert.is_nil(engine.extract_endpoints)
-      assert.is_nil(engine.parse_spring_beans)
-      assert.is_nil(engine.detect_springboot_app)
-      assert.is_nil(engine.generate_dap_config)
-      assert.is_nil(engine.select_bean)
-      assert.is_nil(engine.select_endpoint)
+describe("Spring Boot Discovery", function()
+  describe("Legacy engine purge", function()
+    it("should have removed the tetravim.util.engine module entirely", function()
+      assert.is_false(pcall(require, "tetravim.util.engine"))
     end)
   end)
 

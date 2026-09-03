@@ -14,7 +14,7 @@ Welcome to the **TetraVim** documentation repository. This directory serves as t
 
 ## Architecture Overview
 
-`tetravim.nvim` is an enterprise-ready Neovim distribution for JVM backend engineering (Java, Kotlin, Scala) transitioning strictly to native Neovim LSPs and Tree-sitter plugins instead of a custom external Scala backend (`tetravim-engine`).
+`tetravim.nvim` is an enterprise-ready Neovim distribution for JVM backend engineering (Java, Kotlin, Scala). It is **pure native Neovim** — standard LSPs (`nvim-jdtls`, Kotlin Language Server, `nvim-metals`), Tree-sitter, Mason tools, and Lua utilities. There is no `tetravim-engine`, no Scala backend, and no bridge.
 
 ### Key Modules
 

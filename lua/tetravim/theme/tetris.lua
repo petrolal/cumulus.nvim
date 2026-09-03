@@ -2,10 +2,10 @@
 -- =====================================================================
 --
 -- This module is the single source of truth for the TetraVim visual
--- identity. It has NO external dependency: no `tetravim-engine` binary,
--- no `~/.config/tetravim/theme/palette.json`. It always produces a
--- complete, spec-compliant highlight set so the editor is never left on
--- bare Vim defaults when the (optional) cloud-provider overlay is absent.
+-- identity. It has NO external dependency: no binary, no
+-- `~/.config/tetravim/theme/palette.json`. It always produces a complete,
+-- spec-compliant highlight set so the editor is never left on bare Vim
+-- defaults.
 --
 -- Token parity target: IntelliJ IDEA for the JVM trio (Java / Kotlin /
 -- Scala). Semantic-token (`@lsp.type.*` / `@lsp.typemod.*`) groups are
