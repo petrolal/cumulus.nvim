@@ -11,6 +11,10 @@
 local attach_messages = {
   jdtls = "JDTLS attached -- test runner & refactor keymaps are ready",
   kotlin_language_server = "Kotlin Language Server attached",
+  html = "HTML Language Server attached",
+  cssls = "CSS Language Server attached",
+  ts_ls = "TypeScript / JavaScript Language Server attached",
+  lua_ls = "Lua Language Server attached",
 }
 
 return {

@@ -1,9 +1,7 @@
 -- TetraVim HTML Language Stack Integration (Story 40.2)
 --
--- Uses superhtml (Zig binary) rather than vscode-html-language-server:
--- TetraVim dropped its Node/JS toolchain in Epic 39, and superhtml provides
--- both LSP diagnostics and `<leader>cf` formatting without pulling npm back
--- in as a runtime dependency.
+-- Provides HTML support via vscode-html-language-server (html)
+-- and superhtml with Tree-sitter parsers.
 
 return {
   {
@@ -19,7 +17,10 @@ return {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
-        superhtml = {},
+        html = {},
+        superhtml = {
+          filetypes = { "superhtml" },
+        },
       },
     },
   },

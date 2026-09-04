@@ -126,7 +126,8 @@ describe("tetravim.util.cve", function()
     end)
 
     it("says no fix is published when fixed_versions is empty", function()
-      local hint = cve.remediation_hint({ package = "org.foo:bar", current_version = "1.0", vuln_ids = {}, fixed_versions = {} })
+      local hint =
+        cve.remediation_hint({ package = "org.foo:bar", current_version = "1.0", vuln_ids = {}, fixed_versions = {} })
       assert.is_truthy(hint:lower():find("no fixed version", 1, true))
     end)
   end)
@@ -138,7 +139,8 @@ describe("tetravim.util.cve", function()
     end)
 
     it("falls back to the bare artifact id (Maven <artifactId>)", function()
-      local lines = { "<dependency>", "  <groupId>com.foo</groupId>", "  <artifactId>bar</artifactId>", "</dependency>" }
+      local lines =
+        { "<dependency>", "  <groupId>com.foo</groupId>", "  <artifactId>bar</artifactId>", "</dependency>" }
       assert.are.equal(3, cve.locate_coordinate(lines, "com.foo:bar"))
     end)
 
@@ -165,10 +167,7 @@ describe("tetravim.util.cve", function()
 
   describe("scan_command", function()
     it("uses --lockfile for a regular file", function()
-      assert.are.same(
-        { "osv-scanner", "--format", "json", "--lockfile", "pom.xml" },
-        cve.scan_command("pom.xml")
-      )
+      assert.are.same({ "osv-scanner", "--format", "json", "--lockfile", "pom.xml" }, cve.scan_command("pom.xml"))
     end)
   end)
 

@@ -435,7 +435,9 @@ function M.check()
       return vim.json.decode(core_health.json())
     end)
     if decoded_ok then
-      vim.health.ok(":CheckHealthJson emits valid machine-readable JSON (neovim_version, lsp_clients, plugin_count, ...)")
+      vim.health.ok(
+        ":CheckHealthJson emits valid machine-readable JSON (neovim_version, lsp_clients, plugin_count, ...)"
+      )
     else
       vim.health.error("tetravim.core.health.json() did not return decodable JSON")
     end
@@ -475,6 +477,32 @@ function M.check()
           .. "' (expected 'tetravim') -- run ':colorscheme tetravim' or check core/options.lua"
       )
     end
+  end
+
+  vim.health.start("TetraVim Project Generator Wizard")
+
+  if vim.fn.executable("curl") == 1 then
+    vim.health.ok("curl: installed and executable (Spring Initializr download)")
+  else
+    vim.health.warn("curl: NOT found on $PATH (required for Spring Initializr project generator)")
+  end
+
+  if vim.fn.executable("unzip") == 1 then
+    vim.health.ok("unzip: installed and executable (Spring Initializr project unpack)")
+  else
+    vim.health.warn("unzip: NOT found on $PATH (required for Spring Initializr project generator)")
+  end
+
+  if vim.fn.executable("mvn") == 1 then
+    vim.health.ok("mvn: installed and executable (Maven project scaffolding & build)")
+  else
+    vim.health.info("mvn: NOT found on $PATH (optional -- needed for Maven Archetype generator)")
+  end
+
+  if vim.fn.executable("gradle") == 1 then
+    vim.health.ok("gradle: installed and executable (Gradle init project scaffolding)")
+  else
+    vim.health.info("gradle: NOT found on $PATH (optional -- needed for Gradle init generator)")
   end
 end
 

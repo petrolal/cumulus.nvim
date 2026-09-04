@@ -21,9 +21,13 @@ describe("request_all_async", function()
     -- capture the timeout timer instead of arming the real event loop
     vim.defer_fn = function(fn, ms)
       table.insert(deferred, { fn = fn, ms = ms })
-      return { stop = function() end, is_closing = function()
-        return false
-      end, close = function() end }
+      return {
+        stop = function() end,
+        is_closing = function()
+          return false
+        end,
+        close = function() end,
+      }
     end
   end)
 

@@ -10,9 +10,9 @@ map("n", "<leader>wk", "<C-w>k", { desc = "Focus upper window" })
 map("n", "<leader>wl", "<C-w>l", { desc = "Focus right window" })
 
 -- File explorer shortcut required by the smoke test
-vim.keymap.set('n', '<leader>e', function()
-  require('oil').open()
-end, { desc = 'Open file explorer (oil.nvim)' })
+vim.keymap.set("n", "<leader>e", function()
+  require("oil").open()
+end, { desc = "Open file explorer (oil.nvim)" })
 
 -- Visual Selection & Line Movement Chords (Story 9.2)
 map("v", "J", ":m '>+1<cr>gv=gv", { desc = "Move Down" })

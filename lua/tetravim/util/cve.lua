@@ -168,7 +168,12 @@ function M.remediation_hint(finding)
   end
   local coord = (finding.package or "?") .. " " .. (finding.current_version or "?")
   if finding.fixed_versions and #finding.fixed_versions > 0 then
-    return string.format("%s is vulnerable (%s). Upgrade to %s or later.", coord, ids, table.concat(finding.fixed_versions, " / "))
+    return string.format(
+      "%s is vulnerable (%s). Upgrade to %s or later.",
+      coord,
+      ids,
+      table.concat(finding.fixed_versions, " / ")
+    )
   end
   return string.format(
     "%s is vulnerable (%s). No fixed version is published yet -- apply a mitigation or drop the dependency.",

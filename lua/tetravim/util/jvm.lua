@@ -111,6 +111,7 @@ function M.whichkey_spec()
     { "<leader>jx", group = "refactor & jdtls", icon = "󰨞 " },
     { "<leader>jp", group = "profiling", icon = "⚡ " },
     { "<leader>jd", group = "dependencies", icon = "📦 " },
+    { "<leader>jn", group = "new project", icon = "✨ " },
     { "<leader>ji", group = "info", icon = "ℹ " },
   }
 end
@@ -524,6 +525,32 @@ function M.setup_keymaps()
 
   map("n", "<leader>jid", "<cmd>Mason<cr>", { desc = "Mason Package Manager" })
   map("n", "<leader>jih", "<cmd>checkhealth tetravim<cr>", { desc = "TetraVim Health Check" })
+
+  -- 9. New Project Wizard (<leader>jn)
+  map("n", "<leader>jnn", function()
+    require("tetravim.util.project-wizard").create_project()
+  end, { desc = "New JVM Project Wizard" })
+
+  map("n", "<leader>jns", function()
+    require("tetravim.util.project-wizard").new_spring_boot()
+  end, { desc = "New Spring Boot Project (Initializr)" })
+
+  map("n", "<leader>jnm", function()
+    require("tetravim.util.project-wizard").new_maven_project()
+  end, { desc = "New Maven Project (Archetype)" })
+
+  map("n", "<leader>jng", function()
+    require("tetravim.util.project-wizard").new_gradle_project()
+  end, { desc = "New Gradle Project (gradle init)" })
+
+  -- Global user commands
+  vim.api.nvim_create_user_command("TetraVimNewProject", function()
+    require("tetravim.util.project-wizard").create_project()
+  end, { desc = "Open TetraVim New JVM Project Wizard" })
+
+  vim.api.nvim_create_user_command("JVMNewProject", function()
+    require("tetravim.util.project-wizard").create_project()
+  end, { desc = "Open TetraVim New JVM Project Wizard" })
 
   -- Dynamic WhichKey registration if already loaded
   local ok, wk = pcall(require, "which-key")

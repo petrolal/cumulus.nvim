@@ -17,14 +17,18 @@ function M.notify(msg, level, title, opts)
   vim.notify(msg, level, opts)
   -- Telemetry: if enabled, also log a JSON line to the telemetry file
   if vim.g.tetravim_telemetry_enabled then
-    local log_path = vim.fn.stdpath('config') .. '/telemetry.log'
+    local log_path = vim.fn.stdpath("config") .. "/telemetry.log"
     local entry = vim.json.encode({
-      timestamp = os.time(os.date('!*t')),
+      timestamp = os.time(os.date("!*t")),
       level = (function(lvl)
-        if lvl == vim.log.levels.INFO then return "info"
-        elseif lvl == vim.log.levels.WARN then return "warn"
-        elseif lvl == vim.log.levels.ERROR then return "error"
-        else return "unknown"
+        if lvl == vim.log.levels.INFO then
+          return "info"
+        elseif lvl == vim.log.levels.WARN then
+          return "warn"
+        elseif lvl == vim.log.levels.ERROR then
+          return "error"
+        else
+          return "unknown"
         end
       end)(level),
       msg = msg,
@@ -81,12 +85,12 @@ function M.disable_telemetry()
   vim.g.tetravim_telemetry_enabled = false
 end
 
-vim.api.nvim_create_user_command('TetraVimTelemetryEnable', function()
-  require('tetravim.util.notify').enable_telemetry()
-end, { desc = 'Enable telemetry' })
+vim.api.nvim_create_user_command("TetraVimTelemetryEnable", function()
+  require("tetravim.util.notify").enable_telemetry()
+end, { desc = "Enable telemetry" })
 
-vim.api.nvim_create_user_command('TetraVimTelemetryDisable', function()
-  require('tetravim.util.notify').disable_telemetry()
-end, { desc = 'Disable telemetry' })
+vim.api.nvim_create_user_command("TetraVimTelemetryDisable", function()
+  require("tetravim.util.notify").disable_telemetry()
+end, { desc = "Disable telemetry" })
 
 return M
