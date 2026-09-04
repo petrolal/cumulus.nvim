@@ -5,6 +5,17 @@ vim.g.maplocalleader = "\\"
 
 vim.g.have_nerd_font = true
 
+-- Enterprise headless mode flag (Story 5‑2)
+vim.g.tetravim_headless = false
+
+-- Telemetry enable flag (Story 5‑2)
+vim.g.tetravim_telemetry_enabled = false
+
+-- Set headless flag from environment variable if present
+if vim.env.TETRAVIM_HEADLESS == "1" then
+  vim.g.tetravim_headless = true
+end
+
 -- Enable 24-bit true color support for theme highlights (Story 5.1)
 vim.opt.termguicolors = true
 

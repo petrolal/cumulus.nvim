@@ -382,7 +382,7 @@ function M._do_rename(bufnr, win, jvm_client, old_name, new_name)
     )
   end, M.RENAME_TIMEOUT_MS)
 
-  vim.lsp.buf_request_all(bufnr, "textDocument/rename", params, function(responses)
+  require("tetravim.util.lsp_async").request_all_async(bufnr, "textDocument/rename", params, function(responses)
     if responded then
       -- The timeout already fired and notified; ignore a very late response.
       return

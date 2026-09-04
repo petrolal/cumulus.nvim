@@ -47,10 +47,10 @@ development_status:
   2-3-native-spring-boot-discovery: done
   epic-2-retrospective: optional
 
-  epic-3: in-progress
+  epic-3: done
   3-1-embedded-database-explorer: done
   3-2-http-client-rest-api-explorer: done
-  3-4-grpc-protobufs-integration: in-progress
+  3-4-grpc-protobufs-integration: done
   epic-3-retrospective: optional
 
   epic-4: done

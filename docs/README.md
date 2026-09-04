@@ -2,6 +2,25 @@
 
 Welcome to the **TetraVim** documentation repository. This directory serves as the project knowledge base configured for BMAD (`project_knowledge: "{project-root}/docs"`).
 
+## Headless Setup
+
+The `scripts/headless-setup.sh` script can be used to bootstrap TetraVim in headless mode, syncing plugins without opening a UI. Run it via:
+
+```sh
+./scripts/headless-setup.sh
+```
+
+It sets the global variable `g:tetravim_headless` which can be checked in your configuration.
+
+## Telemetry
+
+Telemetry collection can be toggled with the following user commands:
+
+- `:TetraVimTelemetryEnable` – enables telemetry logging to `telemetry.log` in your config directory.
+- `:TetraVimTelemetryDisable` – disables telemetry.
+
+Telemetry logs include timestamp, level, message, and source for each notification emitted via `tetravim.util.notify`.
+
 ## Core Documentation References
 
 - **Agent Guidelines & Policy**: [`AGENTS.md`](../AGENTS.md)
