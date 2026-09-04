@@ -367,19 +367,20 @@ function M.generate_spring(opts, callback)
     vim.fn.mkdir(target_dir, "p")
   end
 
+  local clean_boot_ver = opts.bootVersion and opts.bootVersion:gsub("%.RELEASE$", "") or ""
   local deps_str = table.concat(opts.dependencies or {}, ",")
   local base_url = "https://start.spring.io/starter.zip"
   local query_params = {
     type = opts.type or "maven-project",
     language = opts.language or "java",
-    bootVersion = opts.bootVersion or "",
+    bootVersion = clean_boot_ver ~= "" and clean_boot_ver or nil,
     groupId = opts.groupId or "com.example",
     artifactId = opts.artifactId or "demo",
     name = opts.name or opts.artifactId or "demo",
     packageName = opts.packageName or ((opts.groupId or "com.example") .. "." .. (opts.artifactId or "demo")),
     packaging = opts.packaging or "jar",
     javaVersion = opts.javaVersion or "21",
-    dependencies = deps_str,
+    dependencies = deps_str ~= "" and deps_str or nil,
   }
 
   local url_parts = {}
@@ -400,6 +401,33 @@ function M.generate_spring(opts, callback)
       if curl_res.code ~= 0 or vim.fn.filereadable(tmp_zip) == 0 or vim.fn.getfsize(tmp_zip) < 100 then
         pcall(vim.fn.delete, tmp_zip)
         local err = "Failed to download project from Spring Initializr: " .. (curl_res.stderr or "Network error")
+        ui.notify_err(err, "TetraVim Wizard")
+        if callback then
+          callback(false, target_dir, err)
+        end
+        return
+      end
+
+      -- Verify file is a valid ZIP archive (magic number 'PK')
+      local f = io.open(tmp_zip, "rb")
+      local header = ""
+      local body = ""
+      if f then
+        header = f:read(4) or ""
+        f:seek("set", 0)
+        body = f:read(1024) or ""
+        f:close()
+      end
+
+      if header:sub(1, 2) ~= "PK" then
+        pcall(vim.fn.delete, tmp_zip)
+        local err = "Invalid archive received from start.spring.io"
+        local decode_ok, err_obj = pcall(vim.json.decode, body)
+        if decode_ok and type(err_obj) == "table" and (err_obj.message or err_obj.error) then
+          err = "Spring Initializr error: " .. (err_obj.message or err_obj.error)
+        elseif body ~= "" then
+          err = "Spring Initializr error: " .. body:gsub("%s+", " "):sub(1, 150)
+        end
         ui.notify_err(err, "TetraVim Wizard")
         if callback then
           callback(false, target_dir, err)
@@ -522,9 +550,7 @@ end
 ---@param callback fun(versions: table[])
 function M.get_spring_boot_versions(callback)
   local fallback = {
-    { id = "", name = "Default (Latest Stable)", is_default = true },
-    { id = "3.4.3", name = "3.4.3 (GA)", is_default = false },
-    { id = "3.3.9", name = "3.3.9 (GA)", is_default = false },
+    { id = "", name = "Default (Recommended - Latest Stable)", is_default = true },
   }
 
   if vim.fn.executable("curl") == 0 then
@@ -556,15 +582,18 @@ function M.get_spring_boot_versions(callback)
       end
 
       local default_id = data.bootVersion["default"] or ""
-      local versions = {}
+      local versions = {
+        { id = "", name = "Default (Recommended - Latest Stable)", is_default = true },
+      }
       for _, item in ipairs(data.bootVersion.values) do
+        local clean_id = item.id:gsub("%.RELEASE$", "")
         local is_def = item.id == default_id
-        local label = item.name or item.id
+        local label = item.name or clean_id
         if is_def then
-          label = label .. " (Recommended)"
+          label = label .. " (Current GA)"
         end
         table.insert(versions, {
-          id = item.id,
+          id = clean_id,
           name = label,
           is_default = is_def,
         })
