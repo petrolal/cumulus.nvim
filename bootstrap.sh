@@ -261,6 +261,29 @@ else
 fi
 
 # ============================================================================
+# 8. Security & vulnerability scanners
+# ============================================================================
+section "Security scanners"
+if command -v osv-scanner >/dev/null 2>&1; then
+	pass "osv-scanner already installed"
+else
+	warn "'osv-scanner' missing. Attempting installation..."
+	if command -v brew >/dev/null; then
+		install_system_pkgs brew osv-scanner
+	elif command -v yay >/dev/null; then
+		install_system_pkgs yay osv-scanner
+	elif command -v go >/dev/null; then
+		if go install github.com/google/osv-scanner/cmd/osv-scanner@latest; then
+			pass "osv-scanner installed via 'go install'"
+		else
+			warn "'go install osv-scanner' failed. Install manually."
+		fi
+	else
+		warn "Cannot auto-install osv-scanner. Download from https://github.com/google/osv-scanner/releases"
+	fi
+fi
+
+# ============================================================================
 # Done
 # ============================================================================
 
@@ -277,4 +300,5 @@ echo "  noice    : vim.notify / stylize_markdown -- Snacks.notifier handles both
 echo "  snacks   : bigfile/input/quickfile/scope/scroll/statuscolumn/words disabled by design"
 echo "  mason    : Ruby/PHP/Julia/Perl -- not used by this JVM distribution"
 echo "  devops   : sam / cfn-guard / glab -- optional; install manually if needed"
+echo "  security : osv-scanner -- optional CVE scanning; install manually if needed"
 echo "  snacks   : gs / tectonic / pdflatex -- optional PDF/LaTeX rendering"

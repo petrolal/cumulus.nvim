@@ -9,7 +9,8 @@ function M.json()
   local version_str = string.format("%d.%d.%d", neovim_version.major, neovim_version.minor, neovim_version.patch)
 
   -- LSP client names
-  local lsp_clients = vim.lsp.get_active_clients()
+  local get_clients = vim.lsp.get_clients or vim.lsp.get_active_clients
+  local lsp_clients = get_clients()
   local client_names = {}
   for _, client in ipairs(lsp_clients) do
     table.insert(client_names, client.name)
@@ -24,8 +25,18 @@ function M.json()
     end
   end
 
-  -- Pending async tasks count (placeholder using joblist)
-  local async_tasks = #vim.fn.joblist()
+  -- Pending async tasks: LSP requests still in flight across all clients
+  -- (the async work TetraVim actually drives -- see util/lsp_async.lua).
+  -- `client.requests` keeps entries for completed and cancelled requests too;
+  -- only `type == "pending"` is genuinely still in flight.
+  local async_tasks = 0
+  for _, client in ipairs(lsp_clients) do
+    for _, req in pairs(client.requests or {}) do
+      if type(req) == "table" and req.type == "pending" then
+        async_tasks = async_tasks + 1
+      end
+    end
+  end
 
   local telemetry_enabled = vim.g.tetravim_telemetry_enabled == true
 

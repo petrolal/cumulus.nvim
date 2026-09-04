@@ -2,24 +2,57 @@
 
 Welcome to the **TetraVim** documentation repository. This directory serves as the project knowledge base configured for BMAD (`project_knowledge: "{project-root}/docs"`).
 
-## Headless Setup
+## Architecture Overview
 
-The `scripts/headless-setup.sh` script can be used to bootstrap TetraVim in headless mode, syncing plugins without opening a UI. Run it via:
+`tetravim.nvim` is an enterprise-ready Neovim distribution for JVM backend engineering (Java, Kotlin, Scala). It is **pure native Neovim** — standard LSPs (`nvim-jdtls`, Kotlin Language Server, `nvim-metals`), Tree-sitter, Mason tools, and Lua utilities. There is no `tetravim-engine`, no Scala backend, and no bridge.
+
+### Key Modules
+
+- **Core**: `lua/tetravim/core/` (Options, keymaps, autocmds, devops, lazy bootstrap)
+- **Plugins**: `lua/tetravim/plugins/` (Lazy.nvim plugin specifications)
+- **JVM Utilities**: `lua/tetravim/util/jvm.lua`, `lua/tetravim/util/spring.lua`, `lua/tetravim/util/spring-picker.lua`, `lua/tetravim/util/refactor.lua`, `lua/tetravim/util/extract.lua`, `lua/tetravim/util/db.lua`, `lua/tetravim/util/http.lua`, `lua/tetravim/util/openapi.lua`, `lua/tetravim/util/git.lua`, `lua/tetravim/util/forge.lua`, `lua/tetravim/util/sonar.lua`, `lua/tetravim/util/cve.lua`
+
+## Enterprise Operability (Epic 5)
+
+### Asynchronous LSP & Resilience (Story 5.1)
+
+- Project-wide LSP operations (e.g. the safe-rename reference scan) fan out through `tetravim.util.lsp_async.request_all_async`, which dispatches to every attached client and calls back on `vim.schedule` once the last response lands — the UI thread never blocks waiting on a server.
+- JDTLS is launched with a bounded JVM heap (`-Xmx2g` / `-Xms512m`, via `tetravim.util.lsp_resilience.apply_memory_limit`) so indexing a large monorepo cannot OOM the host.
+- If a language-server process crashes it is auto-restarted, bounded to 3 restarts per 180s. Exhausting that budget stops the retry loop and surfaces one error pointing at `:LspLog`. A clean re-attach resets the window.
+- `:checkhealth tetravim` → "Asynchronous LSP & Resilience (Story 5.1)".
+
+### Headless Setup & Telemetry (Story 5.2)
+
+`scripts/headless-setup.sh` provisions TetraVim non-interactively (Codespaces / Coder / CI images) — no UI, no TTY. It runs four steps: `Lazy! sync` (aborts the script on failure), `MasonToolsInstall` (logs a warning and continues), Tree-sitter parser install (logs a warning and continues), then a machine-readable health snapshot. It exports `TETRAVIM_HEADLESS=1`, which `tetravim.core.options` bridges to `g:tetravim_headless`. When a best-effort step is skipped the script still exits 0 but ends with a `DEGRADED` summary naming what did not install.
 
 ```sh
 ./scripts/headless-setup.sh
 ```
 
-It sets the global variable `g:tetravim_headless` which can be checked in your configuration.
+The healthcheck is also available as machine-readable JSON for compliance gating — `:CheckHealthJson`, or `require('tetravim.core.health').json()` — emitting one JSON object with `neovim_version`, `lsp_clients`, `plugin_count`, `pending_async_tasks`, and `telemetry_enabled`.
 
-## Telemetry
+Telemetry is opt-in and local-only. Toggle it with:
 
-Telemetry collection can be toggled with the following user commands:
+- `:TetraVimTelemetryEnable` – enable telemetry logging to `telemetry.log` in your config directory.
+- `:TetraVimTelemetryDisable` – disable telemetry.
 
-- `:TetraVimTelemetryEnable` – enables telemetry logging to `telemetry.log` in your config directory.
-- `:TetraVimTelemetryDisable` – disables telemetry.
+Each line is one JSON object (`timestamp`, `level`, `msg`, `source`). TetraVim's primary notifier (`tetravim.util.ui`) delegates to `tetravim.util.notify`, so subsystem notifications routed through it are captured while telemetry is enabled. Nothing is written while the flag is unset, `telemetry.log` is git-ignored, and it rolls over to a single `.1` backup once it passes ~1 MiB.
 
-Telemetry logs include timestamp, level, message, and source for each notification emitted via `tetravim.util.notify`.
+## Code Quality & Security (Epic 6)
+
+The `<leader>x` group ("quality/security") wires two capabilities for JVM projects. Run `:WhichKey <leader>x` for the full, current keymap list.
+
+### SonarQube / SonarLint (Story 6.1)
+
+The `sonarlint-language-server` Mason package (with its bundled analyzer jars) attaches to Java/Kotlin/Scala buffers via `sonarlint.nvim`, surfacing Sonar rule violations as LSP diagnostics. When a `sonar-project.properties` file is found (searched upward from the buffer), its settings (`sonar.projectKey`, quality-profile hints) are forwarded to the language server. Scala rules require SonarQube connected mode.
+
+`<leader>xr` shows the Sonar rule description for the diagnostic under the cursor; `<leader>xd` opens line diagnostics (shared with CVE findings).
+
+### Vulnerability / CVE Scanning (Story 6.2)
+
+`<leader>xs` runs `osv-scanner` (OSV.dev advisory feeds) asynchronously against the open `pom.xml` / `*.gradle` build script and publishes WARN diagnostics on each vulnerable dependency line, with a remediation hint naming the advisory ids and the version(s) to upgrade to. `<leader>xc` clears the CVE diagnostics for the buffer.
+
+Both tools are optional: `:checkhealth tetravim` reports their availability, `bootstrap.sh` offers to install `osv-scanner`, and every code path degrades to a single notification when a binary or plugin is missing.
 
 ## Core Documentation References
 
@@ -30,14 +63,3 @@ Telemetry logs include timestamp, level, message, and source for each notificati
 - **Features Specification**: [`_bmad-output/planning-artifacts/FEATURES_SPEC.md`](../_bmad-output/planning-artifacts/FEATURES_SPEC.md)
 - **Epics & Stories Breakdown**: [`_bmad-output/planning-artifacts/epics.md`](../_bmad-output/planning-artifacts/epics.md)
 - **Sprint Status**: [`_bmad-output/implementation-artifacts/sprint-status.yaml`](../_bmad-output/implementation-artifacts/sprint-status.yaml)
-
-## Architecture Overview
-
-`tetravim.nvim` is an enterprise-ready Neovim distribution for JVM backend engineering (Java, Kotlin, Scala). It is **pure native Neovim** — standard LSPs (`nvim-jdtls`, Kotlin Language Server, `nvim-metals`), Tree-sitter, Mason tools, and Lua utilities. There is no `tetravim-engine`, no Scala backend, and no bridge.
-
-### Key Modules
-
-- **Core**: `lua/tetravim/core/` (Options, keymaps, autocmds, devops, lazy bootstrap)
-- **Plugins**: `lua/tetravim/plugins/` (Lazy.nvim plugin specifications)
-- **JVM Utilities**: `lua/tetravim/util/jvm.lua`, `lua/tetravim/util/spring.lua`, `lua/tetravim/util/spring-picker.lua`, `lua/tetravim/util/refactor.lua`, `lua/tetravim/util/extract.lua`, `lua/tetravim/util/db.lua`, `lua/tetravim/util/http.lua`, `lua/tetravim/util/openapi.lua`, `lua/tetravim/util/git.lua`, `lua/tetravim/util/forge.lua`
-- **Canonical Tetris Theme**: `lua/tetravim/theme/tetris.lua`, `lua/tetravim/theme/init.lua`, `lua/tetravim/util/theme_colors.lua`

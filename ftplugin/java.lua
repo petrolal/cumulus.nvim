@@ -64,41 +64,69 @@ if not has_data then
   table.insert(cmd, workspace_dir)
 end
 
-local config = {
-  cmd = cmd,
-  root_dir = root_dir,
-  settings = opts.settings,
-  init_options = {
-    bundles = bundles,
-  },
-  on_attach = function(client, bufnr)
-    jdtls.setup_dap({ hotcodereplace = "auto" })
-    local ok_dap, jdtls_dap = pcall(require, "jdtls.dap")
-    if ok_dap and jdtls_dap.setup_dap_main_class_configs then
-      jdtls_dap.setup_dap_main_class_configs()
-    end
-    -- Setup Spring Boot DAP configurations (SPEC-006)
-    local ok_sb, springboot_debug = pcall(require, "tetravim.util.springboot-debug")
-    if ok_sb and springboot_debug.setup_springboot_dap then
-      springboot_debug.setup_springboot_dap(root_dir)
-    end
-    if opts.on_attach then
-      opts.on_attach(client, bufnr)
-    end
-    -- Attach notification is handled generically for every LSP client
-    -- (including jdtls) by the LspAttach autocmd in lsp-core.lua.
+-- Story 5.1: bound the JDTLS JVM heap so indexing a large monorepo cannot
+-- OOM the machine, and auto-restart (bounded) if the server process crashes.
+local resilience = require("tetravim.util.lsp_resilience")
+cmd = resilience.apply_memory_limit(cmd, {
+  xmx = resilience.JDTLS_MAX_HEAP,
+  xms = resilience.JDTLS_MIN_HEAP,
+})
 
-    -- SPEC-2.1: <leader>cr is installed unconditionally at the top of this
-    -- ftplugin (see there) so the no-client case still notifies -- not
-    -- re-bound here.
+-- Story 5.1: never-attached crash streaks (jdtls dies before `on_attach`
+-- ever fires) would otherwise leak their restart budget across ftplugin
+-- reloads. Reset the window here when there is no live jdtls client yet.
+do
+  local getter = vim.lsp.get_clients or vim.lsp.get_active_clients
+  if #(getter({ name = "jdtls" }) or {}) == 0 then
+    resilience.reset("jdtls")
+  end
+end
 
-    -- SPEC-2.2: Intelligent Extraction
-    -- Wires up: extract_interface, inline, extract_method, extract_variable, extract_constant
-    require("tetravim.util.extract").setup_keymaps(bufnr, "Java")
-  end,
-}
+-- Build a fresh config table for every (re)start so an auto-restart after a
+-- crash never re-submits a table that `start_or_attach` has already mutated.
+local function make_config()
+  return {
+    cmd = cmd,
+    root_dir = root_dir,
+    settings = opts.settings,
+    on_exit = resilience.make_on_exit("jdtls", function()
+      jdtls.start_or_attach(make_config())
+    end),
+    init_options = {
+      bundles = bundles,
+    },
+    on_attach = function(client, bufnr)
+      -- Story 5.1: a clean attach means the previous crash streak (if any) is
+      -- over -- start a fresh restart window.
+      resilience.reset("jdtls")
+      jdtls.setup_dap({ hotcodereplace = "auto" })
+      local ok_dap, jdtls_dap = pcall(require, "jdtls.dap")
+      if ok_dap and jdtls_dap.setup_dap_main_class_configs then
+        jdtls_dap.setup_dap_main_class_configs()
+      end
+      -- Setup Spring Boot DAP configurations (SPEC-006)
+      local ok_sb, springboot_debug = pcall(require, "tetravim.util.springboot-debug")
+      if ok_sb and springboot_debug.setup_springboot_dap then
+        springboot_debug.setup_springboot_dap(root_dir)
+      end
+      if opts.on_attach then
+        opts.on_attach(client, bufnr)
+      end
+      -- Attach notification is handled generically for every LSP client
+      -- (including jdtls) by the LspAttach autocmd in lsp-core.lua.
+
+      -- SPEC-2.1: <leader>cr is installed unconditionally at the top of this
+      -- ftplugin (see there) so the no-client case still notifies -- not
+      -- re-bound here.
+
+      -- SPEC-2.2: Intelligent Extraction
+      -- Wires up: extract_interface, inline, extract_method, extract_variable, extract_constant
+      require("tetravim.util.extract").setup_keymaps(bufnr, "Java")
+    end,
+  }
+end
 
 -- Capture JDTLS start time for sync health check (SPEC-005)
 _G.tetravim_jdtls_start_time = os.time()
 
-jdtls.start_or_attach(config)
+jdtls.start_or_attach(make_config())

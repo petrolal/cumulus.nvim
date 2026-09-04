@@ -30,6 +30,15 @@ function M.notify(msg, level, title, opts)
       msg = msg,
       source = title,
     })
+    -- Bounded log: roll over to a single `.1` backup once the file passes
+    -- ~1 MiB so an always-on session cannot grow telemetry.log without limit.
+    local MAX_BYTES = 1024 * 1024
+    local uv = vim.uv or vim.loop
+    local stat = uv.fs_stat(log_path)
+    if stat and stat.size and stat.size > MAX_BYTES then
+      os.remove(log_path .. ".1")
+      os.rename(log_path, log_path .. ".1")
+    end
     local f = io.open(log_path, "a")
     if f then
       f:write(entry .. "\n")

@@ -6,15 +6,26 @@
 local M = {}
 
 --- Standardized notification dispatcher with default title and level mapping.
+---
+--- Story 5.2: this is TetraVim's primary notifier (~20 call sites), so it
+--- delegates to `tetravim.util.notify`, which owns the default title/level
+--- vocabulary *and* the opt-in telemetry sink. Routing through it here means
+--- every subsystem notification is captured in `telemetry.log` when
+--- telemetry is enabled -- not just the handful that call `util.notify`
+--- directly.
 ---@param msg string Message text
 ---@param level? number vim.log.levels level (default: INFO)
 ---@param title? string Notification title (default: "TetraVim")
 ---@param opts? table Additional notification options (e.g. id, timeout)
 function M.notify(msg, level, title, opts)
-  level = level or vim.log.levels.INFO
-  title = title or "TetraVim"
-  opts = vim.tbl_extend("force", { title = title }, opts or {})
-  vim.notify(msg, level, opts)
+  local ok, notify = pcall(require, "tetravim.util.notify")
+  if ok and type(notify.notify) == "function" then
+    notify.notify(msg, level, title, opts)
+    return
+  end
+  -- Fallback: the notify module failed to load -- still surface the message
+  -- rather than swallowing it (telemetry capture is lost for this call only).
+  vim.notify(msg, level or vim.log.levels.INFO, vim.tbl_extend("force", { title = title or "TetraVim" }, opts or {}))
 end
 
 --- Standardized info notification.

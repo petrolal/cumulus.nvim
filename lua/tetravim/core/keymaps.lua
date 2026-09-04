@@ -442,3 +442,78 @@ map("n", "<leader>fS", function()
     end
   end)
 end, { desc = "Save As..." })
+
+-- ==============================================================================
+-- 󰒃 Code Quality & Security Suite (<leader>x) - Epic 6
+-- ==============================================================================
+-- SonarQube/SonarLint rule diagnostics (Story 6.1) and osv-scanner CVE
+-- scanning of Maven/Gradle build files (Story 6.2). SonarLint analysis is
+-- driven by the language server wired in lsp-sonarlint.lua; the CVE scan is a
+-- pure async shell-out to `osv-scanner` in tetravim.util.cve whose findings
+-- are published as buffer diagnostics on the offending dependency lines.
+map("n", "<leader>xr", function()
+  local ui = require("tetravim.util.ui")
+  if not pcall(require, "sonarlint") then
+    ui.notify_err("sonarlint.nvim is not available -- run :Lazy sync / :MasonInstall sonarlint-language-server")
+    return
+  end
+  -- sonarlint.nvim exposes rule descriptions via a user command in recent
+  -- versions; fall back to code actions (where the LS surfaces "Open rule
+  -- description") when that command is absent.
+  if vim.fn.exists(":SonarlintShowRuleDescription") == 2 then
+    vim.cmd("SonarlintShowRuleDescription")
+  else
+    vim.lsp.buf.code_action()
+  end
+end, { desc = "SonarLint: Rule Description" })
+
+map("n", "<leader>xd", function()
+  vim.diagnostic.open_float(nil, { source = true })
+end, { desc = "Quality/Security: Line Diagnostics" })
+
+map("n", "<leader>xs", function()
+  local ui = require("tetravim.util.ui")
+  local cve = require("tetravim.util.cve")
+  local bufnr = vim.api.nvim_get_current_buf()
+  local path = vim.api.nvim_buf_get_name(bufnr)
+  local name = vim.fs.basename(path)
+  -- Accept the Maven POM and any Gradle build script (`build.gradle`,
+  -- `settings.gradle`, `*.gradle.kts`, module-named `*.gradle`).
+  local is_build_file = name == "pom.xml" or name:match("%.gradle$") ~= nil or name:match("%.gradle%.kts$") ~= nil
+  if not is_build_file then
+    ui.notify_err("<leader>xs scans a Maven/Gradle build file -- open pom.xml or a *.gradle script first")
+    return
+  end
+  if path == "" or not (vim.uv or vim.loop).fs_stat(path) then
+    ui.notify_err("<leader>xs: this buffer is not backed by a file on disk yet -- save it first")
+    return
+  end
+  ui.notify_info("Scanning " .. name .. " for known CVEs (osv-scanner)...")
+  cve.scan(path, function(findings, err)
+    if not findings then
+      -- The scan failed / timed out -- cve.scan already notified. Leave any
+      -- existing diagnostics in place rather than acting on a stale result.
+      return
+    end
+    if #findings == 0 then
+      cve.clear_diagnostics(bufnr)
+      ui.notify_info("osv-scanner: no known vulnerabilities in " .. name)
+      return
+    end
+    cve.publish_diagnostics(bufnr, findings)
+    ui.notify_warn(
+      string.format(
+        "osv-scanner: %d vulnerable dependenc%s in %s -- see diagnostics",
+        #findings,
+        #findings == 1 and "y" or "ies",
+        name
+      )
+    )
+  end)
+end, { desc = "CVE: Scan Build File Dependencies" })
+
+map("n", "<leader>xc", function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  require("tetravim.util.cve").clear_diagnostics(bufnr)
+  require("tetravim.util.ui").notify_info("Cleared CVE diagnostics for this buffer")
+end, { desc = "CVE: Clear Scan Diagnostics" })

@@ -360,6 +360,99 @@ function M.check()
     vim.health.info("glab: NOT found on $PATH (GitLab PR review support unavailable). Suggestion: install glab")
   end
 
+  vim.health.start("TetraVim Code Quality & Security -- SonarLint (Story 6.1)")
+
+  local sonar = require("tetravim.util.sonar")
+  if sonar.has_language_server() then
+    vim.health.ok("sonarlint-language-server: installed and executable (Java/Kotlin/Scala SonarQube-rule diagnostics)")
+    local jars = sonar.analyzer_paths()
+    if #jars > 0 then
+      vim.health.ok(string.format("SonarLint analyzers: %d bundled jar(s) found under the Mason package", #jars))
+    else
+      vim.health.info(
+        "SonarLint analyzers: none bundled with the Mason package -- standalone analysis relies on connected mode "
+          .. "or the language server's own defaults"
+      )
+    end
+  else
+    vim.health.info(
+      "sonarlint-language-server: NOT found on $PATH (SonarQube-rule diagnostics unavailable). "
+        .. "Suggestion: :MasonInstall sonarlint-language-server"
+    )
+  end
+
+  if pcall(require, "sonarlint") then
+    vim.health.ok("sonarlint.nvim: resolvable (SonarLint LS bridge available)")
+  else
+    vim.health.info(
+      "sonarlint.nvim: not resolvable -- open a java/kotlin/scala buffer to lazy-load it, or run :Lazy sync"
+    )
+  end
+
+  local sonar_props = sonar.find_project_settings()
+  if sonar_props and sonar_props["sonar.projectKey"] then
+    vim.health.ok(
+      "sonar-project.properties: found (quality profile bound to '" .. sonar_props["sonar.projectKey"] .. "')"
+    )
+  else
+    vim.health.info("sonar-project.properties: not found in the current directory (SonarLint default rules apply)")
+  end
+
+  vim.health.info("Scala SonarLint rules require SonarQube connected mode -- no standalone Scala analyzer is bundled")
+
+  vim.health.start("TetraVim Code Quality & Security -- CVE Scanning (Story 6.2)")
+
+  if vim.fn.executable("osv-scanner") == 1 then
+    vim.health.ok("osv-scanner: installed and executable (<leader>xs Maven/Gradle dependency CVE scan available)")
+  else
+    vim.health.info(
+      "osv-scanner: NOT found on $PATH (the <leader>xs dependency CVE scan is unavailable). "
+        .. "Suggestion: brew install osv-scanner / go install github.com/google/osv-scanner/cmd/osv-scanner@latest"
+    )
+  end
+
+  vim.health.start("TetraVim Asynchronous LSP & Resilience (Story 5.1)")
+
+  local resilience_ok, resilience = pcall(require, "tetravim.util.lsp_resilience")
+  if resilience_ok and type(resilience.health) == "function" then
+    resilience.health()
+  else
+    vim.health.error("tetravim.util.lsp_resilience: failed to load (" .. tostring(resilience) .. ")")
+  end
+
+  vim.health.start("TetraVim Headless Setup & Telemetry (Story 5.2)")
+
+  local setup_script = vim.fn.stdpath("config") .. "/scripts/headless-setup.sh"
+  if vim.fn.executable(setup_script) == 1 then
+    vim.health.ok("scripts/headless-setup.sh: present and executable (non-interactive provisioning)")
+  else
+    vim.health.warn("scripts/headless-setup.sh: missing or not executable")
+  end
+
+  local json_ok, core_health = pcall(require, "tetravim.core.health")
+  if json_ok and type(core_health.json) == "function" then
+    local decoded_ok = pcall(function()
+      return vim.json.decode(core_health.json())
+    end)
+    if decoded_ok then
+      vim.health.ok(":CheckHealthJson emits valid machine-readable JSON (neovim_version, lsp_clients, plugin_count, ...)")
+    else
+      vim.health.error("tetravim.core.health.json() did not return decodable JSON")
+    end
+  else
+    vim.health.error("tetravim.core.health: failed to load or missing json()")
+  end
+
+  if vim.g.tetravim_telemetry_enabled then
+    vim.health.info(
+      "Telemetry is ENABLED -- notifications are appended to "
+        .. vim.fn.stdpath("config")
+        .. "/telemetry.log (toggle with :TetraVimTelemetryDisable)"
+    )
+  else
+    vim.health.info("Telemetry is disabled (opt in with :TetraVimTelemetryEnable to export notifications as JSON)")
+  end
+
   vim.health.start("TetraVim Colour Scheme")
 
   local theme_ok, tetris = pcall(require, "tetravim.theme.tetris")

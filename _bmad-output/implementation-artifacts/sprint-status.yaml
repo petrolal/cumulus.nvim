@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-25-2026 02:55
-last_updated: 09-03-2026 18:22
+last_updated: 09-03-2026 21:30
 project: tetravim.nvim
 project_key: tetravim
 tracking_system: local
@@ -58,12 +58,12 @@ development_status:
   4-2-in-editor-code-reviews-github-gitlab: done
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-asynchronous-lsp-operations-resilience: backlog
-  5-2-enterprise-headless-setup-telemetry: backlog
+  epic-5: in-progress
+  5-1-asynchronous-lsp-operations-resilience: review
+  5-2-enterprise-headless-setup-telemetry: review
   epic-5-retrospective: optional
 
-  epic-6: backlog
-  6-1-sonarqube-sonarlint-integration: backlog
-  6-2-vulnerability-scanning-cves: backlog
+  epic-6: in-progress
+  6-1-sonarqube-sonarlint-integration: review
+  6-2-vulnerability-scanning-cves: review
   epic-6-retrospective: optional

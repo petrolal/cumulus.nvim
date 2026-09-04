@@ -48,4 +48,33 @@ describe("tetravim.util.notify", function()
     assert.are.equal(10, captured[1].opts.timeout)
     assert.are.equal("abc", captured[1].opts.id)
   end)
+
+  it("rolls telemetry.log over to a single .1 backup once it passes ~1 MiB", function()
+    local tmp = vim.fn.tempname()
+    vim.fn.mkdir(tmp, "p")
+    local saved_stdpath = vim.fn.stdpath
+    local saved_flag = vim.g.tetravim_telemetry_enabled
+    vim.fn.stdpath = function(what)
+      if what == "config" then
+        return tmp
+      end
+      return saved_stdpath(what)
+    end
+    vim.g.tetravim_telemetry_enabled = true
+
+    local log_path = tmp .. "/telemetry.log"
+    local seed = io.open(log_path, "w")
+    seed:write(string.rep("x", 1024 * 1024 + 16))
+    seed:close()
+
+    notify.notify("rotation probe")
+
+    vim.g.tetravim_telemetry_enabled = saved_flag
+    vim.fn.stdpath = saved_stdpath
+
+    assert.equals(1, vim.fn.filereadable(log_path .. ".1"))
+    -- the fresh log holds only the just-written line, not the seeded bulk
+    local size = (vim.uv or vim.loop).fs_stat(log_path).size
+    assert.is_true(size < 1024 * 1024)
+  end)
 end)

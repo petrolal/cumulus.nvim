@@ -34,6 +34,7 @@ local ensure_installed = {
   "checkstyle",
   "buf",
   "protols",
+  "sonarlint-language-server",
 }
 
 return {

@@ -38,6 +38,7 @@ return {
         { "<leader>H", group = "http", icon = "󰖟 " },
         { "<leader>G", group = "grpc/proto", icon = "󱅥 " },
         { "<leader>t", group = "test runner", icon = "󰙨 " },
+        { "<leader>x", group = "quality/security", icon = "󰒃 " },
         { "<leader>u", group = "ui/toggles", icon = "󰔡 " },
         { "<leader>q", group = "quit/session", icon = "󰗼 " },
       })
