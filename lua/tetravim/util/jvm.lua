@@ -138,29 +138,95 @@ function M.setup_keymaps()
   end
 
   -- Helper function to get mvnw or system mvn
-  local function get_mvn_cmd()
-    local cwd = vim.fn.getcwd()
-    local mvnw = cwd .. "/mvnw"
-    if vim.fn.filereadable(mvnw) == 1 then
+  local function get_mvn_cmd(root)
+    local cwd = root or vim.fn.getcwd()
+    if vim.fn.filereadable(cwd .. "/mvnw") == 1 then
+      if vim.fn.executable(cwd .. "/mvnw") == 0 then
+        vim.fn.system({ "chmod", "+x", cwd .. "/mvnw" })
+      end
+      return "./mvnw"
+    end
+    local mvnw = vim.fs.find({ "mvnw" }, { upward = true, path = cwd, type = "file" })[1]
+    if mvnw and vim.fn.filereadable(mvnw) == 1 then
       if vim.fn.executable(mvnw) == 0 then
         vim.fn.system({ "chmod", "+x", mvnw })
       end
-      return "./mvnw"
+      return mvnw
     end
     return "mvn"
   end
 
   -- Helper function to get gradlew or system gradle
-  local function get_gradle_cmd()
-    local cwd = vim.fn.getcwd()
-    local gradlew = cwd .. "/gradlew"
-    if vim.fn.filereadable(gradlew) == 1 then
-      if vim.fn.executable(gradlew) == 0 then
-        vim.fn.system({ "chmod", "+x", gradlew })
+  local function get_gradle_cmd(root)
+    local cwd = root or vim.fn.getcwd()
+    if vim.fn.filereadable(cwd .. "/gradlew") == 1 then
+      if vim.fn.executable(cwd .. "/gradlew") == 0 then
+        vim.fn.system({ "chmod", "+x", cwd .. "/gradlew" })
       end
       return "./gradlew"
     end
+    local gradlew = vim.fs.find({ "gradlew" }, { upward = true, path = cwd, type = "file" })[1]
+    if gradlew and vim.fn.filereadable(gradlew) == 1 then
+      if vim.fn.executable(gradlew) == 0 then
+        vim.fn.system({ "chmod", "+x", gradlew })
+      end
+      return gradlew
+    end
     return "gradle"
+  end
+
+  --- Resolve JVM project context (tool, root), prompting if multiple subprojects exist.
+  ---@param callback fun(tool: "maven"|"gradle", root: string)
+  ---@param filter_tool? "maven"|"gradle"
+  local function with_jvm_project(callback, filter_tool)
+    local tool, root = build.detect()
+    if tool and root then
+      if not filter_tool or tool == filter_tool then
+        callback(tool, root)
+        return
+      end
+    end
+
+    local subprojects = build.find_subprojects and build.find_subprojects(vim.fn.getcwd()) or {}
+    if filter_tool then
+      local filtered = {}
+      for _, sp in ipairs(subprojects) do
+        if sp.tool == filter_tool then
+          table.insert(filtered, sp)
+        end
+      end
+      subprojects = filtered
+    end
+
+    if #subprojects == 0 then
+      local name = filter_tool and (filter_tool:sub(1, 1):upper() .. filter_tool:sub(2)) or "Maven or Gradle"
+      notify_error("No " .. name .. " project found in current directory or buffer")
+      return
+    elseif #subprojects == 1 then
+      callback(subprojects[1].tool, subprojects[1].root)
+      return
+    end
+
+    -- Multiple projects found: prompt user to pick
+    local items = {}
+    for _, sp in ipairs(subprojects) do
+      table.insert(items, {
+        label = string.format("%s (%s) - %s", sp.name, sp.tool:upper(), sp.root),
+        tool = sp.tool,
+        root = sp.root,
+      })
+    end
+
+    vim.ui.select(items, {
+      prompt = "Select JVM Project:",
+      format_item = function(item)
+        return item.label
+      end,
+    }, function(choice)
+      if choice then
+        callback(choice.tool, choice.root)
+      end
+    end)
   end
 
   -- Detect concrete test source roots under `cwd` (single- or multi-module
@@ -199,72 +265,65 @@ function M.setup_keymaps()
 
   -- 1. Build & Tasks (<leader>jb)
   map("n", "<leader>jbc", function()
-    local tool = build.detect(vim.fn.getcwd())
-    if tool == "maven" then
-      local base_cmd = get_build_cmd(get_mvn_cmd(), M.offline_mode)
-      term.run_term(base_cmd .. " clean compile", { title = "TetraVim Maven" })
-    elseif tool == "gradle" then
-      local base_cmd = get_build_cmd(get_gradle_cmd(), M.offline_mode)
-      term.run_term(base_cmd .. " clean compile", { title = "TetraVim Gradle" })
-    else
-      notify_error("No Maven or Gradle project found in current directory")
-    end
+    with_jvm_project(function(tool, root)
+      if tool == "maven" then
+        local base_cmd = get_build_cmd(get_mvn_cmd(root), M.offline_mode)
+        term.run_term(base_cmd .. " clean compile", { title = "TetraVim Maven", cwd = root })
+      elseif tool == "gradle" then
+        local base_cmd = get_build_cmd(get_gradle_cmd(root), M.offline_mode)
+        term.run_term(base_cmd .. " clean classes", { title = "TetraVim Gradle", cwd = root })
+      end
+    end)
   end, { desc = "Build: Clean Compile" })
 
   map("n", "<leader>jbg", function()
-    if build.detect(vim.fn.getcwd()) ~= "gradle" then
-      notify_error("No Gradle project found in current directory")
-      return
-    end
+    with_jvm_project(function(tool, root)
+      local base_cmd = get_gradle_cmd(root)
+      local cmd_prefix = get_build_cmd(base_cmd, M.offline_mode)
+      notify_info("Loading Gradle tasks...")
 
-    local base_cmd = get_gradle_cmd()
-    local cmd_prefix = get_build_cmd(base_cmd, M.offline_mode)
-    notify_info("Loading Gradle tasks...")
-
-    vim.system(
-      vim.list_extend(vim.split(base_cmd, " ", { trimempty = true }), { "tasks", "--all", "--console=plain" }),
-      { text = true, cwd = vim.fn.getcwd() },
-      vim.schedule_wrap(function(res)
-        if res.code ~= 0 then
-          notify_error("Failed to fetch Gradle tasks")
-          return
-        end
-        local tasks = parse_gradle_tasks(res.stdout)
-        if #tasks == 0 then
-          notify_error("No Gradle tasks found")
-          return
-        end
-        vim.ui.select(tasks, {
-          prompt = "Select Gradle Task:",
-          format_item = function(item)
-            return cmd_prefix .. " " .. item
-          end,
-        }, function(choice)
-          if choice then
-            term.run_term(cmd_prefix .. " " .. choice, { title = "TetraVim Gradle" })
+      vim.system(
+        vim.list_extend(vim.split(base_cmd, " ", { trimempty = true }), { "tasks", "--all", "--console=plain" }),
+        { text = true, cwd = root },
+        vim.schedule_wrap(function(res)
+          if res.code ~= 0 then
+            notify_error("Failed to fetch Gradle tasks")
+            return
           end
+          local tasks = parse_gradle_tasks(res.stdout)
+          if #tasks == 0 then
+            notify_error("No Gradle tasks found")
+            return
+          end
+          vim.ui.select(tasks, {
+            prompt = "Select Gradle Task (" .. vim.fs.basename(root) .. "):",
+            format_item = function(item)
+              return cmd_prefix .. " " .. item
+            end,
+          }, function(choice)
+            if choice then
+              term.run_term(cmd_prefix .. " " .. choice, { title = "TetraVim Gradle", cwd = root })
+            end
+          end)
         end)
-      end)
-    )
+      )
+    end, "gradle")
   end, { desc = "Gradle: Select & Run Task" })
 
   map("n", "<leader>jbm", function()
-    if build.detect(vim.fn.getcwd()) ~= "maven" then
-      notify_error("No Maven project found in current directory")
-      return
-    end
-
-    local cmd_prefix = get_build_cmd(get_mvn_cmd(), M.offline_mode)
-    vim.ui.select(MAVEN_GOALS, {
-      prompt = "Select Maven Goal:",
-      format_item = function(item)
-        return cmd_prefix .. " " .. item
-      end,
-    }, function(choice)
-      if choice then
-        term.run_term(cmd_prefix .. " " .. choice, { title = "TetraVim Maven" })
-      end
-    end)
+    with_jvm_project(function(tool, root)
+      local cmd_prefix = get_build_cmd(get_mvn_cmd(root), M.offline_mode)
+      vim.ui.select(MAVEN_GOALS, {
+        prompt = "Select Maven Goal (" .. vim.fs.basename(root) .. "):",
+        format_item = function(item)
+          return cmd_prefix .. " " .. item
+        end,
+      }, function(choice)
+        if choice then
+          term.run_term(cmd_prefix .. " " .. choice, { title = "TetraVim Maven", cwd = root })
+        end
+      end)
+    end, "maven")
   end, { desc = "Maven: Select & Run Goal" })
 
   map("n", "<leader>jbo", function()
@@ -401,45 +460,42 @@ function M.setup_keymaps()
 
   -- 3. Run & Execute (<leader>jr)
   map("n", "<leader>jrs", function()
-    local tool, root = build.detect(vim.fn.getcwd())
-    root = root or vim.fn.getcwd()
-
-    if tool == "maven" then
-      local pom_path = vim.fn.findfile("pom.xml", root .. ";")
-      if pom_path == "" then
-        pom_path = vim.fn.findfile("pom.xml", vim.fn.expand("%:p:h") .. ";")
-      end
-
-      local is_quarkus = false
-      if pom_path ~= "" then
-        local ok, lines = pcall(vim.fn.readfile, pom_path)
-        if ok and lines then
-          is_quarkus = table.concat(lines, "\n"):match("quarkus%-maven%-plugin") ~= nil
+    with_jvm_project(function(tool, root)
+      if tool == "maven" then
+        local pom_path = vim.fn.findfile("pom.xml", root .. ";")
+        if pom_path == "" then
+          pom_path = vim.fn.findfile("pom.xml", vim.fn.expand("%:p:h") .. ";")
         end
-      end
 
-      local base_cmd = get_build_cmd(get_mvn_cmd(), M.offline_mode)
-      local goal = is_quarkus and "quarkus:dev" or "spring-boot:run"
-      term.run_term(base_cmd .. " " .. goal, { title = "TetraVim Maven" })
-    elseif tool == "gradle" then
-      local gradle_file = vim.fn.findfile("build.gradle", root .. ";")
-      local gradle_kts = vim.fn.findfile("build.gradle.kts", root .. ";")
-      local g_path = gradle_file ~= "" and gradle_file or gradle_kts
-
-      local is_quarkus = false
-      if g_path ~= "" then
-        local ok, lines = pcall(vim.fn.readfile, g_path)
-        if ok and lines then
-          is_quarkus = table.concat(lines, "\n"):match("quarkus") ~= nil
+        local is_quarkus = false
+        if pom_path ~= "" then
+          local ok, lines = pcall(vim.fn.readfile, pom_path)
+          if ok and lines then
+            is_quarkus = table.concat(lines, "\n"):match("quarkus%-maven%-plugin") ~= nil
+          end
         end
-      end
 
-      local base_cmd = get_build_cmd(get_gradle_cmd(), M.offline_mode)
-      local task = is_quarkus and "quarkusDev" or "bootRun"
-      term.run_term(base_cmd .. " " .. task, { title = "TetraVim Gradle" })
-    else
-      notify_error("No Maven or Gradle project found in current directory")
-    end
+        local base_cmd = get_build_cmd(get_mvn_cmd(root), M.offline_mode)
+        local goal = is_quarkus and "quarkus:dev" or "spring-boot:run"
+        term.run_term(base_cmd .. " " .. goal, { title = "TetraVim Maven", cwd = root })
+      elseif tool == "gradle" then
+        local gradle_file = vim.fn.findfile("build.gradle", root .. ";")
+        local gradle_kts = vim.fn.findfile("build.gradle.kts", root .. ";")
+        local g_path = gradle_file ~= "" and gradle_file or gradle_kts
+
+        local is_quarkus = false
+        if g_path ~= "" then
+          local ok, lines = pcall(vim.fn.readfile, g_path)
+          if ok and lines then
+            is_quarkus = table.concat(lines, "\n"):match("quarkus") ~= nil
+          end
+        end
+
+        local base_cmd = get_build_cmd(get_gradle_cmd(root), M.offline_mode)
+        local task = is_quarkus and "quarkusDev" or "bootRun"
+        term.run_term(base_cmd .. " " .. task, { title = "TetraVim Gradle", cwd = root })
+      end
+    end)
   end, { desc = "Run Spring Boot / Quarkus App" })
 
   map("n", "<leader>jrg", function()

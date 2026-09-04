@@ -87,7 +87,7 @@ function M.run()
     end
   end)
   local cwd = vim.fn.getcwd()
-  local tool = require("tetravim.util.build").detect(cwd)
+  local tool, root = require("tetravim.util.build").detect(cwd)
 
   if not tool then
     -- Nothing to sync -- don't leave the gated java/kotlin/maven keymaps
@@ -95,10 +95,11 @@ function M.run()
     M.mark_ready()
     return
   end
+  root = root or cwd
   local sync_runner = require("tetravim.util.sync-runner")
 
   if tool == "maven" then
-    local mvnw = cwd .. "/mvnw"
+    local mvnw = root .. "/mvnw"
     local base_cmd = "mvn"
     if vim.fn.filereadable(mvnw) == 1 then
       if vim.fn.executable(mvnw) == 0 then
@@ -119,9 +120,10 @@ function M.run()
       notify_id = "tetravim_maven_sync",
       tool_label = "Maven",
       base_cmd = base_cmd,
+      cwd = root,
     })
   elseif tool == "gradle" then
-    local gradlew = cwd .. "/gradlew"
+    local gradlew = root .. "/gradlew"
     local base_cmd = "gradle"
     if vim.fn.filereadable(gradlew) == 1 then
       if vim.fn.executable(gradlew) == 0 then
@@ -142,6 +144,7 @@ function M.run()
       notify_id = "tetravim_gradle_sync",
       tool_label = "Gradle",
       base_cmd = base_cmd,
+      cwd = root,
     })
   else
     M.mark_ready()

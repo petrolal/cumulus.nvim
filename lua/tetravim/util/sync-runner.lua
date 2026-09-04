@@ -63,7 +63,7 @@ function M.run(opts)
   -- binary doesn't exist at all (ENOENT) -- e.g. no wrapper script and the
   -- tool isn't on $PATH. pcall it so that shows up as a notification instead
   -- of an uncaught error breaking whatever autocmd triggered this.
-  local ok, handle_or_err = pcall(vim.system, opts.cmd, { text = true }, function(result)
+  local ok, handle_or_err = pcall(vim.system, opts.cmd, { text = true, cwd = opts.cwd }, function(result)
     stop_timers()
     if timed_out then
       -- The timeout timer below already called mark_ready() and notified
