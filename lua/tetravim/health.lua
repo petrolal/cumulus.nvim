@@ -204,6 +204,53 @@ function M.check()
     end
   end
 
+  vim.health.start("TetraVim CI/CD YAML -- GitHub Actions & GitLab CI (Epic 39)")
+
+  if pcall(require, "schemastore") then
+    vim.health.ok("SchemaStore.nvim: resolvable (JSON Schema Store catalog feeds yamlls/jsonls)")
+  else
+    vim.health.warn(
+      "SchemaStore.nvim: NOT resolvable -- run :Lazy sync (GitHub Workflow / GitLab CI schema validation unavailable)"
+    )
+  end
+
+  local ci_tools = {
+    {
+      name = "yaml-language-server",
+      desc = "YAML LSP -- schema validation, completion and hover for workflow & pipeline files",
+      install = ":MasonInstall yaml-language-server",
+    },
+    {
+      name = "gh-actions-language-server",
+      desc = "GitHub Actions LSP -- 'uses:' resolution, expression and input checks",
+      install = ":MasonInstall gh-actions-language-server",
+    },
+    {
+      name = "actionlint",
+      desc = "GitHub Actions workflow linter (shellcheck-backed 'run:' analysis)",
+      install = ":MasonInstall actionlint",
+    },
+    {
+      name = "yamllint",
+      desc = "Generic YAML linter -- style checks for .gitlab-ci.yml",
+      install = ":MasonInstall yamllint",
+    },
+  }
+
+  for _, tool in ipairs(ci_tools) do
+    if vim.fn.executable(tool.name) == 1 then
+      vim.health.ok(string.format("%s: installed and executable", tool.name))
+    else
+      vim.health.info(string.format("%s: NOT found on $PATH (%s. Suggestion: %s)", tool.name, tool.desc, tool.install))
+    end
+  end
+
+  if vim.fn.executable("glab") == 1 then
+    vim.health.ok("glab: installed (optional -- 'glab ci lint' server-side pipeline validation)")
+  else
+    vim.health.info("glab: NOT found on $PATH (optional -- enables server-side 'glab ci lint' validation)")
+  end
+
   vim.health.start("TetraVim Embedded Database Explorer (SPEC-3.1)")
 
   local dadbod_completion_ok = pcall(require, "vim_dadbod_completion")
@@ -358,6 +405,45 @@ function M.check()
     vim.health.ok("glab: installed and executable (GitLab PR review support available)")
   else
     vim.health.info("glab: NOT found on $PATH (GitLab PR review support unavailable). Suggestion: install glab")
+  end
+
+  vim.health.start("TetraVim Visual Test Runner -- neotest-java (SPEC-1.3)")
+
+  if pcall(require, "neotest-java") then
+    vim.health.ok("neotest-java: resolvable (JVM test tree discovery available)")
+  else
+    vim.health.info("neotest-java: not resolvable -- open a java buffer to lazy-load it, or run :Lazy sync")
+  end
+
+  local njava_ok, njava = pcall(require, "tetravim.util.neotest_java")
+  if njava_ok then
+    if njava.is_installed() then
+      vim.health.ok(
+        string.format("JUnit Platform Console Standalone %s: present (%s)", njava.version, njava.jar_path())
+      )
+    elseif vim.fn.executable("curl") == 1 then
+      vim.health.info(
+        "JUnit Platform Console Standalone jar: not downloaded yet -- fetched automatically on first test run "
+          .. "(or run :NeotestJava setup)"
+      )
+    else
+      vim.health.warn(
+        "JUnit Platform Console Standalone jar: missing and curl is unavailable -- install curl or download it manually"
+      )
+    end
+  else
+    vim.health.error("tetravim.util.neotest_java: failed to load (" .. tostring(njava) .. ")")
+  end
+
+  if njava_ok then
+    if njava.has_java_sources(vim.fn.getcwd()) then
+      vim.health.ok("Current project: has .java sources -- neotest-java adapter is active here")
+    else
+      vim.health.info(
+        "Current project: no .java sources found -- neotest-java stays inactive here (it is Java-only; "
+          .. "use the Gradle/Maven test tasks for Kotlin/Scala)"
+      )
+    end
   end
 
   vim.health.start("TetraVim Code Quality & Security -- SonarLint (Story 6.1)")

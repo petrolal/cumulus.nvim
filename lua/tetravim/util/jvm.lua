@@ -343,23 +343,42 @@ function M.setup_keymaps()
 
   -- 2. Test Runner (<leader>jt)
   map("n", "<leader>jta", function()
-    local ok, neotest = pcall(require, "neotest")
-    if not ok then
-      notify_error("neotest is not available")
-      return
-    end
+    -- neotest only carries a Java adapter (neotest-java): pointing it at a
+    -- kotlin/scala/groovy test root just yields "No tests found". Use the
+    -- in-editor neotest tree only when every detected test root is Java;
+    -- otherwise run the build tool's `test` task, which covers all JVM
+    -- languages (and multi-module builds) in one go.
     local roots = detect_test_roots(vim.fn.getcwd())
-    if #roots == 0 then
-      pcall(function()
-        neotest.run.run(vim.fn.getcwd())
-      end)
+    local function is_java_root(p)
+      return p:match("/java$") ~= nil or p:match("/java/") ~= nil
+    end
+    local all_java = #roots > 0
+    for _, r in ipairs(roots) do
+      if not is_java_root(r) then
+        all_java = false
+        break
+      end
+    end
+
+    local neotest_ok, neotest = pcall(require, "neotest")
+    if all_java and neotest_ok then
+      for _, root in ipairs(roots) do
+        pcall(function()
+          neotest.run.run(root)
+        end)
+      end
       return
     end
-    for _, root in ipairs(roots) do
-      pcall(function()
-        neotest.run.run(root)
-      end)
-    end
+
+    with_jvm_project(function(tool, root)
+      if tool == "maven" then
+        local base_cmd = get_build_cmd(get_mvn_cmd(root), M.offline_mode)
+        term.run_term(base_cmd .. " test", { title = "TetraVim Maven", cwd = root })
+      elseif tool == "gradle" then
+        local base_cmd = get_build_cmd(get_gradle_cmd(root), M.offline_mode)
+        term.run_term(base_cmd .. " test", { title = "TetraVim Gradle", cwd = root })
+      end
+    end)
   end, { desc = "Run All Tests in Workspace" })
 
   map("n", "<leader>jtt", function()

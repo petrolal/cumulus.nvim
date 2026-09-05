@@ -90,7 +90,15 @@ return {
       "nvim-neotest/nvim-nio",
       "antoinemadec/FixCursorHold.nvim",
       "nvim-treesitter/nvim-treesitter",
-      "rcasia/neotest-java",
+      {
+        "rcasia/neotest-java",
+        -- Upstream ships the JUnit Platform Console Standalone jar only via the
+        -- interactive `:NeotestJava setup`; fetch it non-interactively so a
+        -- fresh clone can run tests without a manual step.
+        build = function()
+          require("tetravim.util.neotest_java").ensure(true)
+        end,
+      },
     },
     -- Only `neotest-java` is registered as an adapter below, so there is no
     -- runnable coverage for kotlin/scala buffers -- gate the plugin load on
@@ -127,7 +135,39 @@ return {
       local adapters = {}
       local ok_java, neotest_java = pcall(require, "neotest-java")
       if ok_java then
-        table.insert(adapters, neotest_java({}))
+        local adapter = neotest_java({})
+
+        -- neotest-java is Java-only, but its root_finder claims any Gradle/Maven
+        -- project -- including Kotlin/Scala-only ones -- and then asserts deep in
+        -- client_provider ("No Java file found in the directory"). Decline any
+        -- project tree with no hand-written .java sources, and any non-.java
+        -- buffer, so those runs fall through instead of crashing.
+        local nj = require("tetravim.util.neotest_java")
+        local base_root = adapter.root
+        local base_is_test_file = adapter.is_test_file
+        local java_root_cache = {}
+
+        adapter.root = function(dir)
+          local root = base_root(dir)
+          if not root then
+            return nil
+          end
+          local cached = java_root_cache[root]
+          if cached == nil then
+            cached = nj.has_java_sources(root)
+            java_root_cache[root] = cached
+          end
+          return cached and root or nil
+        end
+
+        adapter.is_test_file = function(file)
+          if type(file) ~= "string" or not file:match("%.java$") then
+            return false
+          end
+          return base_is_test_file(file)
+        end
+
+        table.insert(adapters, adapter)
       end
       return {
         adapters = adapters,
@@ -136,6 +176,11 @@ return {
       }
     end,
     config = function(_, opts)
+      -- `build` covers install/update; guard here too for clones synced before
+      -- this spec landed, or a build step that ran without network access.
+      pcall(function()
+        require("tetravim.util.neotest_java").ensure(true)
+      end)
       local neotest = require("neotest")
       neotest.setup(opts)
     end,

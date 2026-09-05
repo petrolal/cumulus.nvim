@@ -12,6 +12,11 @@ local ensure_installed = {
   "ansible-lint",
   "cfn-lint",
   "yaml-language-server",
+  -- CI/CD YAML (Epic 39): GitHub Actions LSP + workflow linter, generic YAML
+  -- linter pointed at .gitlab-ci.yml.
+  "gh-actions-language-server",
+  "actionlint",
+  "yamllint",
   "dockerfile-language-server",
   "hadolint",
   "helm-ls",

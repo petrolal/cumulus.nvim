@@ -21,7 +21,8 @@ local ok, err = pcall(function()
   local deps = neotest_spec.dependencies or {}
   local has_neotest_java = false
   for _, dep in ipairs(deps) do
-    if dep == 'rcasia/neotest-java' then
+    local name = type(dep) == 'table' and dep[1] or dep
+    if name == 'rcasia/neotest-java' then
       has_neotest_java = true
     end
   end
