@@ -46,11 +46,22 @@ The `<leader>x` group ("quality/security") wires two capabilities for JVM projec
 
 The `sonarlint-language-server` Mason package (with its bundled analyzer jars) attaches to Java/Kotlin/Scala buffers via `sonarlint.nvim`, surfacing Sonar rule violations as LSP diagnostics. When a `sonar-project.properties` file is found (searched upward from the buffer), its settings (`sonar.projectKey`, quality-profile hints) are forwarded to the language server. Scala rules require SonarQube connected mode.
 
-`<leader>xr` shows the Sonar rule description for the diagnostic under the cursor; `<leader>xd` opens line diagnostics (shared with CVE findings).
+The `<leader>x` group is organised by feature type, and within each type the
+lowercase key acts on the current buffer while the `p`/uppercase key acts on the
+whole project:
+
+| Type | Buffer | Project |
+| --- | --- | --- |
+| Diagnostics | `<leader>xdb` line float | `<leader>xdp` all diagnostics → quickfix |
+| Lint | `<leader>xlb` check · `<leader>xlB` autofix (writes file) | `<leader>xlp` check · `<leader>xlP` autofix |
+| Sonar | `<leader>xsb` rule description under cursor | `<leader>xsp` whole-codebase scan |
+| CVE | `<leader>xvb` scan open build file · `<leader>xvc` clear | `<leader>xvp` scan whole project |
+
+`<leader>xsp` auto-selects `sonar-scanner` connected mode when a `sonar-project.properties` declares `sonar.host.url` and the CLI is installed, otherwise a server-free SonarLint sweep of every Java/Kotlin/Scala source into the quickfix list.
 
 ### Vulnerability / CVE Scanning (Story 6.2)
 
-`<leader>xs` runs `osv-scanner` (OSV.dev advisory feeds) asynchronously against the open `pom.xml` / `*.gradle` build script and publishes WARN diagnostics on each vulnerable dependency line, with a remediation hint naming the advisory ids and the version(s) to upgrade to. `<leader>xc` clears the CVE diagnostics for the buffer.
+`<leader>xvb` runs `osv-scanner` (OSV.dev advisory feeds) asynchronously against the open `pom.xml` / `*.gradle` build script and publishes WARN diagnostics on each vulnerable dependency line, with a remediation hint naming the advisory ids and the version(s) to upgrade to. `<leader>xvp` runs `osv-scanner -r` over the whole project tree and renders the findings in a persistent split. `<leader>xvc` clears the CVE diagnostics for the buffer.
 
 Both tools are optional: `:checkhealth tetravim` reports their availability, `bootstrap.sh` offers to install `osv-scanner`, and every code path degrades to a single notification when a binary or plugin is missing.
 

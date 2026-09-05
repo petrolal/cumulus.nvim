@@ -31,14 +31,35 @@ echo "[2/6] Static: module shape + plugin/whichkey/mason wiring present..."
 nvim -u init.lua --headless -c "lua
 local ok, err = pcall(function()
   local cve = require('tetravim.util.cve')
-  for _, fn in ipairs({ 'scan', 'scan_command', 'parse_results', 'remediation_hint', 'locate_coordinate', 'build_diagnostics', 'publish_diagnostics', 'clear_diagnostics' }) do
+  for _, fn in ipairs({ 'scan', 'scan_command', 'parse_results', 'remediation_hint', 'locate_coordinate', 'build_diagnostics', 'publish_diagnostics', 'clear_diagnostics', 'project_scan', 'render_report' }) do
     assert(type(cve[fn]) == 'function', 'util/cve.lua missing ' .. fn)
   end
+  local tvlint = require('tetravim.util.lint')
+  for _, fn in ipairs({ 'lint_now', 'fix_now', 'project_run', 'project_plan' }) do
+    assert(type(tvlint[fn]) == 'function', 'util/lint.lua missing ' .. fn)
+  end
+  assert(type(tvlint.buffer_fix_argv) == 'table', 'util/lint.lua missing buffer_fix_argv table')
+  assert(type(tvlint.buffer_fix_argv.java) == 'function', 'buffer_fix_argv must cover java')
+  -- CVE project report is pure and renders a clean 'nothing found' body
+  assert(cve.render_report({}, '/x'):match('No known vulnerabilities'), 'render_report empty case')
   local sonar = require('tetravim.util.sonar')
-  for _, fn in ipairs({ 'language_server_cmd', 'analyzer_paths', 'settings_from_properties', 'project_key', 'find_project_settings', 'has_language_server' }) do
+  for _, fn in ipairs({ 'language_server_cmd', 'analyzer_paths', 'settings_from_properties', 'project_key', 'find_project_settings', 'has_language_server', 'has_scanner', 'choose_backend', 'parse_report_task', 'report_task_path', 'is_sweep_source', 'collect_sources', 'is_sonar_diagnostic', 'summarize', 'scan_cli', 'sweep', 'project_scan' }) do
     assert(type(sonar[fn]) == 'function', 'util/sonar.lua missing ' .. fn)
   end
   assert(vim.deep_equal(sonar.FILETYPES, { 'java', 'kotlin', 'scala' }), 'sonar.FILETYPES must be java/kotlin/scala')
+  -- whole-codebase scan: backend auto-selection is pure and deterministic
+  assert(sonar.choose_backend({ ['sonar.host.url'] = 'https://s' }, true) == 'cli', 'choose_backend cli case')
+  assert(sonar.choose_backend({ ['sonar.host.url'] = 'https://s' }, false) == 'sweep', 'choose_backend needs the CLI')
+  assert(sonar.choose_backend(nil, true) == 'sweep', 'choose_backend sweep fallback')
+  for _, cmd in ipairs({ 'TetraVimSonarScan', 'TetraVimSonarSweep', 'TetraVimSonarScanner' }) do
+    assert(vim.fn.exists(':' .. cmd) == 2, 'util/sonar.lua must register :' .. cmd)
+  end
+
+  local keymaps_src = io.open('lua/tetravim/core/keymaps.lua', 'r'):read('*a')
+  -- <leader>x keys are grouped by feature type, each with a buffer + project variant.
+  for _, k in ipairs({ 'xdb', 'xdp', 'xlb', 'xlB', 'xlp', 'xlP', 'xsb', 'xsp', 'xvb', 'xvp', 'xvc' }) do
+    assert(keymaps_src:match('map%(.-<leader>' .. k .. '[\"\\']'), 'keymaps.lua must bind <leader>' .. k)
+  end
 
   local sonarlint_src = io.open('lua/tetravim/plugins/lsp-sonarlint.lua', 'r'):read('*a')
   assert(sonarlint_src:match('sonarlint%.nvim'), 'lsp-sonarlint.lua must reference sonarlint.nvim')
@@ -52,6 +73,7 @@ local ok, err = pcall(function()
 
   local bootstrap_src = io.open('bootstrap.sh', 'r'):read('*a')
   assert(bootstrap_src:match('osv%-scanner'), 'bootstrap.sh must install osv-scanner')
+  assert(bootstrap_src:match('sonarqube%-scanner'), 'bootstrap.sh must install the sonar-scanner CLI')
 end)
 if not ok then
   io.stderr:write('FAIL: ' .. tostring(err) .. '\n')
@@ -169,7 +191,7 @@ local ok, err = pcall(function()
     for _, m in ipairs(maps) do if m.lhs:match(suffix .. '\$') then return m end end
     return nil
   end
-  for _, s in ipairs({ 'xr', 'xd', 'xs', 'xc' }) do
+  for _, s in ipairs({ 'xdb', 'xdp', 'xlb', 'xlB', 'xlp', 'xlP', 'xsb', 'xsp', 'xvb', 'xvp', 'xvc' }) do
     assert(find(s), '<leader>' .. s .. ' keymap missing')
   end
 

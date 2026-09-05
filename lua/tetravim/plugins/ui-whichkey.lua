@@ -39,6 +39,10 @@ return {
         { "<leader>G", group = "grpc/proto", icon = "󱅥 " },
         { "<leader>t", group = "test runner", icon = "󰙨 " },
         { "<leader>x", group = "quality/security", icon = "󰒃 " },
+        { "<leader>xd", group = "diagnostics", icon = "󰒡 " },
+        { "<leader>xl", group = "lint", icon = "󰉢 " },
+        { "<leader>xs", group = "sonar", icon = "󰒃 " },
+        { "<leader>xv", group = "cve/vulns", icon = "󰒃 " },
         { "<leader>u", group = "ui/toggles", icon = "󰔡 " },
         { "<leader>q", group = "quit/session", icon = "󰗼 " },
       })

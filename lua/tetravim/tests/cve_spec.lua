@@ -273,4 +273,85 @@ describe("tetravim.util.cve", function()
       assert.is_truthy(tostring(err_arg):lower():match("osv%-scanner failed"))
     end)
   end)
+
+  describe("render_report", function()
+    it("states the all-clear for an empty / nil finding list", function()
+      assert.is_truthy(cve.render_report({}, "/proj"):match("No known vulnerabilities found"))
+      assert.is_truthy(cve.render_report(nil, "/proj"):match("No known vulnerabilities found"))
+      assert.is_truthy(cve.render_report({}, "/proj"):match("# root: /proj"))
+    end)
+
+    it("lists every finding with its coordinate, ecosystem and remediation hint", function()
+      local findings = cve.parse_results(REPORT)
+      local text = cve.render_report(findings, "/proj")
+      assert.is_truthy(text:match("# osv%-scanner: 2 vulnerable package%(s%)"))
+      assert.is_truthy(text:find("* com.fasterxml.jackson.core:jackson-databind@2.9.8 [Maven]", 1, true))
+      assert.is_truthy(text:find("* org.example:legacy-lib@1.0.0 [Maven]", 1, true))
+      -- the remediation hint line names the upgrade target
+      assert.is_truthy(text:find("2.9.10", 1, true))
+      -- the vulnerability summary is echoed
+      assert.is_truthy(text:find("Deserialization of untrusted data", 1, true))
+    end)
+
+    it("falls back to '?' for a finding missing version / ecosystem", function()
+      local text = cve.render_report({
+        { package = "org.foo:bar", current_version = "", ecosystem = "", vuln_ids = {}, fixed_versions = {} },
+      }, "/proj")
+      assert.is_truthy(text:find("* org.foo:bar@? [?]", 1, true))
+    end)
+  end)
+
+  describe("project_scan", function()
+    local orig_schedule, captured_cb
+
+    before_each(function()
+      orig_schedule = vim.schedule
+      vim.schedule = function(fn)
+        fn()
+      end
+      captured_cb = nil
+      vim.system = function(cmd, opts, cb)
+        table.insert(system_calls, { cmd = cmd, opts = opts })
+        captured_cb = cb
+        return { wait = function() end }
+      end
+    end)
+
+    after_each(function()
+      vim.schedule = orig_schedule
+      for _, b in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_valid(b) and vim.fs.basename(vim.api.nvim_buf_get_name(b)):match("^tetravim%-cve%-") then
+          pcall(vim.api.nvim_buf_delete, b, { force = true })
+        end
+      end
+    end)
+
+    it("scans a directory (osv-scanner -r) with a >= 120s timeout", function()
+      cve.project_scan(vim.fn.getcwd())
+      assert.are.equal(1, #system_calls)
+      assert.are.same({ "osv-scanner", "--format", "json", "-r", vim.fn.getcwd() }, system_calls[1].cmd)
+      assert.is_true(system_calls[1].opts.timeout >= 120000)
+    end)
+
+    it("renders the findings into a persistent 'tetravim-cve-*' split", function()
+      cve.project_scan(vim.fn.getcwd())
+      captured_cb({ code = 1, signal = 0, stdout = REPORT, stderr = "" })
+      local rendered
+      for _, b in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.fs.basename(vim.api.nvim_buf_get_name(b)):match("^tetravim%-cve%-") then
+          rendered = table.concat(vim.api.nvim_buf_get_lines(b, 0, -1, false), "\n")
+        end
+      end
+      assert.is_truthy(rendered)
+      assert.is_truthy(rendered:find("jackson-databind", 1, true))
+    end)
+
+    it("leaves no split and does not error when the scan fails", function()
+      cve.project_scan(vim.fn.getcwd())
+      captured_cb({ code = 127, signal = 0, stdout = "", stderr = "boom" })
+      for _, b in ipairs(vim.api.nvim_list_bufs()) do
+        assert.is_falsy(vim.fs.basename(vim.api.nvim_buf_get_name(b)):match("^tetravim%-cve%-"))
+      end
+    end)
+  end)
 end)

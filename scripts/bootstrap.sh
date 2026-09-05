@@ -81,8 +81,9 @@ else
 		fi
 	}
 
-	npm_global_install neovim   # Node.js provider for Neovim
-	npm_global_install prettier # conform formatter: js/ts/yaml/json/md/css/html
+	npm_global_install neovim            # Node.js provider for Neovim
+	npm_global_install prettier          # conform formatter: js/ts/yaml/json/md/css/html
+	npm_global_install sonarqube-scanner # `sonar-scanner` CLI: <leader>xsp whole-codebase Sonar scan (connected mode)
 fi
 
 # ============================================================================
@@ -273,4 +274,27 @@ echo "  devops   : sam / cfn-guard / glab -- optional; install manually if neede
 		fi
 	fi
 echo "  which-key: <gr>/<gc> overlaps -- informational only"
+echo ""
+
+section "Scala lint & format tools (scalafmt / scalastyle)"
+# Not in the Mason registry -- installed via Coursier when available. Metals
+# still provides semantic diagnostics without these; they add `<leader>xlP`
+# project formatting and optional style linting.
+if command -v cs > /dev/null 2>&1 || command -v coursier > /dev/null 2>&1; then
+	CS="$(command -v cs 2>/dev/null || command -v coursier)"
+	for app in scalafmt scalastyle; do
+		if command -v "$app" > /dev/null 2>&1; then
+			pass "$app already installed"
+		else
+			echo "  -> $CS install $app"
+			if "$CS" install "$app" > /dev/null 2>&1; then
+				pass "$app installed via coursier"
+			else
+				warn "coursier could not install $app -- install it manually if you need Scala $app"
+			fi
+		fi
+	done
+else
+	warn "coursier (cs) not found -- skipping scalafmt/scalastyle. Install Coursier, then: cs install scalafmt scalastyle"
+fi
 echo ""

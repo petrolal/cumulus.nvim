@@ -13,6 +13,8 @@ return {
         kotlin = { "ktlint" },
         java = { "google-java-format" },
         groovy = { "npm-groovy-lint" },
+        scala = { "scalafmt" },
+        sbt = { "scalafmt" },
         html = { "prettier", "superhtml", stop_after_first = true },
         css = { "prettier", stop_after_first = true },
         scss = { "prettier", stop_after_first = true },

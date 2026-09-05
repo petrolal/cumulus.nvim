@@ -405,6 +405,17 @@ map("n", "<leader>uF", function()
   require("tetravim.util.format").toggle(false)
 end, { desc = "Toggle Autoformat (Global)" })
 
+-- Auto-lint toggle: <leader>ul toggles for the current buffer only,
+-- <leader>uL toggles the global default. Gates nvim-lint's on-save /
+-- on-enter passes (checkstyle for Java, ktlint for Kotlin, tflint,
+-- cfn-lint, hadolint...). See lua/tetravim/util/lint.lua.
+map("n", "<leader>ul", function()
+  require("tetravim.util.lint").toggle(true)
+end, { desc = "Toggle Autolint (Buffer)" })
+map("n", "<leader>uL", function()
+  require("tetravim.util.lint").toggle(false)
+end, { desc = "Toggle Autolint (Global)" })
+
 -- Background transparency toggle: blanks the editor / float surfaces so a
 -- translucent terminal shows through, restores the Tetris surfaces on the
 -- way back.
@@ -451,7 +462,55 @@ end, { desc = "Save As..." })
 -- driven by the language server wired in lsp-sonarlint.lua; the CVE scan is a
 -- pure async shell-out to `osv-scanner` in tetravim.util.cve whose findings
 -- are published as buffer diagnostics on the offending dependency lines.
-map("n", "<leader>xr", function()
+--
+-- Keys are grouped by feature type, and within each type the lowercase key is
+-- the current-buffer action and the "p" key (or uppercase for a destructive
+-- write) is the whole-project action:
+--
+--   <leader>xd  diagnostics : xdb line float        | xdp project quickfix
+--   <leader>xl  lint        : xlb buffer check      | xlp project check
+--                             xlB buffer autofix    | xlP project autofix
+--   <leader>xs  sonar       : xsb buffer rule desc  | xsp project scan
+--   <leader>xv  cve         : xvb build-file scan   | xvp project scan
+--                             xvc clear diagnostics
+
+-- --- Diagnostics -----------------------------------------------------------
+map("n", "<leader>xdb", function()
+  vim.diagnostic.open_float(nil, { source = true })
+end, { desc = "Diagnostics: Line (Buffer)" })
+
+map("n", "<leader>xdp", function()
+  vim.diagnostic.setqflist({ open = true, title = "Project diagnostics" })
+end, { desc = "Diagnostics: All Project (Quickfix)" })
+
+-- --- Lint ----------------------------------------------------------------
+-- Buffer: lint / autofix the current file (ignores the <leader>ul autolint
+-- toggle). Project: shell out to each stack's own CLI (ktlint,
+-- npm-groovy-lint, checkstyle, google-java-format, scalafmt) over the whole
+-- repo and render a combined report in a persistent split. The uppercase
+-- variants rewrite files in place, then reload the affected buffers.
+map("n", "<leader>xlb", function()
+  require("tetravim.util.lint").lint_now()
+end, { desc = "Lint: Check Buffer" })
+map("n", "<leader>xlB", function()
+  require("tetravim.util.lint").fix_now()
+end, { desc = "Lint: Autofix Buffer (writes file)" })
+map("n", "<leader>xlp", function()
+  require("tetravim.util.lint").project_run("check")
+end, { desc = "Lint: Check All Code (Project)" })
+map("n", "<leader>xlP", function()
+  require("tetravim.util.lint").project_run("fix")
+end, { desc = "Lint: Autofix All Code (Project)" })
+
+-- --- Sonar -------------------------------------------------------------
+-- Buffer: SonarLint analyzes java/kotlin/scala buffers automatically via the
+-- language server; <leader>xsb surfaces the rule description for the finding
+-- under the cursor. Project: <leader>xsp runs a whole-codebase analysis --
+-- `sonar-scanner` (connected mode) when a sonar-project.properties declares
+-- `sonar.host.url` and the CLI is installed, otherwise a server-free sweep
+-- that feeds every Java/Kotlin/Scala source to the SonarLint LS and dumps
+-- every finding into the quickfix list. See tetravim.util.sonar.project_scan.
+map("n", "<leader>xsb", function()
   local ui = require("tetravim.util.ui")
   if not pcall(require, "sonarlint") then
     ui.notify_err("sonarlint.nvim is not available -- run :Lazy sync / :MasonInstall sonarlint-language-server")
@@ -465,13 +524,17 @@ map("n", "<leader>xr", function()
   else
     vim.lsp.buf.code_action()
   end
-end, { desc = "SonarLint: Rule Description" })
+end, { desc = "Sonar: Rule Description (Buffer)" })
 
-map("n", "<leader>xd", function()
-  vim.diagnostic.open_float(nil, { source = true })
-end, { desc = "Quality/Security: Line Diagnostics" })
+map("n", "<leader>xsp", function()
+  require("tetravim.util.sonar").project_scan()
+end, { desc = "Sonar: Scan Whole Project" })
 
-map("n", "<leader>xs", function()
+-- --- CVE / vulnerabilities -------------------------------------------
+-- Buffer: scan the open Maven/Gradle build file and publish WARN diagnostics
+-- on each vulnerable dependency line. Project: `osv-scanner -r` over the
+-- whole tree, rendered in a persistent split (findings span many files).
+map("n", "<leader>xvb", function()
   local ui = require("tetravim.util.ui")
   local cve = require("tetravim.util.cve")
   local bufnr = vim.api.nvim_get_current_buf()
@@ -481,11 +544,11 @@ map("n", "<leader>xs", function()
   -- `settings.gradle`, `*.gradle.kts`, module-named `*.gradle`).
   local is_build_file = name == "pom.xml" or name:match("%.gradle$") ~= nil or name:match("%.gradle%.kts$") ~= nil
   if not is_build_file then
-    ui.notify_err("<leader>xs scans a Maven/Gradle build file -- open pom.xml or a *.gradle script first")
+    ui.notify_err("<leader>xvb scans a Maven/Gradle build file -- open pom.xml or a *.gradle script first")
     return
   end
   if path == "" or not (vim.uv or vim.loop).fs_stat(path) then
-    ui.notify_err("<leader>xs: this buffer is not backed by a file on disk yet -- save it first")
+    ui.notify_err("<leader>xvb: this buffer is not backed by a file on disk yet -- save it first")
     return
   end
   ui.notify_info("Scanning " .. name .. " for known CVEs (osv-scanner)...")
@@ -510,9 +573,13 @@ map("n", "<leader>xs", function()
       )
     )
   end)
-end, { desc = "CVE: Scan Build File Dependencies" })
+end, { desc = "CVE: Scan Build File (Buffer)" })
 
-map("n", "<leader>xc", function()
+map("n", "<leader>xvp", function()
+  require("tetravim.util.cve").project_scan()
+end, { desc = "CVE: Scan Whole Project" })
+
+map("n", "<leader>xvc", function()
   local bufnr = vim.api.nvim_get_current_buf()
   require("tetravim.util.cve").clear_diagnostics(bufnr)
   require("tetravim.util.ui").notify_info("Cleared CVE diagnostics for this buffer")

@@ -446,6 +446,71 @@ function M.check()
     end
   end
 
+  vim.health.start("TetraVim JVM & Diagnostic Linting -- nvim-lint (Story 3.x)")
+
+  if pcall(require, "lint") then
+    vim.health.ok("nvim-lint: loaded (auto-lint on BufWritePost/BufEnter; toggle with <leader>ul / <leader>uL)")
+  else
+    vim.health.info("nvim-lint: not loaded yet -- open a lintable buffer to lazy-load it, or run :Lazy sync")
+  end
+
+  for _, l in ipairs({
+    { bin = "checkstyle", ft = "Java", install = ":MasonInstall checkstyle" },
+    { bin = "ktlint", ft = "Kotlin", install = ":MasonInstall ktlint" },
+    { bin = "npm-groovy-lint", ft = "Groovy", install = ":MasonInstall npm-groovy-lint or npm i -g npm-groovy-lint" },
+  }) do
+    if vim.fn.executable(l.bin) == 1 then
+      vim.health.ok(("%s: installed and executable (%s linting on save)"):format(l.bin, l.ft))
+    else
+      vim.health.info(("%s: NOT found on $PATH (%s linting disabled). Suggestion: %s"):format(l.bin, l.ft, l.install))
+    end
+  end
+
+  -- Scala: Metals already provides semantic diagnostics; scalastyle is the
+  -- optional style linter (not in Mason -- install via coursier) and needs a
+  -- rules file, scalafmt is the formatter used by conform + <leader>xlP.
+  local tvlint_ok, tvlint = pcall(require, "tetravim.util.lint")
+  if vim.fn.executable("scalastyle") == 1 then
+    local cfg = tvlint_ok and tvlint.scalastyle_config() or nil
+    if cfg then
+      vim.health.ok("scalastyle: installed + config found (" .. vim.fn.fnamemodify(cfg, ":~:.") .. ")")
+    else
+      vim.health.info(
+        "scalastyle: installed but no scalastyle-config.xml up-tree -- add one to enable Scala style linting"
+      )
+    end
+  else
+    vim.health.info(
+      "scalastyle: NOT found on $PATH (optional Scala style linter). Suggestion: coursier install scalastyle"
+    )
+  end
+  if vim.fn.executable("scalafmt") == 1 then
+    vim.health.ok("scalafmt: installed and executable (Scala formatting via conform + <leader>xlP)")
+  else
+    vim.health.info(
+      "scalafmt: NOT found on $PATH (Scala falls back to Metals LSP formatting). Suggestion: coursier install scalafmt"
+    )
+  end
+
+  -- Buffer autofix <leader>xlB / project-wide <leader>xlp (check) / <leader>xlP (fix)
+  if tvlint_ok and type(tvlint.project_plan) == "function" then
+    local can_check = #tvlint.project_plan("check")
+    local can_fix = #tvlint.project_plan("fix")
+    vim.health.ok(
+      ("Project lint: <leader>xlp can run %d checker(s), <leader>xlP can run %d fixer(s) in this repo"):format(
+        can_check,
+        can_fix
+      )
+    )
+    if type(tvlint.buffer_fix_argv) == "table" then
+      local fts = vim.tbl_keys(tvlint.buffer_fix_argv)
+      table.sort(fts)
+      vim.health.ok(
+        ("Buffer autofix: <leader>xlB rewrites the current file for filetype(s) %s"):format(table.concat(fts, ", "))
+      )
+    end
+  end
+
   vim.health.start("TetraVim Code Quality & Security -- SonarLint (Story 6.1)")
 
   local sonar = require("tetravim.util.sonar")
@@ -484,15 +549,36 @@ function M.check()
     vim.health.info("sonar-project.properties: not found in the current directory (SonarLint default rules apply)")
   end
 
+  -- Whole-codebase analysis (<leader>xsp / :TetraVimSonarScan).
+  local backend = sonar.choose_backend(sonar_props, sonar.has_scanner())
+  if sonar.has_scanner() then
+    vim.health.ok("sonar-scanner: installed and executable (connected-mode project scan available)")
+  else
+    vim.health.info(
+      "sonar-scanner: NOT found on $PATH -- <leader>xsp falls back to a server-free SonarLint sweep. "
+        .. "Suggestion: npm install -g sonarqube-scanner, or a release from "
+        .. "https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/scanners/sonarscanner/"
+    )
+  end
+  local n_sources = #sonar.collect_sources()
+  vim.health.ok(
+    ("Project scan: <leader>xsp will use the '%s' backend here (%d Java/Kotlin/Scala source(s) in this repo)"):format(
+      backend,
+      n_sources
+    )
+  )
+
   vim.health.info("Scala SonarLint rules require SonarQube connected mode -- no standalone Scala analyzer is bundled")
 
   vim.health.start("TetraVim Code Quality & Security -- CVE Scanning (Story 6.2)")
 
   if vim.fn.executable("osv-scanner") == 1 then
-    vim.health.ok("osv-scanner: installed and executable (<leader>xs Maven/Gradle dependency CVE scan available)")
+    vim.health.ok(
+      "osv-scanner: installed and executable (<leader>xvb build-file + <leader>xvp whole-project CVE scan available)"
+    )
   else
     vim.health.info(
-      "osv-scanner: NOT found on $PATH (the <leader>xs dependency CVE scan is unavailable). "
+      "osv-scanner: NOT found on $PATH (the <leader>xvb / <leader>xvp dependency CVE scans are unavailable). "
         .. "Suggestion: brew install osv-scanner / go install github.com/google/osv-scanner/cmd/osv-scanner@latest"
     )
   end

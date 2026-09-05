@@ -88,8 +88,9 @@ else
 		fi
 	}
 
-	npm_global_install neovim   # Node.js provider for Neovim
-	npm_global_install prettier # conform formatter: js/ts/yaml/json/md/css/html
+	npm_global_install neovim            # Node.js provider for Neovim
+	npm_global_install prettier          # conform formatter: js/ts/yaml/json/md/css/html
+	npm_global_install sonarqube-scanner # `sonar-scanner` CLI: <leader>xsp whole-codebase Sonar scan (connected mode)
 fi
 
 # ============================================================================

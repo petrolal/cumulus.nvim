@@ -103,4 +103,152 @@ describe("tetravim.util.sonar", function()
       assert.are.equal("upward-key", settings["sonar.projectKey"])
     end)
   end)
+
+  -- ------------------------------------------------------------------------
+  -- Project-wide analysis (Story 6.1 extension)
+  -- ------------------------------------------------------------------------
+
+  describe("choose_backend", function()
+    it("picks 'cli' only when a host URL is declared AND sonar-scanner is callable", function()
+      assert.are.equal("cli", sonar.choose_backend({ ["sonar.host.url"] = "https://s.example.com" }, true))
+    end)
+
+    it("falls back to 'sweep' without a host URL", function()
+      assert.are.equal("sweep", sonar.choose_backend({ ["sonar.projectKey"] = "k" }, true))
+      assert.are.equal("sweep", sonar.choose_backend({ ["sonar.host.url"] = "   " }, true))
+    end)
+
+    it("falls back to 'sweep' when sonar-scanner is missing", function()
+      assert.are.equal("sweep", sonar.choose_backend({ ["sonar.host.url"] = "https://s.example.com" }, false))
+    end)
+
+    it("tolerates a nil settings map", function()
+      assert.are.equal("sweep", sonar.choose_backend(nil, true))
+    end)
+  end)
+
+  describe("parse_report_task", function()
+    it("splits on the first '=' so URL values survive intact", function()
+      local map = sonar.parse_report_task(table.concat({
+        "projectKey=com.example:svc",
+        "serverUrl=https://sonar.example.com",
+        "dashboardUrl=https://sonar.example.com/dashboard?id=com.example%3Asvc",
+        "ceTaskUrl=https://sonar.example.com/api/ce/task?id=AY-abc123",
+      }, "\n"))
+      assert.are.equal("com.example:svc", map.projectKey)
+      assert.are.equal("https://sonar.example.com/dashboard?id=com.example%3Asvc", map.dashboardUrl)
+      assert.are.equal("https://sonar.example.com/api/ce/task?id=AY-abc123", map.ceTaskUrl)
+    end)
+
+    it("returns an empty table for empty / nil input", function()
+      assert.are.same({}, sonar.parse_report_task(""))
+      assert.are.same({}, sonar.parse_report_task(nil))
+    end)
+  end)
+
+  describe("report_task_path", function()
+    it("points at .scannerwork/report-task.txt under the given root", function()
+      assert.are.equal("/proj/.scannerwork/report-task.txt", sonar.report_task_path("/proj"))
+    end)
+  end)
+
+  describe("has_scanner", function()
+    it("reflects whether sonar-scanner is executable", function()
+      vim.fn.executable = function(name)
+        if name == "sonar-scanner" then
+          return 1
+        end
+        return orig_executable(name)
+      end
+      assert.is_true(sonar.has_scanner())
+      vim.fn.executable = function(name)
+        if name == "sonar-scanner" then
+          return 0
+        end
+        return orig_executable(name)
+      end
+      assert.is_false(sonar.has_scanner())
+    end)
+  end)
+
+  describe("is_sweep_source", function()
+    it("accepts java/kt/kts/scala sources", function()
+      assert.is_true(sonar.is_sweep_source("/p/src/main/java/com/x/Foo.java"))
+      assert.is_true(sonar.is_sweep_source("/p/src/main/kotlin/Bar.kt"))
+      assert.is_true(sonar.is_sweep_source("/p/build.gradle.kts"))
+      assert.is_true(sonar.is_sweep_source("/p/src/main/scala/Baz.scala"))
+    end)
+
+    it("rejects other extensions", function()
+      assert.is_false(sonar.is_sweep_source("/p/src/Foo.py"))
+      assert.is_false(sonar.is_sweep_source("/p/README.md"))
+      assert.is_false(sonar.is_sweep_source("/p/no-extension"))
+    end)
+
+    it("rejects sources under build-output / VCS trees", function()
+      assert.is_false(sonar.is_sweep_source("/p/build/generated/Foo.java"))
+      assert.is_false(sonar.is_sweep_source("/p/target/classes/Bar.java"))
+      assert.is_false(sonar.is_sweep_source("/p/.git/x/Baz.kt"))
+      assert.is_false(sonar.is_sweep_source("/p/node_modules/pkg/Q.scala"))
+    end)
+  end)
+
+  describe("collect_sources", function()
+    it("returns sorted, de-duplicated, build-tree-filtered sources under root", function()
+      local root = vim.fn.tempname()
+      vim.fn.mkdir(root .. "/src/main/java", "p")
+      vim.fn.mkdir(root .. "/build/generated", "p")
+      vim.fn.writefile({ "class B {}" }, root .. "/src/main/java/B.java")
+      vim.fn.writefile({ "class A {}" }, root .. "/src/main/java/A.java")
+      vim.fn.writefile({ "fun x() {}" }, root .. "/src/main/App.kt")
+      vim.fn.writefile({ "class G {}" }, root .. "/build/generated/G.java")
+      local got = sonar.collect_sources(root)
+      assert.are.same({
+        root .. "/src/main/App.kt",
+        root .. "/src/main/java/A.java",
+        root .. "/src/main/java/B.java",
+      }, got)
+    end)
+  end)
+
+  describe("is_sonar_diagnostic", function()
+    it("matches on a sonar* source", function()
+      assert.is_true(sonar.is_sonar_diagnostic({ source = "sonarlint" }))
+      assert.is_true(sonar.is_sonar_diagnostic({ source = "SonarQube" }))
+    end)
+
+    it("matches on a sonarlint namespace name when the source is absent", function()
+      assert.is_true(sonar.is_sonar_diagnostic({}, "vim.lsp.sonarlint.1.-1"))
+    end)
+
+    it("rejects unrelated diagnostics", function()
+      assert.is_false(sonar.is_sonar_diagnostic({ source = "checkstyle" }, "vim.lsp.jdtls.1"))
+      assert.is_false(sonar.is_sonar_diagnostic("not a table"))
+    end)
+  end)
+
+  describe("summarize", function()
+    it("totals findings, buckets by severity, and ranks rules by count then id", function()
+      local s = sonar.summarize({
+        { severity = 1, code = "java:S1234" },
+        { severity = 2, code = "java:S1234" },
+        { severity = 2, code = "java:S0001" },
+        { severity = 3, code = "java:S1234" },
+        { severity = 2, user_data = { code = "java:S9999" } },
+      })
+      assert.are.equal(5, s.total)
+      assert.are.equal(1, s.by_severity.ERROR)
+      assert.are.equal(3, s.by_severity.WARN)
+      assert.are.equal(1, s.by_severity.INFO)
+      assert.are.equal("java:S1234", s.rules[1].code)
+      assert.are.equal(3, s.rules[1].count)
+      -- equal-count rules fall back to lexical id order
+      assert.are.equal("java:S0001", s.rules[2].code)
+      assert.are.equal("java:S9999", s.rules[3].code)
+    end)
+
+    it("handles an empty / nil list", function()
+      assert.are.same({ total = 0, by_severity = {}, rules = {} }, sonar.summarize(nil))
+    end)
+  end)
 end)

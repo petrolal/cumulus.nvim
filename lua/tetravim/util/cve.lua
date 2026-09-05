@@ -371,4 +371,93 @@ function M.scan(target, cb, opts)
   end)
 end
 
+-- ---------------------------------------------------------------------------
+-- Project-wide scan (<leader>xvp).
+-- ---------------------------------------------------------------------------
+--
+-- `osv-scanner -r <cwd>` walks every manifest / lockfile in the tree. The
+-- findings span many files, so -- like util/lint.lua's project pass -- the
+-- report renders into a reused persistent split rather than as buffer
+-- diagnostics anchored to one build file.
+
+--- Drop `text` into a reused persistent split (mirrors util/lint.lua's
+--- `open_in_split`: an unlisted nofile scratch buffer, never a float).
+---@param text string
+---@param name_hint string
+local function open_in_split(text, name_hint)
+  local target_win
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    local bufname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win))
+    if vim.fs.basename(bufname):match("^" .. vim.pesc(name_hint) .. "%-") then
+      target_win = win
+      break
+    end
+  end
+
+  if target_win and vim.api.nvim_win_is_valid(target_win) then
+    vim.api.nvim_set_current_win(target_win)
+  else
+    vim.cmd("botright vsplit")
+  end
+
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_win_set_buf(0, bufnr)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(text, "\n", { plain = true }))
+  vim.bo[bufnr].buftype = "nofile"
+  vim.bo[bufnr].bufhidden = "wipe"
+  vim.bo[bufnr].swapfile = false
+  vim.bo[bufnr].filetype = "log"
+  vim.bo[bufnr].modified = false
+  pcall(vim.api.nvim_buf_set_name, bufnr, name_hint .. "-" .. tostring(bufnr))
+end
+
+--- Render `parse_results` findings as a plain-text report. Pure.
+---@param findings table[]|nil
+---@param root string
+---@return string
+function M.render_report(findings, root)
+  findings = findings or {}
+  local lines = {
+    ("# TetraVim CVE scan -- %s"):format(os.date("%Y-%m-%d %H:%M:%S")),
+    ("# root: %s"):format(root),
+    ("# osv-scanner: %d vulnerable package(s)"):format(#findings),
+    "",
+  }
+  if #findings == 0 then
+    table.insert(lines, "No known vulnerabilities found.")
+    return table.concat(lines, "\n")
+  end
+  for _, f in ipairs(findings) do
+    local version = (f.current_version ~= nil and f.current_version ~= "") and f.current_version or "?"
+    local eco = (f.ecosystem ~= nil and f.ecosystem ~= "") and f.ecosystem or "?"
+    table.insert(lines, ("* %s@%s [%s]"):format(f.package or "?", version, eco))
+    table.insert(lines, "    " .. M.remediation_hint(f))
+    if f.summary and f.summary ~= "" then
+      table.insert(lines, "    " .. f.summary)
+    end
+    table.insert(lines, "")
+  end
+  return table.concat(lines, "\n")
+end
+
+--- Scan the whole project directory (`osv-scanner -r`) for known CVEs and
+--- render the report in a persistent split. The buffer-scoped twin is
+--- `scan(<build file>, ...)` + `publish_diagnostics`.
+---@param root? string  defaults to the current working directory
+function M.project_scan(root)
+  root = (type(root) == "string" and vim.trim(root) ~= "") and root or vim.fn.getcwd()
+  ui.notify_info("Scanning project dependencies for known CVEs (osv-scanner -r)...")
+  M.scan(root, function(findings, _err)
+    if not findings then
+      return -- scan() already notified the failure
+    end
+    open_in_split(M.render_report(findings, root), "tetravim-cve")
+    if #findings == 0 then
+      ui.notify_info("osv-scanner: no known vulnerabilities in the project")
+    else
+      ui.notify_warn(("osv-scanner: %d vulnerable package(s) in the project -- see the report split"):format(#findings))
+    end
+  end, { timeout_ms = math.max(M.OSV_TIMEOUT_MS, 120000) })
+end
+
 return M
