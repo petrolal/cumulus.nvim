@@ -29,6 +29,9 @@ return {
         java = { "checkstyle" },
         scala = { "scalastyle" },
         sbt = { "scalastyle" },
+        -- IntelliJ IDEA Ultimate parity (see docs/ide-parity.md)
+        python = { "ruff" },
+        htmldjango = { "djlint" },
       }
 
       -- nvim-lint ships no scalastyle linter. Define one here: SARIF isn't an

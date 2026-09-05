@@ -676,6 +676,36 @@ function M.check()
   else
     vim.health.info("gradle: NOT found on $PATH (optional -- needed for Gradle init generator)")
   end
+
+  vim.health.start("TetraVim IDE-Parity Language Servers (Python / SQL / Web / Templates)")
+
+  -- Executable names as exposed on $PATH once Mason installs each package
+  -- (mason.nvim prepends ~/.local/share/nvim/mason/bin). mason-tool-installer
+  -- fetches all of these on VimEnter, so a miss here is normal on a cold
+  -- checkout -- hence info, not warn. See docs/ide-parity.md for the full map.
+  local parity_servers = {
+    { bin = "basedpyright-langserver", desc = "Python type checker LSP (IDEA 'Python')" },
+    { bin = "ruff", desc = "Python lint + format LSP (IDEA 'Python')" },
+    { bin = "sqls", desc = "SQL language server (IDEA Database tools)" },
+    { bin = "vue-language-server", desc = "Vue / Volar LSP (IDEA 'Vue.js')" },
+    { bin = "svelteserver", desc = "Svelte LSP (IDEA 'Svelte')" },
+    { bin = "astro-ls", desc = "Astro LSP (IDEA 'Astro')" },
+    { bin = "ngserver", desc = "Angular LSP (IDEA 'Angular')" },
+    { bin = "prisma-language-server", desc = "Prisma ORM LSP (IDEA 'Prisma ORM')" },
+    { bin = "marksman", desc = "Markdown LSP -- links / headings (IDEA 'Markdown')" },
+    { bin = "vscode-eslint-language-server", desc = "ESLint LSP -- diagnostics + fix-all" },
+    { bin = "tailwindcss-language-server", desc = "Tailwind CSS LSP -- class completion" },
+    { bin = "emmet-language-server", desc = "Emmet LSP -- abbreviation expansion" },
+    { bin = "djlint", desc = "Jinja2 / Django template format + lint" },
+    { bin = "deno", desc = "Deno LSP (runtime-provided; not a Mason package)" },
+  }
+  for _, s in ipairs(parity_servers) do
+    if vim.fn.executable(s.bin) == 1 then
+      vim.health.ok(string.format("%s: installed and executable (%s)", s.bin, s.desc))
+    else
+      vim.health.info(string.format("%s: NOT found on $PATH (%s). Suggestion: :MasonToolsInstall", s.bin, s.desc))
+    end
+  end
 end
 
 return M

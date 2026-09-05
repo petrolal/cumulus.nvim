@@ -44,7 +44,32 @@ local ensure_installed = {
   "buf",
   "protols",
   "sonarlint-language-server",
+
+  -- IntelliJ IDEA Ultimate language/framework parity (see docs/ide-parity.md).
+  -- Python (bundled "Python" plugin): type checker + linter/formatter LSP.
+  "basedpyright",
+  "ruff",
+  -- SQL (bundled Database tools): language intelligence layer over vim-dadbod.
+  "sqls",
+  -- Web framework servers (bundled Vue / Svelte / Astro / Angular plugins).
+  "vue-language-server",
+  "svelte-language-server",
+  "astro-language-server",
+  "angular-language-server",
+  -- Cross-cutting web tooling that is always-on in IDEA.
+  "eslint-lsp",
+  "tailwindcss-language-server",
+  "emmet-language-server",
+  "prettier",
+  -- Prisma ORM (bundled plugin).
+  "prisma-language-server",
+  -- Markdown editing intelligence (bundled Markdown plugin).
+  "marksman",
+  -- Jinja2 / Django template format + lint (bundled template-engine support).
+  "djlint",
 }
+-- NOTE: Deno's LSP is the `deno` runtime itself -- there is no Mason package.
+-- lsp-deno.lua registers denols only when `deno` is already on $PATH.
 
 return {
   {
